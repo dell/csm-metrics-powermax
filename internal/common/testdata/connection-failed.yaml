@@ -1,0 +1,15 @@
+mode: StandAlone
+port: 2222
+logLevel: debug
+logFormat: TEXT
+standAloneConfig:
+  storageArrays:
+    - storageArrayId: "00012345678"
+      primaryURL: https://127.0.0.1:8443
+      proxyCredentialSecrets:
+        - powermax-creds
+  managementServers:
+    - url: https://127.0.01:8443
+      arrayCredentialSecret: powermax-creds
+      skipCertificateValidation: true
+      certSecret:

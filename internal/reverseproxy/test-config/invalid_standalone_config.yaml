@@ -1,0 +1,14 @@
+mode: StandAlone
+port: 2222
+linkConfig:
+  primary:
+    url: https://primary.unisphe.re:8443
+    skipCertificateValidation: true
+    certSecret: "primary-cert"
+    limits:
+      maxActiveRead: 5
+      maxOutStandingWrite: 50
+  backup:
+    url: https://backup.unisphe.re:8443
+    skipCertificateValidation: true
+    certSecret: "backup-cert"
