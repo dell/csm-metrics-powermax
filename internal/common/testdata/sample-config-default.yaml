@@ -1,0 +1,21 @@
+mode: StandAlone
+port: 2222
+logLevel: debug
+logFormat: TEXT
+standAloneConfig:
+  storageArrays:
+    - storageArrayId: "00012345678"
+      primaryURL: https://[serverip]:[serverport]
+      backupURL: https://[serverip]:[serverport]
+      proxyCredentialSecrets:
+        - powermax-creds
+    - storageArrayId: "00012345678"
+      primaryURL: https://[serverip]:[serverport]
+      backupURL: https://[serverip]:[serverport]
+      proxyCredentialSecrets:
+        - powermax-creds
+  managementServers:
+    - url: https://[serverip]:[serverport]
+      arrayCredentialSecret: powermax-creds
+      skipCertificateValidation: true
+      certSecret:
