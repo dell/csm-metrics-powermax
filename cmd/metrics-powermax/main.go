@@ -243,6 +243,18 @@ func updateTickIntervals(config *entrypoint.Config) {
 	config.ArrayCapacityTickInterval = arrayCapacityTickInterval
 	logger.WithField("array_capacity_tick_interval", fmt.Sprintf("%v", arrayCapacityTickInterval)).Debug("setting array capacity tick interval")
 
+	performanceTickInterval := defaultTickInterval
+	performancePollFrequencySeconds := viper.GetString("POWERMAX_ARRAY_PERFORMANCE_POLL_FREQUENCY")
+	if performancePollFrequencySeconds != "" {
+		numSeconds, err := strconv.Atoi(performancePollFrequencySeconds)
+		if err != nil {
+			logger.WithError(err).Fatal("POWERMAX_ARRAY_PERFORMANCE_POLL_FREQUENCY was not set to a valid number")
+		}
+		performanceTickInterval = time.Duration(numSeconds) * time.Second
+	}
+	config.PerformanceTickInterval = performanceTickInterval
+	logger.WithField("performance_tick_interval", fmt.Sprintf("%v", performanceTickInterval)).Debug("setting performance tick interval")
+
 	// quotaCapacityTickInterval := defaultTickInterval
 	// quotaCapacityPollFrequencySeconds := viper.GetString("POWERMAX_QUOTA_CAPACITY_POLL_FREQUENCY")
 	// if quotaCapacityPollFrequencySeconds != "" {

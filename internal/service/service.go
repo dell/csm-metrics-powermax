@@ -68,6 +68,11 @@ func (s *PowerMaxService) ExportArrayCapacityMetrics(ctx context.Context) {
 	metric.CreateArrayCapacityMetricsInstance(s).ExportMetrics(ctx)
 }
 
+// ExportPerformanceMetrics collect performance and export to Otel
+func (s *PowerMaxService) ExportPerformanceMetrics(ctx context.Context) {
+	metric.CreatePerformanceMetricsInstance(s).ExportMetrics(ctx)
+}
+
 // ExportStorageGroupMetrics collect storage group capacity and export to Otel
 func (s *PowerMaxService) ExportStorageGroupMetrics(ctx context.Context) {
 

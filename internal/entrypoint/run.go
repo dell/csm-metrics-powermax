@@ -51,6 +51,7 @@ var (
 type Config struct {
 	LeaderElector             types.LeaderElector
 	ArrayCapacityTickInterval time.Duration
+	PerformanceTickInterval   time.Duration
 	CapacityMetricsEnabled    bool
 	PerformanceMetricsEnabled bool
 	CollectorAddress          string
@@ -106,6 +107,8 @@ func Run(ctx context.Context, config *Config, exporter otlexporters.Otlexporter,
 	// set initial tick intervals
 	arrayCapacityTickInterval := config.ArrayCapacityTickInterval
 	arrayCapacityTicker := time.NewTicker(arrayCapacityTickInterval)
+	performanceTickInterval := config.PerformanceTickInterval
+	performanceTicker := time.NewTicker(performanceTickInterval)
 
 	for {
 		select {
@@ -119,6 +122,16 @@ func Run(ctx context.Context, config *Config, exporter otlexporters.Otlexporter,
 				continue
 			}
 			powerMaxSvc.ExportArrayCapacityMetrics(ctx)
+		case <-performanceTicker.C:
+			if !config.LeaderElector.IsLeader() {
+				logger.Info("not leader pod to collect metrics")
+				continue
+			}
+			if !config.PerformanceMetricsEnabled {
+				logger.Info("powerMax array capacity metrics collection is disabled")
+				continue
+			}
+			powerMaxSvc.ExportPerformanceMetrics(ctx)
 		case err := <-errCh:
 			if err == nil {
 				continue
@@ -133,6 +146,12 @@ func Run(ctx context.Context, config *Config, exporter otlexporters.Otlexporter,
 			arrayCapacityTickInterval = config.ArrayCapacityTickInterval
 			arrayCapacityTicker = time.NewTicker(arrayCapacityTickInterval)
 		}
+
+		// check if tick interval config settings have changed
+		if performanceTickInterval != config.PerformanceTickInterval {
+			performanceTickInterval = config.PerformanceTickInterval
+			performanceTicker = time.NewTicker(performanceTickInterval)
+		}
 	}
 }
 
@@ -144,6 +163,10 @@ func ValidateConfig(config *Config) error {
 
 	if config.ArrayCapacityTickInterval > MaximumTickInterval || config.ArrayCapacityTickInterval < MinimumTickInterval {
 		return fmt.Errorf("quota capacity polling frequency not within allowed range of %v and %v", MinimumTickInterval.String(), MaximumTickInterval.String())
+	}
+
+	if config.PerformanceTickInterval > MaximumTickInterval || config.PerformanceTickInterval < MinimumTickInterval {
+		return fmt.Errorf("performance metrics polling frequency not within allowed range of %v and %v", MinimumTickInterval.String(), MaximumTickInterval.String())
 	}
 
 	return nil

@@ -34,6 +34,16 @@ type MockPowerMaxClient struct {
 	recorder *MockPowerMaxClientMockRecorder
 }
 
+func (m *MockPowerMaxClient) GetArrayPerfKeys(ctx context.Context) (*v100.ArrayKeysResult, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m *MockPowerMaxClient) GetVolumesMetrics(ctx context.Context, symID string, storageGroups string, metricsQuery []string, firstAvailableTime, lastAvailableTime int64) (*v100.VolumeMetricsIterator, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
 // MockPowerMaxClientMockRecorder is the mock recorder for MockPowerMaxClient.
 type MockPowerMaxClientMockRecorder struct {
 	mock *MockPowerMaxClient

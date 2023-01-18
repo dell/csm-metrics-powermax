@@ -34,6 +34,9 @@ import (
 type PowerMaxClient interface {
 	GetStorageGroup(ctx context.Context, symID string, storageGroupID string) (*types.StorageGroup, error)
 	GetVolumeByID(ctx context.Context, symID string, volumeID string) (*types.Volume, error)
+	GetArrayPerfKeys(ctx context.Context) (*types.ArrayKeysResult, error)
+	GetVolumesMetrics(ctx context.Context, symID string, storageGroups string, metricsQuery []string, firstAvailableTime,
+		lastAvailableTime int64) (*types.VolumeMetricsIterator, error)
 }
 
 // VolumeFinder is used to find volume information in kubernetes
@@ -75,6 +78,7 @@ type Service interface {
 	GetMaxPowerMaxConnections() int
 	GetVolumeFinder() VolumeFinder
 	ExportArrayCapacityMetrics(ctx context.Context)
+	ExportPerformanceMetrics(ctx context.Context)
 }
 
 // AsyncMetricCreator to create AsyncInt64/AsyncFloat64 InstrumentProvider
@@ -116,4 +120,17 @@ type ArrayCapacityMetricsRecord struct {
 type VolumeCapacityMetricsRecord struct {
 	ArrayID, VolumeID, Storageclass, Driver string
 	Total, Used, UsedPercent                float64
+}
+
+// StorageGroupPerfMetricsRecord struct for storage group performance
+type StorageGroupPerfMetricsRecord struct {
+	ArrayID, StorageClass, Driver                                                 string
+	ReadBandWidth, WriteBandWidth, ReadLatency, WriteLatency, ReadIOPS, WriteIOPS float64
+}
+
+// VolumePerfMetricsRecord struct for volume performance
+type VolumePerfMetricsRecord struct {
+	ArrayID, VolumeID, StorageGroupID                                     string
+	StorageClass, Driver, PersistentVolumeName, PersistentVolumeClaimName string
+	MBRead, MBWritten, ReadResponseTime, WriteResponseTime, Reads, Writes float64
 }
