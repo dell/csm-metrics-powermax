@@ -18,8 +18,9 @@ package types
 
 import (
 	"context"
+
 	"github.com/dell/csm-metrics-powermax/internal/k8s"
-	"github.com/dell/gopowermax/v2"
+	pmax "github.com/dell/gopowermax/v2"
 	types "github.com/dell/gopowermax/v2/types/v100"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/attribute"
@@ -74,7 +75,7 @@ type Service interface {
 	GetMetricsRecorder() MetricsRecorder
 	GetMaxPowerMaxConnections() int
 	GetVolumeFinder() VolumeFinder
-	ExportArrayCapacityMetrics(ctx context.Context)
+	ExportCapacityMetrics(ctx context.Context)
 }
 
 // AsyncMetricCreator to create AsyncInt64/AsyncFloat64 InstrumentProvider
@@ -106,14 +107,9 @@ type PowerMaxArray struct {
 	Client         pmax.Pmax
 }
 
-// ArrayCapacityMetricsRecord used for holding output of the Volume capacity metrics query results
-type ArrayCapacityMetricsRecord struct {
-	arrayID, storageclass, driver string
-	total, used                   int64
-}
-
 // VolumeCapacityMetricsRecord struct for volume capacity
 type VolumeCapacityMetricsRecord struct {
-	ArrayID, VolumeID, Storageclass, Driver string
-	Total, Used, UsedPercent                float64
+	ArrayID, VolumeID, SrpID, StorageGroupID                                         string
+	StorageClass, Driver, PersistentVolumeName, PersistentVolumeClaimName, NameSpace string
+	Total, Used, UsedPercent                                                         float64
 }
