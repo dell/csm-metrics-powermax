@@ -18,14 +18,15 @@ package service_test
 
 import (
 	"context"
+	"testing"
+
 	"github.com/dell/csm-metrics-powermax/internal/k8s"
 	"github.com/dell/csm-metrics-powermax/internal/service"
 	"github.com/dell/csm-metrics-powermax/internal/service/types"
 	"github.com/dell/csm-metrics-powermax/internal/service/types/mocks"
-	"github.com/dell/gopowermax/v2/types/v100"
+	v100 "github.com/dell/gopowermax/v2/types/v100"
 	"github.com/golang/mock/gomock"
 	"github.com/sirupsen/logrus"
-	"testing"
 )
 
 var mockVolumes = []k8s.VolumeInfo{
@@ -39,6 +40,8 @@ var mockVolumes = []k8s.VolumeInfo{
 		Driver:                 "csi-powermax.dellemc.com",
 		ProvisionedSize:        "16Gi",
 		VolumeHandle:           "csi-k8s-mock-398993ad1b-powermaxtest-000197902599-00822",
+		SRP:                    "SRP_1",
+		StorageGroup:           "csi-BYM-Gold-SRP_1-SG",
 	},
 }
 var volume00822 = &v100.Volume{
@@ -54,7 +57,7 @@ var volume00822 = &v100.Volume{
 		{StorageGroupName: "csi-no-srp-sg-BYM-worker-2-zegnx4zktvbph"}},
 }
 
-func Test_ExportArrayCapacityMetrics(t *testing.T) {
+func Test_ExportCapacityMetrics(t *testing.T) {
 	tests := map[string]func(t *testing.T) (service.PowerMaxService, *gomock.Controller){
 		"success": func(*testing.T) (service.PowerMaxService, *gomock.Controller) {
 			ctrl := gomock.NewController(t)
@@ -63,7 +66,7 @@ func Test_ExportArrayCapacityMetrics(t *testing.T) {
 			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(mockVolumes, nil).Times(1)
 			scFinder := mocks.NewMockStorageClassFinder(ctrl)
 
-			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any()).Times(2)
+			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any()).Times(5)
 
 			clients := make(map[string]types.PowerMaxClient)
 			c := mocks.NewMockPowerMaxClient(ctrl)
@@ -85,7 +88,7 @@ func Test_ExportArrayCapacityMetrics(t *testing.T) {
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			service, ctrl := tc(t)
-			service.ExportArrayCapacityMetrics(context.Background())
+			service.ExportCapacityMetrics(context.Background())
 			ctrl.Finish()
 		})
 	}

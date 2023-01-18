@@ -19,11 +19,12 @@ package entrypoint_test
 import (
 	"context"
 	"fmt"
+	"testing"
+	"time"
+
 	"github.com/dell/csm-metrics-powermax/internal/service/types"
 	mocks "github.com/dell/csm-metrics-powermax/internal/service/types/mocks"
 	exportermocks "github.com/dell/csm-metrics-powermax/opentelemetry/exporters/mocks"
-	"testing"
-	"time"
 
 	"github.com/sirupsen/logrus"
 
@@ -53,7 +54,7 @@ func Test_Run(t *testing.T) {
 			e.EXPECT().StopExporter().Return(nil)
 
 			svc := mocks.NewMockService(ctrl)
-			svc.EXPECT().ExportArrayCapacityMetrics(gomock.Any()).AnyTimes()
+			svc.EXPECT().ExportCapacityMetrics(gomock.Any()).AnyTimes()
 
 			return false, config, e, svc, prevConfigValidationFunc, ctrl, false
 		},
@@ -66,7 +67,7 @@ func Test_Run(t *testing.T) {
 				CapacityMetricsEnabled:    true,
 				PerformanceMetricsEnabled: true,
 				LeaderElector:             leaderElector,
-				ArrayCapacityTickInterval: 100 * time.Millisecond,
+				CapacityTickInterval:      100 * time.Millisecond,
 			}
 			prevConfigValidationFunc := entrypoint.ConfigValidatorFunc
 			e := exportermocks.NewMockOtlexporter(ctrl)
@@ -83,7 +84,7 @@ func Test_Run(t *testing.T) {
 				CapacityMetricsEnabled:    true,
 				PerformanceMetricsEnabled: true,
 				LeaderElector:             leaderElector,
-				ArrayCapacityTickInterval: 100 * time.Millisecond,
+				CapacityTickInterval:      100 * time.Millisecond,
 			}
 			prevConfigValidationFunc := entrypoint.ConfigValidatorFunc
 			e := exportermocks.NewMockOtlexporter(ctrl)
@@ -100,7 +101,7 @@ func Test_Run(t *testing.T) {
 				CapacityMetricsEnabled:    true,
 				PerformanceMetricsEnabled: true,
 				LeaderElector:             leaderElector,
-				ArrayCapacityTickInterval: 100 * time.Millisecond,
+				CapacityTickInterval:      100 * time.Millisecond,
 			}
 			prevConfigValidationFunc := entrypoint.ConfigValidatorFunc
 			e := exportermocks.NewMockOtlexporter(ctrl)
@@ -119,7 +120,7 @@ func Test_Run(t *testing.T) {
 				CapacityMetricsEnabled:    false,
 				PerformanceMetricsEnabled: true,
 				LeaderElector:             leaderElector,
-				ArrayCapacityTickInterval: 100 * time.Millisecond,
+				CapacityTickInterval:      100 * time.Millisecond,
 			}
 			prevConfigValidationFunc := entrypoint.ConfigValidatorFunc
 			entrypoint.ConfigValidatorFunc = noCheckConfig
@@ -129,7 +130,7 @@ func Test_Run(t *testing.T) {
 			e.EXPECT().StopExporter().Return(nil)
 
 			svc := mocks.NewMockService(ctrl)
-			svc.EXPECT().ExportArrayCapacityMetrics(gomock.Any()).AnyTimes()
+			svc.EXPECT().ExportCapacityMetrics(gomock.Any()).AnyTimes()
 
 			return false, config, e, svc, prevConfigValidationFunc, ctrl, true
 		},
@@ -144,7 +145,7 @@ func Test_Run(t *testing.T) {
 				CapacityMetricsEnabled:    true,
 				PerformanceMetricsEnabled: false,
 				LeaderElector:             leaderElector,
-				ArrayCapacityTickInterval: 100 * time.Millisecond,
+				CapacityTickInterval:      100 * time.Millisecond,
 			}
 			prevConfigValidationFunc := entrypoint.ConfigValidatorFunc
 			entrypoint.ConfigValidatorFunc = noCheckConfig
@@ -154,7 +155,7 @@ func Test_Run(t *testing.T) {
 			e.EXPECT().StopExporter().Return(nil)
 
 			svc := mocks.NewMockService(ctrl)
-			svc.EXPECT().ExportArrayCapacityMetrics(gomock.Any()).AnyTimes()
+			svc.EXPECT().ExportCapacityMetrics(gomock.Any()).AnyTimes()
 			return false, config, e, svc, prevConfigValidationFunc, ctrl, true
 		},
 		"error nil config": func(*testing.T) (bool, *entrypoint.Config, otlexporters.Otlexporter, types.Service, func(*entrypoint.Config) error, *gomock.Controller, bool) {
@@ -228,7 +229,7 @@ func Test_Run(t *testing.T) {
 			e.EXPECT().StopExporter().Return(nil)
 
 			svc := mocks.NewMockService(ctrl)
-			svc.EXPECT().ExportArrayCapacityMetrics(gomock.Any()).AnyTimes()
+			svc.EXPECT().ExportCapacityMetrics(gomock.Any()).AnyTimes()
 
 			return false, config, e, svc, prevConfigValidationFunc, ctrl, false
 		},
@@ -266,7 +267,7 @@ func Test_Run(t *testing.T) {
 				if !validateConfig {
 					// The configuration is not nil and the test is not attempting to validate the configuration.
 					// In this case, we can use smaller intervals for testing purposes.
-					config.ArrayCapacityTickInterval = 100 * time.Millisecond
+					config.CapacityTickInterval = 100 * time.Millisecond
 				}
 			}
 			err := entrypoint.Run(ctx, config, exporter, svc)

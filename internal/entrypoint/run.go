@@ -19,10 +19,11 @@ package entrypoint
 import (
 	"context"
 	"fmt"
-	"github.com/dell/csm-metrics-powermax/internal/service/types"
 	"os"
 	"runtime"
 	"time"
+
+	"github.com/dell/csm-metrics-powermax/internal/service/types"
 
 	otlexporters "github.com/dell/csm-metrics-powermax/opentelemetry/exporters"
 
@@ -50,7 +51,7 @@ var (
 // Config holds data that will be used by the service
 type Config struct {
 	LeaderElector             types.LeaderElector
-	ArrayCapacityTickInterval time.Duration
+	CapacityTickInterval      time.Duration
 	CapacityMetricsEnabled    bool
 	PerformanceMetricsEnabled bool
 	CollectorAddress          string
@@ -104,21 +105,20 @@ func Run(ctx context.Context, config *Config, exporter otlexporters.Otlexporter,
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	// set initial tick intervals
-	arrayCapacityTickInterval := config.ArrayCapacityTickInterval
-	arrayCapacityTicker := time.NewTicker(arrayCapacityTickInterval)
-
+	capacityTickInterval := config.CapacityTickInterval
+	capacityTicker := time.NewTicker(capacityTickInterval)
 	for {
 		select {
-		case <-arrayCapacityTicker.C:
+		case <-capacityTicker.C:
 			if !config.LeaderElector.IsLeader() {
 				logger.Info("not leader pod to collect metrics")
 				continue
 			}
 			if !config.CapacityMetricsEnabled {
-				logger.Info("powerMax array capacity metrics collection is disabled")
+				logger.Info("powerMax capacity metrics collection is disabled")
 				continue
 			}
-			powerMaxSvc.ExportArrayCapacityMetrics(ctx)
+			powerMaxSvc.ExportCapacityMetrics(ctx)
 		case err := <-errCh:
 			if err == nil {
 				continue
@@ -129,9 +129,9 @@ func Run(ctx context.Context, config *Config, exporter otlexporters.Otlexporter,
 		}
 
 		// check if tick interval config settings have changed
-		if arrayCapacityTickInterval != config.ArrayCapacityTickInterval {
-			arrayCapacityTickInterval = config.ArrayCapacityTickInterval
-			arrayCapacityTicker = time.NewTicker(arrayCapacityTickInterval)
+		if capacityTickInterval != config.CapacityTickInterval {
+			capacityTickInterval = config.CapacityTickInterval
+			capacityTicker = time.NewTicker(capacityTickInterval)
 		}
 	}
 }
@@ -142,8 +142,8 @@ func ValidateConfig(config *Config) error {
 		return fmt.Errorf("no config provided")
 	}
 
-	if config.ArrayCapacityTickInterval > MaximumTickInterval || config.ArrayCapacityTickInterval < MinimumTickInterval {
-		return fmt.Errorf("quota capacity polling frequency not within allowed range of %v and %v", MinimumTickInterval.String(), MaximumTickInterval.String())
+	if config.CapacityTickInterval > MaximumTickInterval || config.CapacityTickInterval < MinimumTickInterval {
+		return fmt.Errorf("array capacity polling frequency not within allowed range of %v and %v", MinimumTickInterval.String(), MaximumTickInterval.String())
 	}
 
 	return nil
