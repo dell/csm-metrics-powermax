@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"github.com/dell/csm-metrics-powermax/internal/k8s"
 	"github.com/dell/csm-metrics-powermax/internal/service/types"
+	"github.com/dell/csm-metrics-powermax/utils"
 	"go.opentelemetry.io/otel/attribute"
 	"strings"
 	"sync"
@@ -58,27 +59,12 @@ func (m *PerformanceMetrics) Collect(ctx context.Context) error {
 		return err
 	}
 
-	for range m.pushPerformanceMetrics(ctx, m.gatherPerformanceMetrics(ctx, pvs)) {
-		// consume the channel until it is empty and closed
-	}
-	return nil
-}
-
-func (m *PerformanceMetrics) gatherPerformanceMetrics(ctx context.Context, pvs []k8s.VolumeInfo) <-chan *types.VolumePerfMetricsRecord {
-	start := time.Now()
-	defer m.TimeSince(start, "gatherPerformanceMetrics")
-
-	ch := make(chan *types.VolumePerfMetricsRecord)
-	var wg sync.WaitGroup
-	sem := make(chan struct{}, m.MaxPowerMaxConnections)
-
-	// Store the last available time for query
-	array2LastAvailTime := make(map[string]int64)
+	// locally reorganize the data
 	// Cache the list of storage groups, map storage group works as a set
 	array2Sgs := make(map[string]map[string]struct{})
 	// Cache volume for quickly updating
 	id2Volume := make(map[string]*k8s.VolumeInfo)
-	for _, volume := range pvs {
+	for index, volume := range pvs {
 		volumeProperties := strings.Split(volume.VolumeHandle, "-")
 		if len(volumeProperties) < 2 {
 			m.Logger.WithField("volume_handle", volume.VolumeHandle).Warn("unable to get Volume ID and Array ID from volume handle")
@@ -86,22 +72,6 @@ func (m *PerformanceMetrics) gatherPerformanceMetrics(ctx context.Context, pvs [
 		}
 		volumeID := volumeProperties[len(volumeProperties)-1]
 		arrayID := volumeProperties[len(volumeProperties)-2]
-		if _, ok := array2LastAvailTime[arrayID]; !ok {
-			pmaxClient, err := m.GetPowerMaxClient(arrayID)
-			if err != nil {
-				m.Logger.WithError(err).WithField("arrayID", arrayID).Warn("no client found for PowerMax")
-				continue
-			}
-			timeResult, err := pmaxClient.GetArrayPerfKeys(ctx)
-			if err != nil {
-				m.Logger.WithError(err).WithField("arrayID", arrayID).Warn("cannot query last available time")
-				continue
-			}
-			// Store the query time for arrays
-			for _, arrayInfo := range timeResult.ArrayInfos {
-				array2LastAvailTime[arrayInfo.SymmetrixID] = arrayInfo.LastAvailableDate
-			}
-		}
 
 		// cache the target of query
 		if sgs, ok := array2Sgs[arrayID]; ok {
@@ -114,87 +84,121 @@ func (m *PerformanceMetrics) gatherPerformanceMetrics(ctx context.Context, pvs [
 			}
 		}
 
-		// Use volumeID, arrayID to quickly find the unique volume
-		id2Volume[volumeID+"="+arrayID] = &volume
+		// Use volumeID, arrayID to quickly locate the unique volume
+		id2Volume[volumeID+"="+arrayID] = &pvs[index]
 	}
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	// Collect volume performance metric
+	go func() {
+		for range m.pushVolumePerformanceMetrics(ctx, m.gatherVolumePerformanceMetrics(ctx, array2Sgs, id2Volume)) {
+			// consume the channel until it is empty and closed
+		}
+		wg.Done()
+	}()
+
+	// Collect storage group performance metric
+	go func() {
+		for range m.pushStorageGroupPerformanceMetrics(ctx, m.gatherStorageGroupPerformanceMetrics(ctx, array2Sgs)) {
+			// consume the channel until it is empty and closed
+		}
+		wg.Done()
+	}()
+	wg.Wait()
+	return nil
+}
+
+func (m *PerformanceMetrics) gatherVolumePerformanceMetrics(ctx context.Context, array2Sgs map[string]map[string]struct{}, id2Volume map[string]*k8s.VolumeInfo) <-chan *types.VolumePerfMetricsRecord {
+	start := time.Now()
+	defer m.TimeSince(start, "gatherVolumePerformanceMetrics")
+
+	ch := make(chan *types.VolumePerfMetricsRecord)
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, m.MaxPowerMaxConnections)
+
+	// Store the last available time for query
+	array2LastAvailTime := make(map[string]int64)
 
 	go func() {
-		for arrayID, sgs := range array2Sgs {
-			queryString := ""
-			for sgID := range sgs {
-				queryString = queryString + sgID + ","
-			}
-			pmaxClient, err := m.GetPowerMaxClient(arrayID)
-			if err != nil {
-				m.Logger.WithError(err).WithField("arrayID", arrayID).Warn("no client found for PowerMax")
-				continue
-			}
-			volumesMetrics, err := pmaxClient.GetVolumesMetrics(ctx, arrayID, queryString, []string{"MBRead", "MBWritten",
-				"ReadResponseTime", "WriteResponseTime", "Reads", "Writes"},
-				array2LastAvailTime[arrayID], array2LastAvailTime[arrayID])
-			if err != nil {
-				m.Logger.WithError(err).WithField("arrayID", arrayID).Warn("failed to get volume metrics")
-				continue
-			}
-			for _, volumeResult := range volumesMetrics.ResultList.Result {
-				volume := id2Volume[volumeResult.VolumeID+"="+arrayID]
-				if volume != nil && strings.Contains(volumeResult.StorageGroups, volume.StorageGroup) {
-					if len(volumeResult.VolumeResult) < 1 {
-						m.Logger.WithError(err).WithField("volumeID", volumeResult.VolumeID).Warn("volume result contains nothing")
-					}
-					//go func() {
-					//	defer func() {
-					//		wg.Done()
-					//		<-sem
-					//	}()
-					//
-					//}()
-					metric := &types.VolumePerfMetricsRecord{
-						ArrayID:                   arrayID,
-						VolumeID:                  volumeResult.VolumeID,
-						StorageGroupID:            volume.StorageGroup,
-						StorageClass:              volume.StorageClass,
-						Driver:                    volume.Driver,
-						PersistentVolumeName:      volume.PersistentVolume,
-						PersistentVolumeClaimName: volume.PersistentVolumeClaim,
-						MBRead:                    volumeResult.VolumeResult[0].MBRead,
-						MBWritten:                 volumeResult.VolumeResult[0].MBWritten,
-						ReadResponseTime:          volumeResult.VolumeResult[0].ReadResponseTime,
-						WriteResponseTime:         volumeResult.VolumeResult[0].WriteResponseTime,
-						Reads:                     volumeResult.VolumeResult[0].Reads,
-						Writes:                    volumeResult.VolumeResult[0].Writes,
-					}
-					ch <- metric
+		exported := false
+		for arrayID, storageGroups := range array2Sgs {
+			exported = true
+			wg.Add(1)
+			sem <- struct{}{}
+			go func(arrayID string, sgs map[string]struct{}) {
+				defer func() {
+					wg.Done()
+					<-sem
+				}()
+				queryString := ""
+				for sgID := range sgs {
+					queryString = queryString + sgID + ","
 				}
-			}
-			//for _, sgs := range volumes {
-			//	wg.Add(1)
-			//	sem <- struct{}{}
-			//	go func(volume k8s.VolumeInfo, storageGroupID string) {
-			//		defer func() {
-			//			wg.Done()
-			//			<-sem
-			//		}()
-			//
-			//		metric := &types.VolumePerfMetricsRecord{}
-			//
-			//		ch <- metric
-			//	}(*volume, storageGroupID)
+				pmaxClient, err := m.GetPowerMaxClient(arrayID)
+				if err != nil {
+					m.Logger.WithError(err).WithField("arrayID", arrayID).Warn("no client found for PowerMax")
+					return
+				}
+				// Get array performance key
+				if _, ok := array2LastAvailTime[arrayID]; !ok {
+					timeResult, err := pmaxClient.GetArrayPerfKeys(ctx)
+					if err != nil {
+						m.Logger.WithError(err).WithField("arrayID", arrayID).Warn("cannot query last available time")
+						return
+					}
+					// Store the query time for arrays
+					for _, arrayInfo := range timeResult.ArrayInfos {
+						array2LastAvailTime[arrayInfo.SymmetrixID] = arrayInfo.LastAvailableDate
+					}
+				}
+				volumesMetrics, err := pmaxClient.GetVolumesMetrics(ctx, arrayID, queryString, []string{"MBRead", "MBWritten",
+					"ReadResponseTime", "WriteResponseTime", "Reads", "Writes"},
+					array2LastAvailTime[arrayID], array2LastAvailTime[arrayID])
+				if err != nil {
+					m.Logger.WithError(err).WithField("arrayID", arrayID).Warn("failed to get volume metrics")
+					return
+				}
+				for _, volumeResult := range volumesMetrics.ResultList.Result {
+					volume := id2Volume[volumeResult.VolumeID+"="+arrayID]
+					if volume != nil && strings.Contains(volumeResult.StorageGroups, volume.StorageGroup) {
+						if len(volumeResult.VolumeResult) < 1 {
+							m.Logger.WithError(err).WithField("volumeID", volumeResult.VolumeID).Warn("volume result contains nothing")
+						}
+						metric := &types.VolumePerfMetricsRecord{
+							ArrayID:                   arrayID,
+							VolumeID:                  volumeResult.VolumeID,
+							StorageGroupID:            volume.StorageGroup,
+							StorageClass:              volume.StorageClass,
+							Driver:                    volume.Driver,
+							PersistentVolumeName:      volume.PersistentVolume,
+							PersistentVolumeClaimName: volume.PersistentVolumeClaim,
+							MBRead:                    volumeResult.VolumeResult[0].MBRead,
+							MBWritten:                 volumeResult.VolumeResult[0].MBWritten,
+							ReadResponseTime:          volumeResult.VolumeResult[0].ReadResponseTime,
+							WriteResponseTime:         volumeResult.VolumeResult[0].WriteResponseTime,
+							Reads:                     volumeResult.VolumeResult[0].Reads,
+							Writes:                    volumeResult.VolumeResult[0].Writes,
+						}
+						ch <- metric
+					}
+				}
+			}(arrayID, storageGroups)
 		}
 
-		//if !exported {
-		//	// If no volumes metrics were exported, we need to export an "empty" metric to update the OT Collector
-		//	// so that stale entries are removed
-		//	ch <- &types.VolumePerfMetricsRecord{
-		//		ArrayID:                   "",
-		//		VolumeID:                  "",
-		//		StorageGroupID:            "",
-		//		StorageClass:              "",
-		//		PersistentVolumeName:      "",
-		//		PersistentVolumeClaimName: "",
-		//		Driver:                    "",
-		//	}
-		//}
+		if !exported {
+			// If no volume metrics were exported, we need to export an "empty" metric to update the OT Collector
+			// so that stale entries are removed
+			ch <- &types.VolumePerfMetricsRecord{
+				ArrayID:                   "",
+				VolumeID:                  "",
+				StorageGroupID:            "",
+				StorageClass:              "",
+				PersistentVolumeName:      "",
+				PersistentVolumeClaimName: "",
+				Driver:                    "",
+			}
+		}
 		wg.Wait()
 		close(ch)
 		close(sem)
@@ -202,9 +206,9 @@ func (m *PerformanceMetrics) gatherPerformanceMetrics(ctx context.Context, pvs [
 	return ch
 }
 
-func (m *PerformanceMetrics) pushPerformanceMetrics(ctx context.Context, volumePerfMetrics <-chan *types.VolumePerfMetricsRecord) <-chan string {
+func (m *PerformanceMetrics) pushVolumePerformanceMetrics(ctx context.Context, volumePerfMetrics <-chan *types.VolumePerfMetricsRecord) <-chan string {
 	start := time.Now()
-	defer m.TimeSince(start, "pushPerformanceMetrics")
+	defer m.TimeSince(start, "pushVolumePerformanceMetrics")
 	var wg sync.WaitGroup
 
 	ch := make(chan string)
@@ -217,12 +221,121 @@ func (m *PerformanceMetrics) pushPerformanceMetrics(ctx context.Context, volumeP
 				defer wg.Done()
 
 				err := m.MetricsRecorder.RecordNumericMetrics(ctx, collectVolPerfMetrics("powermax_volume", metric))
-				m.Logger.Debugf("class performance metrics metrics %+v", metric)
+				m.Logger.Debugf("class volume performance metrics %+v", metric)
 
 				if err != nil {
-					m.Logger.WithError(err).WithField("array_id", metric.ArrayID).Error("recording performance statistics for array")
+					m.Logger.WithError(err).WithField("volume_id", metric.VolumeID).Error("recording performance statistics for volume")
 				} else {
-					ch <- fmt.Sprintf(metric.ArrayID)
+					ch <- fmt.Sprintf(metric.VolumeID)
+				}
+			}(*metric)
+		}
+		wg.Wait()
+		close(ch)
+	}()
+
+	return ch
+}
+
+func (m *PerformanceMetrics) gatherStorageGroupPerformanceMetrics(ctx context.Context, array2Sgs map[string]map[string]struct{}) <-chan *types.StorageGroupPerfMetricsRecord {
+	start := time.Now()
+	defer m.TimeSince(start, "gatherStorageGroupPerformanceMetrics")
+
+	ch := make(chan *types.StorageGroupPerfMetricsRecord)
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, m.MaxPowerMaxConnections)
+
+	// Store the last available time for query
+	storageGroup2LastAvailTime := make(map[string]int64)
+
+	go func() {
+		exported := false
+		for arrayID, sgs := range array2Sgs {
+			exported = true
+			wg.Add(1)
+			sem <- struct{}{}
+			go func(arrayID string, sgs map[string]struct{}) {
+				defer func() {
+					wg.Done()
+					<-sem
+				}()
+				pmaxClient, err := m.GetPowerMaxClient(arrayID)
+				if err != nil {
+					m.Logger.WithError(err).WithField("arrayID", arrayID).Warn("no client found for PowerMax")
+					return
+				}
+				if _, ok := storageGroup2LastAvailTime[arrayID]; !ok {
+					timeResult, err := pmaxClient.GetStorageGroupPerfKeys(ctx, arrayID)
+					if err != nil {
+						m.Logger.WithError(err).WithField("arrayID", arrayID).Warn("cannot query last available time for storage groups")
+						return
+					}
+					// Store the query time for storage groups
+					for _, storageGroupInfo := range timeResult.StorageGroupInfos {
+						storageGroup2LastAvailTime[storageGroupInfo.StorageGroupID] = storageGroupInfo.LastAvailableDate
+					}
+				}
+				for storageGroupID := range sgs {
+					sgMetrics, err := pmaxClient.GetStorageGroupMetrics(ctx, arrayID, storageGroupID, []string{"HostMBRead", "HostMBWritten",
+						"ReadResponseTime", "WriteResponseTime", "HostReads", "HostWrites", "AvgIOSize"},
+						storageGroup2LastAvailTime[arrayID], storageGroup2LastAvailTime[arrayID])
+					if err != nil {
+						m.Logger.WithError(err).WithField("storageGroupID ID", storageGroupID).Warn("failed to get storage group metrics")
+						continue
+					}
+					for _, sgResult := range sgMetrics.ResultList.Result {
+						exported = true
+						metric := &types.StorageGroupPerfMetricsRecord{
+							ArrayID:           arrayID,
+							StorageGroupID:    storageGroupID,
+							HostMBReads:       sgResult.HostMBReads,
+							HostMBWritten:     sgResult.HostMBWritten,
+							ReadResponseTime:  sgResult.ReadResponseTime,
+							WriteResponseTime: sgResult.WriteResponseTime,
+							HostReads:         sgResult.HostReads,
+							HostWrites:        sgResult.HostWrites,
+							AvgIOSize:         sgResult.AvgIOSize,
+						}
+						ch <- metric
+					}
+				}
+			}(arrayID, sgs)
+		}
+		if !exported {
+			// If no storage group metrics were exported, we need to export an "empty" metric to update the OT Collector
+			// so that stale entries are removed
+			ch <- &types.StorageGroupPerfMetricsRecord{
+				ArrayID:        "",
+				StorageGroupID: "",
+			}
+		}
+		wg.Wait()
+		close(ch)
+		close(sem)
+	}()
+	return ch
+}
+
+func (m *PerformanceMetrics) pushStorageGroupPerformanceMetrics(ctx context.Context, storageGroupPerfMetrics <-chan *types.StorageGroupPerfMetricsRecord) <-chan string {
+	start := time.Now()
+	defer m.TimeSince(start, "pushStorageGroupPerformanceMetrics")
+	var wg sync.WaitGroup
+
+	ch := make(chan string)
+	go func() {
+		// for storage group metrics
+		for metric := range storageGroupPerfMetrics {
+			wg.Add(1)
+			go func(metric types.StorageGroupPerfMetricsRecord) {
+				defer wg.Done()
+
+				err := m.MetricsRecorder.RecordNumericMetrics(ctx, collectStorageGroupPerfMetrics("powermax_storage_group", metric))
+				m.Logger.Debugf("storage group performance metrics metrics %+v", metric)
+
+				if err != nil {
+					m.Logger.WithError(err).WithField("storage_group_id", metric.ArrayID).Error("recording performance statistics for storage group")
+				} else {
+					ch <- fmt.Sprintf(metric.StorageGroupID)
 				}
 			}(*metric)
 		}
@@ -241,12 +354,31 @@ func collectVolPerfMetrics(prefix string, metric types.VolumePerfMetricsRecord) 
 	}
 	var list []types.NumericMetric
 
-	list = append(list, types.NumericMetric{Labels: labels, Name: prefix + "_read_bandwidth", Value: metric.MBRead})
-	list = append(list, types.NumericMetric{Labels: labels, Name: prefix + "_write_bandwidth", Value: metric.MBWritten})
-	list = append(list, types.NumericMetric{Labels: labels, Name: prefix + "_read_response_time", Value: metric.ReadResponseTime})
-	list = append(list, types.NumericMetric{Labels: labels, Name: prefix + "_write_response_time", Value: metric.WriteResponseTime})
-	list = append(list, types.NumericMetric{Labels: labels, Name: prefix + "_read_operations", Value: metric.Reads})
-	list = append(list, types.NumericMetric{Labels: labels, Name: prefix + "_write_operations", Value: metric.Writes})
+	list = append(list, types.NumericMetric{Labels: labels, Name: prefix + "_read_bw_megabytes_per_second", Value: metric.MBRead})
+	list = append(list, types.NumericMetric{Labels: labels, Name: prefix + "_write_bw_megabytes_per_second", Value: metric.MBWritten})
+	list = append(list, types.NumericMetric{Labels: labels, Name: prefix + "_read_latency_milliseconds", Value: metric.ReadResponseTime})
+	list = append(list, types.NumericMetric{Labels: labels, Name: prefix + "_write_latency_milliseconds", Value: metric.WriteResponseTime})
+	list = append(list, types.NumericMetric{Labels: labels, Name: prefix + "_read_io_per_second", Value: metric.Reads})
+	list = append(list, types.NumericMetric{Labels: labels, Name: prefix + "_write_io_per_second", Value: metric.Writes})
+
+	return list
+}
+
+func collectStorageGroupPerfMetrics(prefix string, metric types.StorageGroupPerfMetricsRecord) []types.NumericMetric {
+	labels := []attribute.KeyValue{
+		attribute.String("ArrayID", metric.ArrayID),
+		attribute.String("StorageGroupID", metric.StorageGroupID),
+		attribute.String("PlotWithMean", "No"),
+	}
+	var list []types.NumericMetric
+
+	list = append(list, types.NumericMetric{Labels: labels, Name: prefix + "_read_bw_megabytes_per_second", Value: metric.HostMBReads})
+	list = append(list, types.NumericMetric{Labels: labels, Name: prefix + "_write_bw_megabytes_per_second", Value: metric.HostMBWritten})
+	list = append(list, types.NumericMetric{Labels: labels, Name: prefix + "_read_latency_milliseconds", Value: metric.ReadResponseTime})
+	list = append(list, types.NumericMetric{Labels: labels, Name: prefix + "_write_latency_milliseconds", Value: metric.WriteResponseTime})
+	list = append(list, types.NumericMetric{Labels: labels, Name: prefix + "_read_io_per_second", Value: metric.HostReads})
+	list = append(list, types.NumericMetric{Labels: labels, Name: prefix + "_write_io_per_second", Value: metric.HostWrites})
+	list = append(list, types.NumericMetric{Labels: labels, Name: prefix + "_average_io_size_megabytes_per_second", Value: utils.UnitsConvert(metric.AvgIOSize, utils.KB, utils.MB)})
 
 	return list
 }
