@@ -18,7 +18,8 @@ package service
 
 import (
 	"context"
-	"github.com/dell/csm-metrics-powermax/internal/service/metric"
+
+	metric "github.com/dell/csm-metrics-powermax/internal/service/metric"
 	"github.com/dell/csm-metrics-powermax/internal/service/types"
 	"github.com/sirupsen/logrus"
 )
@@ -30,12 +31,13 @@ const (
 
 // PowerMaxService contains configuration stuff and represents the service for getting metrics data for a PowerMax system
 type PowerMaxService struct {
-	MetricsRecorder        types.MetricsRecorder
-	MaxPowerMaxConnections int
-	Logger                 *logrus.Logger
-	PowerMaxClients        map[string]types.PowerMaxClient
-	VolumeFinder           types.VolumeFinder
-	StorageClassFinder     types.StorageClassFinder
+	MetricsRecorder              types.MetricsRecorder
+	MaxPowerMaxConnections       int
+	Logger                       *logrus.Logger
+	PowerMaxClients              map[string]types.PowerMaxClient
+	VolumeFinder                 types.VolumeFinder
+	StorageClassFinder           types.StorageClassFinder
+	ArrayCapacityMetricsInstance *metric.ArrayCapacityMetrics
 }
 
 // GetLogger return logger
@@ -65,7 +67,7 @@ func (s *PowerMaxService) GetVolumeFinder() types.VolumeFinder {
 
 // ExportArrayCapacityMetrics collect Array capacity and export to Otel
 func (s *PowerMaxService) ExportArrayCapacityMetrics(ctx context.Context) {
-	metric.CreateArrayCapacityMetricsInstance(s).ExportMetrics(ctx)
+	s.ArrayCapacityMetricsInstance.ExportMetrics(ctx)
 }
 
 // ExportStorageGroupMetrics collect storage group capacity and export to Otel

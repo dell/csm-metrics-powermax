@@ -128,6 +128,10 @@ func main() {
 		StorageClassFinder: storageClassFinder,
 	}
 
+	base := metric.NewBaseMetrics(powerMaxSvc)
+	powerMaxSvc.ArrayCapacityMetricsInstance = &metric.ArrayCapacityMetrics{BaseMetrics: base}
+	base.Collector = powerMaxSvc.ArrayCapacityMetricsInstance
+
 	ctx = context.Background()
 
 	common.InitK8sUtils(logger, updatePowerMaxArraysOnSecretChanged)

@@ -32,25 +32,6 @@ type ArrayCapacityMetrics struct {
 	*BaseMetrics
 }
 
-// ArrayCapacityMetricsInstance single instance of ArrayCapacityMetrics
-var arrayCapacityMetricsInstance *ArrayCapacityMetrics
-
-// CreateArrayCapacityMetricsInstance return a singleton instance of ArrayCapacityMetrics.
-func CreateArrayCapacityMetricsInstance(service types.Service) *ArrayCapacityMetrics {
-	if arrayCapacityMetricsInstance == nil {
-		lock.Lock()
-		defer lock.Unlock()
-
-		if arrayCapacityMetricsInstance == nil {
-			base := NewBaseMetrics(service)
-			arrayCapacityMetricsInstance = &ArrayCapacityMetrics{base}
-			base.Collector = arrayCapacityMetricsInstance
-		}
-	}
-
-	return arrayCapacityMetricsInstance
-}
-
 // Collect metric collection and processing
 func (m *ArrayCapacityMetrics) Collect(ctx context.Context) error {
 	pvs, err := m.VolumeFinder.GetPersistentVolumes(ctx)
