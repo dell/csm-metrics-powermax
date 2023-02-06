@@ -243,6 +243,18 @@ func updateTickIntervals(config *entrypoint.Config) {
 	}
 	config.CapacityTickInterval = capacityTickInterval
 	logger.WithField("capacity_tick_interval", fmt.Sprintf("%v", capacityTickInterval)).Debug("setting capacity tick interval")
+
+	performanceTickInterval := defaultTickInterval
+	performancePollFrequencySeconds := viper.GetString("POWERMAX_PERFORMANCE_POLL_FREQUENCY")
+	if performancePollFrequencySeconds != "" {
+		numSeconds, err := strconv.Atoi(performancePollFrequencySeconds)
+		if err != nil {
+			logger.WithError(err).Fatal("POWERMAX_PERFORMANCE_POLL_FREQUENCY was not set to a valid number")
+		}
+		performanceTickInterval = time.Duration(numSeconds) * time.Second
+	}
+	config.PerformanceTickInterval = performanceTickInterval
+	logger.WithField("performance_tick_interval", fmt.Sprintf("%v", performanceTickInterval)).Debug("setting performance tick interval")
 }
 
 func updateMaxConnections(powerMaxSvc *service.PowerMaxService) {

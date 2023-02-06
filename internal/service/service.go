@@ -68,3 +68,8 @@ func (s *PowerMaxService) GetVolumeFinder() types.VolumeFinder {
 func (s *PowerMaxService) ExportCapacityMetrics(ctx context.Context) {
 	metric.CreateCapacityMetricsInstance(s).ExportMetrics(ctx)
 }
+
+// ExportPerformanceMetrics collect performance and export to Otel
+func (s *PowerMaxService) ExportPerformanceMetrics(ctx context.Context) {
+	metric.CreatePerformanceMetricsInstance(s).ExportMetrics(ctx)
+}

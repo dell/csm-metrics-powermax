@@ -55,10 +55,11 @@ func Test_Run(t *testing.T) {
 
 			svc := mocks.NewMockService(ctrl)
 			svc.EXPECT().ExportCapacityMetrics(gomock.Any()).AnyTimes()
+			svc.EXPECT().ExportPerformanceMetrics(gomock.Any()).AnyTimes()
 
 			return false, config, e, svc, prevConfigValidationFunc, ctrl, false
 		},
-		"error with invalid array capacity ticker interval": func(*testing.T) (bool, *entrypoint.Config, otlexporters.Otlexporter, types.Service, func(*entrypoint.Config) error, *gomock.Controller, bool) {
+		"error with invalid performance ticker interval": func(*testing.T) (bool, *entrypoint.Config, otlexporters.Otlexporter, types.Service, func(*entrypoint.Config) error, *gomock.Controller, bool) {
 			ctrl := gomock.NewController(t)
 			leaderElector := mocks.NewMockLeaderElector(ctrl)
 			clients := make(map[string]types.PowerMaxClient)
@@ -67,7 +68,8 @@ func Test_Run(t *testing.T) {
 				CapacityMetricsEnabled:    true,
 				PerformanceMetricsEnabled: true,
 				LeaderElector:             leaderElector,
-				CapacityTickInterval:      100 * time.Millisecond,
+				CapacityTickInterval:      100 * time.Second,
+				PerformanceTickInterval:   0 * time.Millisecond,
 			}
 			prevConfigValidationFunc := entrypoint.ConfigValidatorFunc
 			e := exportermocks.NewMockOtlexporter(ctrl)
@@ -75,7 +77,7 @@ func Test_Run(t *testing.T) {
 
 			return true, config, e, svc, prevConfigValidationFunc, ctrl, true
 		},
-		"error with invalid array performance ticker interval": func(*testing.T) (bool, *entrypoint.Config, otlexporters.Otlexporter, types.Service, func(*entrypoint.Config) error, *gomock.Controller, bool) {
+		"error with invalid capacity ticker interval": func(*testing.T) (bool, *entrypoint.Config, otlexporters.Otlexporter, types.Service, func(*entrypoint.Config) error, *gomock.Controller, bool) {
 			ctrl := gomock.NewController(t)
 			leaderElector := mocks.NewMockLeaderElector(ctrl)
 			clients := make(map[string]types.PowerMaxClient)
@@ -84,24 +86,8 @@ func Test_Run(t *testing.T) {
 				CapacityMetricsEnabled:    true,
 				PerformanceMetricsEnabled: true,
 				LeaderElector:             leaderElector,
-				CapacityTickInterval:      100 * time.Millisecond,
-			}
-			prevConfigValidationFunc := entrypoint.ConfigValidatorFunc
-			e := exportermocks.NewMockOtlexporter(ctrl)
-			svc := mocks.NewMockService(ctrl)
-
-			return true, config, e, svc, prevConfigValidationFunc, ctrl, true
-		},
-		"error with invalid quota capacity ticker interval": func(*testing.T) (bool, *entrypoint.Config, otlexporters.Otlexporter, types.Service, func(*entrypoint.Config) error, *gomock.Controller, bool) {
-			ctrl := gomock.NewController(t)
-			leaderElector := mocks.NewMockLeaderElector(ctrl)
-			clients := make(map[string]types.PowerMaxClient)
-			clients["test"] = mocks.NewMockPowerMaxClient(ctrl)
-			config := &entrypoint.Config{
-				CapacityMetricsEnabled:    true,
-				PerformanceMetricsEnabled: true,
-				LeaderElector:             leaderElector,
-				CapacityTickInterval:      100 * time.Millisecond,
+				CapacityTickInterval:      0 * time.Millisecond,
+				PerformanceTickInterval:   0 * time.Millisecond,
 			}
 			prevConfigValidationFunc := entrypoint.ConfigValidatorFunc
 			e := exportermocks.NewMockOtlexporter(ctrl)
@@ -121,6 +107,7 @@ func Test_Run(t *testing.T) {
 				PerformanceMetricsEnabled: true,
 				LeaderElector:             leaderElector,
 				CapacityTickInterval:      100 * time.Millisecond,
+				PerformanceTickInterval:   100 * time.Millisecond,
 			}
 			prevConfigValidationFunc := entrypoint.ConfigValidatorFunc
 			entrypoint.ConfigValidatorFunc = noCheckConfig
@@ -131,6 +118,7 @@ func Test_Run(t *testing.T) {
 
 			svc := mocks.NewMockService(ctrl)
 			svc.EXPECT().ExportCapacityMetrics(gomock.Any()).AnyTimes()
+			svc.EXPECT().ExportPerformanceMetrics(gomock.Any()).AnyTimes()
 
 			return false, config, e, svc, prevConfigValidationFunc, ctrl, true
 		},
@@ -146,6 +134,7 @@ func Test_Run(t *testing.T) {
 				PerformanceMetricsEnabled: false,
 				LeaderElector:             leaderElector,
 				CapacityTickInterval:      100 * time.Millisecond,
+				PerformanceTickInterval:   100 * time.Millisecond,
 			}
 			prevConfigValidationFunc := entrypoint.ConfigValidatorFunc
 			entrypoint.ConfigValidatorFunc = noCheckConfig
@@ -156,6 +145,7 @@ func Test_Run(t *testing.T) {
 
 			svc := mocks.NewMockService(ctrl)
 			svc.EXPECT().ExportCapacityMetrics(gomock.Any()).AnyTimes()
+			svc.EXPECT().ExportPerformanceMetrics(gomock.Any()).AnyTimes()
 			return false, config, e, svc, prevConfigValidationFunc, ctrl, true
 		},
 		"error nil config": func(*testing.T) (bool, *entrypoint.Config, otlexporters.Otlexporter, types.Service, func(*entrypoint.Config) error, *gomock.Controller, bool) {
@@ -230,6 +220,7 @@ func Test_Run(t *testing.T) {
 
 			svc := mocks.NewMockService(ctrl)
 			svc.EXPECT().ExportCapacityMetrics(gomock.Any()).AnyTimes()
+			svc.EXPECT().ExportPerformanceMetrics(gomock.Any()).AnyTimes()
 
 			return false, config, e, svc, prevConfigValidationFunc, ctrl, false
 		},
@@ -268,6 +259,7 @@ func Test_Run(t *testing.T) {
 					// The configuration is not nil and the test is not attempting to validate the configuration.
 					// In this case, we can use smaller intervals for testing purposes.
 					config.CapacityTickInterval = 100 * time.Millisecond
+					config.PerformanceTickInterval = 100 * time.Millisecond
 				}
 			}
 			err := entrypoint.Run(ctx, config, exporter, svc)

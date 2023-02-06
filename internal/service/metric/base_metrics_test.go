@@ -18,6 +18,10 @@ package metric_test
 
 import (
 	"context"
+	"encoding/json"
+	"github.com/stretchr/testify/assert"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/dell/csm-metrics-powermax/internal/k8s"
@@ -31,58 +35,17 @@ import (
 )
 
 func Test_ExportMetrics(t *testing.T) {
-	mockVolumes := []k8s.VolumeInfo{
-		{
-			Namespace:              "karavi",
-			PersistentVolumeClaim:  "pvc-uid1",
-			PersistentVolumeStatus: "Bound",
-			VolumeClaimName:        "pvc-name1",
-			PersistentVolume:       "pv-1",
-			StorageClass:           "powermax-iscsi",
-			Driver:                 "csi-powermax.dellemc.com",
-			ProvisionedSize:        "16Gi",
-			VolumeHandle:           "csi-k8s-mock-398993ad1b-powermaxtest-000197902599-00833",
-			SRP:                    "SRP_1",
-			StorageGroup:           "csi-TAO-Gold-SRP_1-SG",
-		},
-		{
-			Namespace:              "karavi",
-			PersistentVolumeClaim:  "pvc-uid2",
-			PersistentVolumeStatus: "Bound",
-			VolumeClaimName:        "pvc-name2",
-			PersistentVolume:       "pv-2",
-			StorageClass:           "powermax-iscsi",
-			Driver:                 "csi-powermax.dellemc.com",
-			ProvisionedSize:        "8Gi",
-			VolumeHandle:           "csi-k8s-mock-398993ad1d-powermaxtest-000197902599-00834",
-			SRP:                    "SRP_1",
-			StorageGroup:           "csi-TAO-Gold-SRP_1-SG",
-		},
-	}
-	volume00833 := &v100.Volume{
-		VolumeID:         "00833",
-		Type:             "TDEV",
-		AllocatedPercent: 10,
-		CapacityGB:       16.0,
-		FloatCapacityMB:  8194.0,
-		VolumeIdentifier: "csi-k8s-mock-398993ad1b-powermaxtest",
-		WWN:              "60000970000197902273533030383543",
-		StorageGroups: []v100.StorageGroupName{
-			{StorageGroupName: "csi-TAO-Gold-SRP_1-SG"},
-			{StorageGroupName: "csi-no-srp-sg-TAO-worker-2-zegnx4zktvbph"}},
-	}
-	volume00834 := &v100.Volume{
-		VolumeID:         "00834",
-		Type:             "TDEV",
-		AllocatedPercent: 10,
-		CapacityGB:       8.0,
-		FloatCapacityMB:  8194.0,
-		VolumeIdentifier: "csi-k8s-mock-398993ad1d-powermaxtest",
-		WWN:              "60000970000197902273533030383544",
-		StorageGroups: []v100.StorageGroupName{
-			{StorageGroupName: "csi-TAO-Gold-SRP_1-SG"},
-			{StorageGroupName: "csi-no-srp-sg-TAO-worker-2-zegnx4zktvbph"}},
-	}
+	var mockVolumes []k8s.VolumeInfo
+	var volume00833 v100.Volume
+	var volume00834 v100.Volume
+
+	mockVolBytes, err := os.ReadFile(filepath.Join(mockDir, "persistent_volumes.json"))
+	err = json.Unmarshal(mockVolBytes, &mockVolumes)
+	vol00833Bytes, err := os.ReadFile(filepath.Join(mockDir, "pmax_vol_00833.json"))
+	err = json.Unmarshal(vol00833Bytes, &volume00833)
+	vol00834Bytes, err := os.ReadFile(filepath.Join(mockDir, "pmax_vol_00834.json"))
+	err = json.Unmarshal(vol00834Bytes, &volume00834)
+	assert.Nil(t, err)
 
 	tests := map[string]func(t *testing.T) (*metric.BaseMetrics, *gomock.Controller){
 		"success": func(t *testing.T) (*metric.BaseMetrics, *gomock.Controller) {
@@ -98,8 +61,8 @@ func Test_ExportMetrics(t *testing.T) {
 			c := mocks.NewMockPowerMaxClient(ctrl)
 			clients["000197902599"] = c
 
-			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(volume00833, nil).Times(1)
-			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(volume00834, nil).Times(1)
+			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(&volume00833, nil).Times(1)
+			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(&volume00834, nil).Times(1)
 
 			service := service.PowerMaxService{
 				Logger:                 logrus.New(),
