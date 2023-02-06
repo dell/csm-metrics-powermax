@@ -18,6 +18,7 @@ package service
 
 import (
 	"context"
+
 	"github.com/dell/csm-metrics-powermax/internal/service/metric"
 	"github.com/dell/csm-metrics-powermax/internal/service/types"
 	"github.com/sirupsen/logrus"
@@ -63,12 +64,7 @@ func (s *PowerMaxService) GetVolumeFinder() types.VolumeFinder {
 	return s.VolumeFinder
 }
 
-// ExportArrayCapacityMetrics collect Array capacity and export to Otel
-func (s *PowerMaxService) ExportArrayCapacityMetrics(ctx context.Context) {
-	metric.CreateArrayCapacityMetricsInstance(s).ExportMetrics(ctx)
-}
-
-// ExportStorageGroupMetrics collect storage group capacity and export to Otel
-func (s *PowerMaxService) ExportStorageGroupMetrics(ctx context.Context) {
-
+// ExportCapacityMetrics collect capacity for array, storageclass, srp, storagegroup and volume, and export to Otel
+func (s *PowerMaxService) ExportCapacityMetrics(ctx context.Context) {
+	metric.CreateCapacityMetricsInstance(s).ExportMetrics(ctx)
 }

@@ -19,13 +19,14 @@ package main
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/dell/csm-metrics-powermax/internal/k8sutils"
 	"github.com/dell/csm-metrics-powermax/internal/service/metric"
 	"github.com/dell/csm-metrics-powermax/internal/service/types"
 	corev1 "k8s.io/api/core/v1"
-	"strconv"
-	"strings"
-	"time"
 
 	"github.com/dell/csm-metrics-powermax/internal/common"
 	"github.com/dell/csm-metrics-powermax/internal/entrypoint"
@@ -231,53 +232,17 @@ func updateMetricsEnabled(config *entrypoint.Config) {
 }
 
 func updateTickIntervals(config *entrypoint.Config) {
-	arrayCapacityTickInterval := defaultTickInterval
-	arrayCapacityPollFrequencySeconds := viper.GetString("POWERMAX_ARRAY_CAPACITY_POLL_FREQUENCY")
-	if arrayCapacityPollFrequencySeconds != "" {
-		numSeconds, err := strconv.Atoi(arrayCapacityPollFrequencySeconds)
+	capacityTickInterval := defaultTickInterval
+	capacityPollFrequencySeconds := viper.GetString("POWERMAX_CAPACITY_POLL_FREQUENCY")
+	if capacityPollFrequencySeconds != "" {
+		numSeconds, err := strconv.Atoi(capacityPollFrequencySeconds)
 		if err != nil {
-			logger.WithError(err).Fatal("POWERMAX_ARRAY_CAPACITY_POLL_FREQUENCY was not set to a valid number")
+			logger.WithError(err).Fatal("POWERMAX_CAPACITY_POLL_FREQUENCY was not set to a valid number")
 		}
-		arrayCapacityTickInterval = time.Duration(numSeconds) * time.Second
+		capacityTickInterval = time.Duration(numSeconds) * time.Second
 	}
-	config.ArrayCapacityTickInterval = arrayCapacityTickInterval
-	logger.WithField("array_capacity_tick_interval", fmt.Sprintf("%v", arrayCapacityTickInterval)).Debug("setting array capacity tick interval")
-
-	// quotaCapacityTickInterval := defaultTickInterval
-	// quotaCapacityPollFrequencySeconds := viper.GetString("POWERMAX_QUOTA_CAPACITY_POLL_FREQUENCY")
-	// if quotaCapacityPollFrequencySeconds != "" {
-	// 	numSeconds, err := strconv.Atoi(quotaCapacityPollFrequencySeconds)
-	// 	if err != nil {
-	// 		logger.WithError(err).Fatal("POWERMAX_QUOTA_CAPACITY_POLL_FREQUENCY was not set to a valid number")
-	// 	}
-	// 	quotaCapacityTickInterval = time.Duration(numSeconds) * time.Second
-	// }
-	// config.QuotaCapacityTickInterval = quotaCapacityTickInterval
-	// logger.WithField("quota_capacity_tick_interval", fmt.Sprintf("%v", quotaCapacityTickInterval)).Debug("setting quota capacity tick interval")
-	//
-	// clusterCapacityTickInterval := defaultTickInterval
-	// clusterCapacityPollFrequencySeconds := viper.GetString("POWERMAX_CLUSTER_CAPACITY_POLL_FREQUENCY")
-	// if clusterCapacityPollFrequencySeconds != "" {
-	// 	numSeconds, err := strconv.Atoi(clusterCapacityPollFrequencySeconds)
-	// 	if err != nil {
-	// 		logger.WithError(err).Fatal("POWERMAX_CLUSTER_CAPACITY_POLL_FREQUENCY was not set to a valid number")
-	// 	}
-	// 	clusterCapacityTickInterval = time.Duration(numSeconds) * time.Second
-	// }
-	// config.ClusterCapacityTickInterval = clusterCapacityTickInterval
-	// logger.WithField("cluster_capacity_tick_interval", fmt.Sprintf("%v", clusterCapacityTickInterval)).Debug("setting cluster capacity tick interval")
-	//
-	// clusterPerformanceTickInterval := defaultTickInterval
-	// clusterPerformancePollFrequencySeconds := viper.GetString("POWERMAX_CLUSTER_PERFORMANCE_POLL_FREQUENCY")
-	// if clusterPerformancePollFrequencySeconds != "" {
-	// 	numSeconds, err := strconv.Atoi(clusterPerformancePollFrequencySeconds)
-	// 	if err != nil {
-	// 		logger.WithError(err).Fatal("POWERMAX_CLUSTER_PERFORMANCE_POLL_FREQUENCY was not set to a valid number")
-	// 	}
-	// 	clusterPerformanceTickInterval = time.Duration(numSeconds) * time.Second
-	// }
-	// config.ClusterPerformanceTickInterval = clusterPerformanceTickInterval
-	// logger.WithField("cluster_performance_tick_interval", fmt.Sprintf("%v", clusterPerformanceTickInterval)).Debug("setting cluster performance tick interval")
+	config.CapacityTickInterval = capacityTickInterval
+	logger.WithField("capacity_tick_interval", fmt.Sprintf("%v", capacityTickInterval)).Debug("setting capacity tick interval")
 }
 
 func updateMaxConnections(powerMaxSvc *service.PowerMaxService) {

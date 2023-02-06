@@ -23,7 +23,6 @@ package mocks
 import (
 	context "context"
 	reflect "reflect"
-	time "time"
 
 	types "github.com/dell/csm-metrics-powermax/internal/service/types"
 	gomock "github.com/golang/mock/gomock"
@@ -53,16 +52,16 @@ func (m *MockService) EXPECT() *MockServiceMockRecorder {
 	return m.recorder
 }
 
-// ExportArrayCapacityMetrics mocks base method.
-func (m *MockService) ExportArrayCapacityMetrics(arg0 context.Context) {
+// ExportCapacityMetrics mocks base method.
+func (m *MockService) ExportCapacityMetrics(arg0 context.Context) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "ExportArrayCapacityMetrics", arg0)
+	m.ctrl.Call(m, "ExportCapacityMetrics", arg0)
 }
 
-// ExportArrayCapacityMetrics indicates an expected call of ExportArrayCapacityMetrics.
-func (mr *MockServiceMockRecorder) ExportArrayCapacityMetrics(arg0 interface{}) *gomock.Call {
+// ExportCapacityMetrics indicates an expected call of ExportCapacityMetrics.
+func (mr *MockServiceMockRecorder) ExportCapacityMetrics(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExportArrayCapacityMetrics", reflect.TypeOf((*MockService)(nil).ExportArrayCapacityMetrics), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExportCapacityMetrics", reflect.TypeOf((*MockService)(nil).ExportCapacityMetrics), arg0)
 }
 
 // GetLogger mocks base method.
@@ -133,16 +132,4 @@ func (m *MockService) GetVolumeFinder() types.VolumeFinder {
 func (mr *MockServiceMockRecorder) GetVolumeFinder() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVolumeFinder", reflect.TypeOf((*MockService)(nil).GetVolumeFinder))
-}
-
-// TimeSince mocks base method.
-func (m *MockService) TimeSince(arg0 time.Time, arg1 string) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "TimeSince", arg0, arg1)
-}
-
-// TimeSince indicates an expected call of TimeSince.
-func (mr *MockServiceMockRecorder) TimeSince(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TimeSince", reflect.TypeOf((*MockService)(nil).TimeSince), arg0, arg1)
 }
