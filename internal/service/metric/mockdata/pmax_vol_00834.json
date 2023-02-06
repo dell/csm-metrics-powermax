@@ -1,0 +1,42 @@
+{
+  "volumeId": "00834",
+  "type": "TDEV",
+  "emulation": "",
+  "ssid": "",
+  "allocated_percent": 10,
+  "cap_gb": 8,
+  "cap_mb": 8194,
+  "cap_cyl": 0,
+  "status": "",
+  "reserved": false,
+  "pinned": false,
+  "physical_name": "",
+  "volume_identifier": "csi-k8s-mock-398993ad1d-powermaxtest",
+  "wwn": "60000970000197902573533030334537",
+  "encapsulated": false,
+  "num_of_storage_groups": 0,
+  "num_of_front_end_paths": 0,
+  "storageGroupId": null,
+  "rdfGroupId": null,
+  "symmetrixPortKey": null,
+  "snapvx_source": false,
+  "snapvx_target": false,
+  "cu_image_base_address": "",
+  "has_effective_wwn": false,
+  "effective_wwn": "",
+  "encapsulated_wwn": "",
+  "oracle_instance_name": "",
+  "mobility_id_enabled": false,
+  "storage_groups": [
+    {
+      "storage_group_name": "csi-TAO-Gold-SRP_1-SG",
+      "parent_storage_group_name": ""
+    },
+    {
+      "storage_group_name": "csi-no-srp-sg-TAO-worker-2-zegnx4zktvbph",
+      "parent_storage_group_name": ""
+    }
+  ],
+  "unreducible_data_gb": 0,
+  "nguid": ""
+}

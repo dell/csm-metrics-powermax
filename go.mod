@@ -3,7 +3,7 @@ module github.com/dell/csm-metrics-powermax
 go 1.19
 
 require (
-	github.com/dell/gopowermax/v2 v2.1.0
+	github.com/dell/gopowermax/v2 v2.1.1-0.20230118020618-73d5cfc00853
 	github.com/fsnotify/fsnotify v1.5.1
 	github.com/golang/mock v1.6.0
 	github.com/gorilla/mux v1.8.0
@@ -75,3 +75,5 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.1 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
+
+replace gopkg.in/yaml.v3 => gopkg.in/yaml.v3 v3.0.1

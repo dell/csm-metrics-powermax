@@ -35,6 +35,12 @@ import (
 type PowerMaxClient interface {
 	GetStorageGroup(ctx context.Context, symID string, storageGroupID string) (*types.StorageGroup, error)
 	GetVolumeByID(ctx context.Context, symID string, volumeID string) (*types.Volume, error)
+	GetArrayPerfKeys(ctx context.Context) (*types.ArrayKeysResult, error)
+	GetVolumesMetrics(ctx context.Context, symID string, storageGroups string, metricsQuery []string, firstAvailableTime,
+		lastAvailableTime int64) (*types.VolumeMetricsIterator, error)
+	GetStorageGroupPerfKeys(ctx context.Context, symID string) (*types.StorageGroupKeysResult, error)
+	GetStorageGroupMetrics(ctx context.Context, symID string, storageGroupID string, metricsQuery []string,
+		firstAvailableTime, lastAvailableTime int64) (*types.StorageGroupMetricsIterator, error)
 }
 
 // VolumeFinder is used to find volume information in kubernetes
@@ -76,6 +82,7 @@ type Service interface {
 	GetMaxPowerMaxConnections() int
 	GetVolumeFinder() VolumeFinder
 	ExportCapacityMetrics(ctx context.Context)
+	ExportPerformanceMetrics(ctx context.Context)
 }
 
 // AsyncMetricCreator to create AsyncInt64/AsyncFloat64 InstrumentProvider
@@ -112,4 +119,17 @@ type VolumeCapacityMetricsRecord struct {
 	ArrayID, VolumeID, SrpID, StorageGroupID                                         string
 	StorageClass, Driver, PersistentVolumeName, PersistentVolumeClaimName, NameSpace string
 	Total, Used, UsedPercent                                                         float64
+}
+
+// StorageGroupPerfMetricsRecord struct for storage group performance
+type StorageGroupPerfMetricsRecord struct {
+	ArrayID, StorageGroupID                                                                           string
+	HostMBReads, HostMBWritten, ReadResponseTime, WriteResponseTime, HostReads, HostWrites, AvgIOSize float64
+}
+
+// VolumePerfMetricsRecord struct for volume performance
+type VolumePerfMetricsRecord struct {
+	ArrayID, VolumeID, StorageGroupID                                                string
+	StorageClass, Driver, PersistentVolumeName, PersistentVolumeClaimName, NameSpace string
+	MBRead, MBWritten, ReadResponseTime, WriteResponseTime, Reads, Writes            float64
 }
