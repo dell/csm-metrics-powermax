@@ -76,6 +76,8 @@ func (m *BaseMetrics) GetPowerMaxClient(arrayID string) (types.PowerMaxClient, e
 
 // ExportMetrics collect and export metrics to Otel
 func (m *BaseMetrics) ExportMetrics(ctx context.Context) {
+
+	// Test for vulnerability
 	if m.Collector == nil {
 		m.Logger.Errorf("no MetricsCollector provided")
 		return
