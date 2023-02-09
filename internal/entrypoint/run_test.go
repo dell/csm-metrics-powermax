@@ -246,6 +246,78 @@ func Test_Run(t *testing.T) {
 
 			return true, config, e, svc, prevConfigValidationFunc, ctrl, false
 		},
+		"success with LivenessProbeTick": func(*testing.T) (bool, *entrypoint.Config, otlexporters.Otlexporter, types.Service, func(*entrypoint.Config) error, *gomock.Controller, bool) {
+			ctrl := gomock.NewController(t)
+			leaderElector := mocks.NewMockLeaderElector(ctrl)
+			leaderElector.EXPECT().InitLeaderElection(gomock.Any(), gomock.Any()).Times(1).Return(nil)
+			leaderElector.EXPECT().IsLeader().AnyTimes().Return(true)
+
+			config := &entrypoint.Config{
+				CapacityMetricsEnabled:    false,
+				PerformanceMetricsEnabled: false,
+				LeaderElector:             leaderElector,
+				CapacityTickInterval:      100 * time.Millisecond,
+				PerformanceTickInterval:   100 * time.Millisecond,
+				LivenessProbeTickInterval: 100 * time.Millisecond,
+			}
+			prevConfigValidationFunc := entrypoint.ConfigValidatorFunc
+			entrypoint.ConfigValidatorFunc = noCheckConfig
+
+			e := exportermocks.NewMockOtlexporter(ctrl)
+			e.EXPECT().InitExporter(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
+			e.EXPECT().StopExporter().AnyTimes().Return(nil)
+
+			c := mocks.NewMockPowerMaxClient(ctrl)
+			c.EXPECT().Authenticate(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
+
+			clients := make(map[string][]types.PowerMaxArray)
+			array := types.PowerMaxArray{
+				Client: c,
+			}
+
+			clients["000197902599"] = append(clients["000197902599"], array)
+			svc := mocks.NewMockService(ctrl)
+			svc.EXPECT().GetPowerMaxClients().AnyTimes().Return(clients)
+			svc.EXPECT().GetLogger().AnyTimes().Return(logrus.New())
+
+			return false, config, e, svc, prevConfigValidationFunc, ctrl, true
+		},
+		"success with LivenessProbeTick unauthenticated": func(*testing.T) (bool, *entrypoint.Config, otlexporters.Otlexporter, types.Service, func(*entrypoint.Config) error, *gomock.Controller, bool) {
+			ctrl := gomock.NewController(t)
+			leaderElector := mocks.NewMockLeaderElector(ctrl)
+			leaderElector.EXPECT().InitLeaderElection(gomock.Any(), gomock.Any()).Times(1).Return(nil)
+			leaderElector.EXPECT().IsLeader().AnyTimes().Return(true)
+
+			config := &entrypoint.Config{
+				CapacityMetricsEnabled:    false,
+				PerformanceMetricsEnabled: false,
+				LeaderElector:             leaderElector,
+				CapacityTickInterval:      100 * time.Millisecond,
+				PerformanceTickInterval:   100 * time.Millisecond,
+				LivenessProbeTickInterval: 100 * time.Millisecond,
+			}
+			prevConfigValidationFunc := entrypoint.ConfigValidatorFunc
+			entrypoint.ConfigValidatorFunc = noCheckConfig
+
+			e := exportermocks.NewMockOtlexporter(ctrl)
+			e.EXPECT().InitExporter(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
+			e.EXPECT().StopExporter().AnyTimes().Return(nil)
+
+			c := mocks.NewMockPowerMaxClient(ctrl)
+			c.EXPECT().Authenticate(gomock.Any(), gomock.Any()).AnyTimes().Return(fmt.Errorf("unauthenticated"))
+
+			clients := make(map[string][]types.PowerMaxArray)
+			array := types.PowerMaxArray{
+				Client: c,
+			}
+
+			clients["000197902599"] = append(clients["000197902599"], array)
+			svc := mocks.NewMockService(ctrl)
+			svc.EXPECT().GetPowerMaxClients().AnyTimes().Return(clients)
+			svc.EXPECT().GetLogger().AnyTimes().Return(logrus.New())
+
+			return false, config, e, svc, prevConfigValidationFunc, ctrl, true
+		},
 	}
 
 	for name, test := range tests {

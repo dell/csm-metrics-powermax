@@ -81,12 +81,16 @@ func Test_CapacityMetricsCollect(t *testing.T) {
 			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(mockVolumes, nil).Times(1)
 			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any()).Times(6)
 
-			clients := make(map[string]types.PowerMaxClient)
 			c := mocks.NewMockPowerMaxClient(ctrl)
-			clients["000197902599"] = c
-
 			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(&volume00833, nil).Times(1)
 			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(&volume00834, nil).Times(1)
+
+			clients := make(map[string][]types.PowerMaxArray)
+			array := types.PowerMaxArray{
+				Client:   c,
+				IsActive: true,
+			}
+			clients["000197902599"] = append(clients["000197902599"], array)
 
 			capacityMetric := metric.CapacityMetrics{
 				BaseMetrics: &metric.BaseMetrics{
@@ -107,7 +111,7 @@ func Test_CapacityMetricsCollect(t *testing.T) {
 			err := errors.New("find no PVs, will do nothing")
 			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(nil, err).Times(1)
 
-			clients := make(map[string]types.PowerMaxClient)
+			clients := make(map[string][]types.PowerMaxArray)
 
 			capacityMetric := metric.CapacityMetrics{
 				BaseMetrics: &metric.BaseMetrics{
@@ -127,7 +131,7 @@ func Test_CapacityMetricsCollect(t *testing.T) {
 			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any()).Times(5)
 			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(nil, nil).Times(1)
 
-			clients := make(map[string]types.PowerMaxClient)
+			clients := make(map[string][]types.PowerMaxArray)
 			capacityMetric := metric.CapacityMetrics{
 				BaseMetrics: &metric.BaseMetrics{
 					VolumeFinder:           volFinder,
@@ -164,12 +168,17 @@ func Test_CapacityMetricsCollect(t *testing.T) {
 			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any()).Times(0)
 			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(mockVolumes, nil).Times(1)
 
-			clients := make(map[string]types.PowerMaxClient)
-			c := mocks.NewMockPowerMaxClient(ctrl)
-			clients["000197902599"] = c
-
 			err := errors.New("failed to get volume")
+
+			c := mocks.NewMockPowerMaxClient(ctrl)
 			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, err).Times(2)
+
+			clients := make(map[string][]types.PowerMaxArray)
+			array := types.PowerMaxArray{
+				Client:   c,
+				IsActive: true,
+			}
+			clients["000197902599"] = append(clients["000197902599"], array)
 
 			capacityMetric := metric.CapacityMetrics{
 				BaseMetrics: &metric.BaseMetrics{
@@ -190,12 +199,16 @@ func Test_CapacityMetricsCollect(t *testing.T) {
 			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any()).Return(err).Times(6)
 			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(mockVolumes, nil).Times(1)
 
-			clients := make(map[string]types.PowerMaxClient)
 			c := mocks.NewMockPowerMaxClient(ctrl)
-			clients["000197902599"] = c
-
 			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(&volume00833, nil).Times(1)
 			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(&volume00834, nil).Times(1)
+
+			clients := make(map[string][]types.PowerMaxArray)
+			array := types.PowerMaxArray{
+				Client:   c,
+				IsActive: true,
+			}
+			clients["000197902599"] = append(clients["000197902599"], array)
 
 			capacityMetric := metric.CapacityMetrics{
 				BaseMetrics: &metric.BaseMetrics{

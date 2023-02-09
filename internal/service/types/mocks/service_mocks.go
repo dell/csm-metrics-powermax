@@ -119,10 +119,10 @@ func (mr *MockServiceMockRecorder) GetMetricsRecorder() *gomock.Call {
 }
 
 // GetPowerMaxClients mocks base method.
-func (m *MockService) GetPowerMaxClients() map[string]types.PowerMaxClient {
+func (m *MockService) GetPowerMaxClients() map[string][]types.PowerMaxArray {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetPowerMaxClients")
-	ret0, _ := ret[0].(map[string]types.PowerMaxClient)
+	ret0, _ := ret[0].(map[string][]types.PowerMaxArray)
 	return ret0
 }
 
