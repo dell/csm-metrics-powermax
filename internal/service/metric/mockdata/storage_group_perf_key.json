@@ -1,0 +1,14 @@
+{
+  "storageGroupInfo": [
+    {
+      "storageGroupId": "csi-TAO-Gold-SRP_1-SG",
+      "firstAvailableDate": 0,
+      "lastAvailableDate": 1
+    },
+    {
+      "storageGroupId": "csi-no-srp-sg-TAO-worker-2-zegnx4zktvbph",
+      "firstAvailableDate": 0,
+      "lastAvailableDate": 1
+    }
+  ]
+}

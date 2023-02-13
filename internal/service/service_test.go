@@ -18,6 +18,10 @@ package service_test
 
 import (
 	"context"
+	"encoding/json"
+	"github.com/stretchr/testify/assert"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/dell/csm-metrics-powermax/internal/k8s"
@@ -29,35 +33,21 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var mockVolumes = []k8s.VolumeInfo{
-	{
-		Namespace:              "karavi",
-		PersistentVolumeClaim:  "pvc-uid",
-		PersistentVolumeStatus: "Bound",
-		VolumeClaimName:        "pvc-name",
-		PersistentVolume:       "pv-1",
-		StorageClass:           "powermax-iscsi",
-		Driver:                 "csi-powermax.dellemc.com",
-		ProvisionedSize:        "16Gi",
-		VolumeHandle:           "csi-k8s-mock-398993ad1b-powermaxtest-000197902599-00822",
-		SRP:                    "SRP_1",
-		StorageGroup:           "csi-BYM-Gold-SRP_1-SG",
-	},
-}
-var volume00822 = &v100.Volume{
-	VolumeID:         "00822",
-	Type:             "TDEV",
-	AllocatedPercent: 10,
-	CapacityGB:       8.0,
-	FloatCapacityMB:  8194.0,
-	VolumeIdentifier: "csi-k8s-mock-398993ad1b-powermaxtest",
-	WWN:              "60000970000197902273533030383532",
-	StorageGroups: []v100.StorageGroupName{
-		{StorageGroupName: "csi-BYM-Gold-SRP_1-SG"},
-		{StorageGroupName: "csi-no-srp-sg-BYM-worker-2-zegnx4zktvbph"}},
-}
+const mockDir = "metric/mockdata"
 
 func Test_ExportCapacityMetrics(t *testing.T) {
+	var mockVolumes []k8s.VolumeInfo
+	var volume00833 v100.Volume
+	var volume00834 v100.Volume
+
+	mockVolBytes, err := os.ReadFile(filepath.Join(mockDir, "persistent_volumes.json"))
+	err = json.Unmarshal(mockVolBytes, &mockVolumes)
+	vol00833Bytes, err := os.ReadFile(filepath.Join(mockDir, "pmax_vol_00833.json"))
+	err = json.Unmarshal(vol00833Bytes, &volume00833)
+	vol00834Bytes, err := os.ReadFile(filepath.Join(mockDir, "pmax_vol_00834.json"))
+	err = json.Unmarshal(vol00834Bytes, &volume00834)
+	assert.Nil(t, err)
+
 	tests := map[string]func(t *testing.T) (service.PowerMaxService, *gomock.Controller){
 		"success": func(*testing.T) (service.PowerMaxService, *gomock.Controller) {
 			ctrl := gomock.NewController(t)
@@ -66,13 +56,14 @@ func Test_ExportCapacityMetrics(t *testing.T) {
 			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(mockVolumes, nil).Times(1)
 			scFinder := mocks.NewMockStorageClassFinder(ctrl)
 
-			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any()).Times(5)
+			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any()).Times(6)
 
 			clients := make(map[string]types.PowerMaxClient)
 			c := mocks.NewMockPowerMaxClient(ctrl)
 			clients["000197902599"] = c
 
-			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(volume00822, nil).Times(1)
+			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), "00833").Return(&volume00833, nil).Times(1)
+			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), "00834").Return(&volume00834, nil).Times(1)
 
 			service := service.PowerMaxService{
 				Logger:                 logrus.New(),
@@ -89,6 +80,66 @@ func Test_ExportCapacityMetrics(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			service, ctrl := tc(t)
 			service.ExportCapacityMetrics(context.Background())
+			ctrl.Finish()
+		})
+	}
+}
+
+func Test_ExportPerformanceMetrics(t *testing.T) {
+	var mockVolumes []k8s.VolumeInfo
+	var arrayKeysResult v100.ArrayKeysResult
+	var storageGroupTimeResult v100.StorageGroupKeysResult
+	var volumePerfMetricsResult v100.VolumeMetricsIterator
+	var storageGroupPerfMetricsResult v100.StorageGroupMetricsIterator
+
+	mockVolBytes, err := os.ReadFile(filepath.Join(mockDir, "persistent_volumes.json"))
+	err = json.Unmarshal(mockVolBytes, &mockVolumes)
+	arrayKeyBytes, err := os.ReadFile(filepath.Join(mockDir, "array_perf_key.json"))
+	err = json.Unmarshal(arrayKeyBytes, &arrayKeysResult)
+	sgKeyBytes, err := os.ReadFile(filepath.Join(mockDir, "storage_group_perf_key.json"))
+	err = json.Unmarshal(sgKeyBytes, &storageGroupTimeResult)
+	sgMetricBytes, err := os.ReadFile(filepath.Join(mockDir, "storage_group_perf_metrics.json"))
+	err = json.Unmarshal(sgMetricBytes, &storageGroupPerfMetricsResult)
+	volMetricBytes, err := os.ReadFile(filepath.Join(mockDir, "vol_perf_metrics.json"))
+	err = json.Unmarshal(volMetricBytes, &volumePerfMetricsResult)
+	assert.Nil(t, err)
+
+	tests := map[string]func(t *testing.T) (service.PowerMaxService, *gomock.Controller){
+		"success": func(*testing.T) (service.PowerMaxService, *gomock.Controller) {
+			ctrl := gomock.NewController(t)
+			metrics := mocks.NewMockMetricsRecorder(ctrl)
+			volFinder := mocks.NewMockVolumeFinder(ctrl)
+			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(mockVolumes, nil).Times(1)
+
+			scFinder := mocks.NewMockStorageClassFinder(ctrl)
+
+			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any()).Times(3)
+
+			clients := make(map[string]types.PowerMaxClient)
+			c := mocks.NewMockPowerMaxClient(ctrl)
+			clients["000197902599"] = c
+
+			c.EXPECT().GetArrayPerfKeys(gomock.Any()).Return(&arrayKeysResult, nil).Times(1)
+			c.EXPECT().GetStorageGroupPerfKeys(gomock.Any(), gomock.Any()).Return(&storageGroupTimeResult, nil).Times(1)
+			c.EXPECT().GetVolumesMetrics(gomock.Any(), gomock.Any(), gomock.Any(),
+				gomock.Any(), gomock.Any(), gomock.Any()).Return(&volumePerfMetricsResult, nil).Times(1)
+			c.EXPECT().GetStorageGroupMetrics(gomock.Any(), gomock.Any(), gomock.Any(),
+				gomock.Any(), gomock.Any(), gomock.Any()).Return(&storageGroupPerfMetricsResult, nil).Times(1)
+			service := service.PowerMaxService{
+				Logger:                 logrus.New(),
+				MetricsRecorder:        metrics,
+				VolumeFinder:           volFinder,
+				StorageClassFinder:     scFinder,
+				PowerMaxClients:        clients,
+				MaxPowerMaxConnections: service.DefaultMaxPowerMaxConnections,
+			}
+			return service, ctrl
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			service, ctrl := tc(t)
+			service.ExportPerformanceMetrics(context.Background())
 			ctrl.Finish()
 		})
 	}

@@ -51,6 +51,21 @@ func (m *MockPowerMaxClient) EXPECT() *MockPowerMaxClientMockRecorder {
 	return m.recorder
 }
 
+// GetArrayPerfKeys mocks base method.
+func (m *MockPowerMaxClient) GetArrayPerfKeys(arg0 context.Context) (*v100.ArrayKeysResult, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetArrayPerfKeys", arg0)
+	ret0, _ := ret[0].(*v100.ArrayKeysResult)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetArrayPerfKeys indicates an expected call of GetArrayPerfKeys.
+func (mr *MockPowerMaxClientMockRecorder) GetArrayPerfKeys(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetArrayPerfKeys", reflect.TypeOf((*MockPowerMaxClient)(nil).GetArrayPerfKeys), arg0)
+}
+
 // GetStorageGroup mocks base method.
 func (m *MockPowerMaxClient) GetStorageGroup(arg0 context.Context, arg1, arg2 string) (*v100.StorageGroup, error) {
 	m.ctrl.T.Helper()
@@ -66,6 +81,36 @@ func (mr *MockPowerMaxClientMockRecorder) GetStorageGroup(arg0, arg1, arg2 inter
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStorageGroup", reflect.TypeOf((*MockPowerMaxClient)(nil).GetStorageGroup), arg0, arg1, arg2)
 }
 
+// GetStorageGroupMetrics mocks base method.
+func (m *MockPowerMaxClient) GetStorageGroupMetrics(arg0 context.Context, arg1, arg2 string, arg3 []string, arg4, arg5 int64) (*v100.StorageGroupMetricsIterator, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetStorageGroupMetrics", arg0, arg1, arg2, arg3, arg4, arg5)
+	ret0, _ := ret[0].(*v100.StorageGroupMetricsIterator)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetStorageGroupMetrics indicates an expected call of GetStorageGroupMetrics.
+func (mr *MockPowerMaxClientMockRecorder) GetStorageGroupMetrics(arg0, arg1, arg2, arg3, arg4, arg5 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStorageGroupMetrics", reflect.TypeOf((*MockPowerMaxClient)(nil).GetStorageGroupMetrics), arg0, arg1, arg2, arg3, arg4, arg5)
+}
+
+// GetStorageGroupPerfKeys mocks base method.
+func (m *MockPowerMaxClient) GetStorageGroupPerfKeys(arg0 context.Context, arg1 string) (*v100.StorageGroupKeysResult, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetStorageGroupPerfKeys", arg0, arg1)
+	ret0, _ := ret[0].(*v100.StorageGroupKeysResult)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetStorageGroupPerfKeys indicates an expected call of GetStorageGroupPerfKeys.
+func (mr *MockPowerMaxClientMockRecorder) GetStorageGroupPerfKeys(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStorageGroupPerfKeys", reflect.TypeOf((*MockPowerMaxClient)(nil).GetStorageGroupPerfKeys), arg0, arg1)
+}
+
 // GetVolumeByID mocks base method.
 func (m *MockPowerMaxClient) GetVolumeByID(arg0 context.Context, arg1, arg2 string) (*v100.Volume, error) {
 	m.ctrl.T.Helper()
@@ -79,4 +124,19 @@ func (m *MockPowerMaxClient) GetVolumeByID(arg0 context.Context, arg1, arg2 stri
 func (mr *MockPowerMaxClientMockRecorder) GetVolumeByID(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVolumeByID", reflect.TypeOf((*MockPowerMaxClient)(nil).GetVolumeByID), arg0, arg1, arg2)
+}
+
+// GetVolumesMetrics mocks base method.
+func (m *MockPowerMaxClient) GetVolumesMetrics(arg0 context.Context, arg1, arg2 string, arg3 []string, arg4, arg5 int64) (*v100.VolumeMetricsIterator, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetVolumesMetrics", arg0, arg1, arg2, arg3, arg4, arg5)
+	ret0, _ := ret[0].(*v100.VolumeMetricsIterator)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetVolumesMetrics indicates an expected call of GetVolumesMetrics.
+func (mr *MockPowerMaxClientMockRecorder) GetVolumesMetrics(arg0, arg1, arg2, arg3, arg4, arg5 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVolumesMetrics", reflect.TypeOf((*MockPowerMaxClient)(nil).GetVolumesMetrics), arg0, arg1, arg2, arg3, arg4, arg5)
 }

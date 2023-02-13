@@ -1,0 +1,23 @@
+{
+  "resultList": {
+    "result": [
+      {
+        "HostReads": 0,
+        "HostWrites": 0,
+        "HostMBReads": 0,
+        "HostMBWritten": 0,
+        "ReadResponseTime": 0,
+        "WriteResponseTime": 0,
+        "AllocatedCapacity": 0,
+        "AvgIOSize": 0,
+        "timestamp": 0
+      }
+    ],
+    "from": 0,
+    "to": 1
+  },
+  "id": "",
+  "count": 1,
+  "expirationTime": 1,
+  "maxPageSize": 1
+}

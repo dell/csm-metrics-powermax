@@ -1,0 +1,34 @@
+[
+  {
+    "namespace": "karavi",
+    "persistent_volume_claim": "pvc-uid1",
+    "volume_status": "Bound",
+    "volume_claim_name": "pvc-name",
+    "persistent_volume": "pv-1",
+    "storage_class": "powermax-iscsi",
+    "driver": "csi-powermax.dellemc.com",
+    "provisioned_size": "16Gi",
+    "created_time": "",
+    "volume_handle": "csi-k8s-mock-398993ad1b-powermaxtest-000197902599-00833",
+    "srp": "",
+    "service_level": "",
+    "storage_group": "csi-TAO-Gold-SRP_1-SG",
+    "symid": ""
+  },
+  {
+    "namespace": "karavi",
+    "persistent_volume_claim": "pvc-uid2",
+    "volume_status": "Bound",
+    "volume_claim_name": "pvc-name",
+    "persistent_volume": "pv-2",
+    "storage_class": "powermax-iscsi",
+    "driver": "csi-powermax.dellemc.com",
+    "provisioned_size": "8Gi",
+    "created_time": "",
+    "volume_handle": "csi-k8s-mock-398993ad1d-powermaxtest-000197902599-00834",
+    "srp": "",
+    "service_level": "",
+    "storage_group": "csi-TAO-Gold-SRP_1-SG",
+    "symid": ""
+  }
+]

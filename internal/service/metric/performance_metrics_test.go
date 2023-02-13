@@ -20,10 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"os"
-	"path/filepath"
-	"testing"
-
 	"github.com/dell/csm-metrics-powermax/internal/k8s"
 	"github.com/dell/csm-metrics-powermax/internal/service"
 	"github.com/dell/csm-metrics-powermax/internal/service/metric"
@@ -33,9 +29,14 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"os"
+	"path/filepath"
+	"testing"
 )
 
-func Test_CreateCapacityMetricsInstance(t *testing.T) {
+const mockDir = "mockdata"
+
+func TestCreatePerformanceMetricsInstance(t *testing.T) {
 	tests := map[string]func(t *testing.T) (service.PowerMaxService, *gomock.Controller){
 		"init success": func(*testing.T) (service.PowerMaxService, *gomock.Controller) {
 			ctrl := gomock.NewController(t)
@@ -53,42 +54,51 @@ func Test_CreateCapacityMetricsInstance(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			powerMaxService, ctrl := tc(t)
 			powerMaxService.Logger = logrus.New()
-			metric.CreateCapacityMetricsInstance(&powerMaxService)
+			metric.CreatePerformanceMetricsInstance(&powerMaxService)
 			ctrl.Finish()
 		})
 	}
 }
 
-func Test_CapacityMetricsCollect(t *testing.T) {
+func TestPerformanceMetrics_Collect(t *testing.T) {
 	var mockVolumes []k8s.VolumeInfo
-	var volume00833 v100.Volume
-	var volume00834 v100.Volume
+	var arrayKeysResult v100.ArrayKeysResult
+	var storageGroupTimeResult v100.StorageGroupKeysResult
+	var volumePerfMetricsResult v100.VolumeMetricsIterator
+	var storageGroupPerfMetricsResult v100.StorageGroupMetricsIterator
 
 	mockVolBytes, err := os.ReadFile(filepath.Join(mockDir, "persistent_volumes.json"))
 	err = json.Unmarshal(mockVolBytes, &mockVolumes)
-	vol00833Bytes, err := os.ReadFile(filepath.Join(mockDir, "pmax_vol_00833.json"))
-	err = json.Unmarshal(vol00833Bytes, &volume00833)
-	vol00834Bytes, err := os.ReadFile(filepath.Join(mockDir, "pmax_vol_00834.json"))
-	err = json.Unmarshal(vol00834Bytes, &volume00834)
+	arrayKeyBytes, err := os.ReadFile(filepath.Join(mockDir, "array_perf_key.json"))
+	err = json.Unmarshal(arrayKeyBytes, &arrayKeysResult)
+	sgKeyBytes, err := os.ReadFile(filepath.Join(mockDir, "storage_group_perf_key.json"))
+	err = json.Unmarshal(sgKeyBytes, &storageGroupTimeResult)
+	sgMetricBytes, err := os.ReadFile(filepath.Join(mockDir, "storage_group_perf_metrics.json"))
+	err = json.Unmarshal(sgMetricBytes, &storageGroupPerfMetricsResult)
+	volMetricBytes, err := os.ReadFile(filepath.Join(mockDir, "vol_perf_metrics.json"))
+	err = json.Unmarshal(volMetricBytes, &volumePerfMetricsResult)
 	assert.Nil(t, err)
 
-	tests := map[string]func(t *testing.T) (metric.CapacityMetrics, *gomock.Controller, error){
-		"success": func(t *testing.T) (metric.CapacityMetrics, *gomock.Controller, error) {
+	tests := map[string]func(t *testing.T) (metric.PerformanceMetrics, *gomock.Controller, error){
+		"success": func(t *testing.T) (metric.PerformanceMetrics, *gomock.Controller, error) {
 			ctrl := gomock.NewController(t)
 			metrics := mocks.NewMockMetricsRecorder(ctrl)
 			volFinder := mocks.NewMockVolumeFinder(ctrl)
 
+			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any()).Times(3)
 			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(mockVolumes, nil).Times(1)
-			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any()).Times(6)
 
 			clients := make(map[string]types.PowerMaxClient)
 			c := mocks.NewMockPowerMaxClient(ctrl)
 			clients["000197902599"] = c
 
-			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(&volume00833, nil).Times(1)
-			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(&volume00834, nil).Times(1)
-
-			capacityMetric := metric.CapacityMetrics{
+			c.EXPECT().GetArrayPerfKeys(gomock.Any()).Return(&arrayKeysResult, nil).Times(1)
+			c.EXPECT().GetStorageGroupPerfKeys(gomock.Any(), gomock.Any()).Return(&storageGroupTimeResult, nil).Times(1)
+			c.EXPECT().GetVolumesMetrics(gomock.Any(), gomock.Any(), gomock.Any(),
+				gomock.Any(), gomock.Any(), gomock.Any()).Return(&volumePerfMetricsResult, nil).Times(1)
+			c.EXPECT().GetStorageGroupMetrics(gomock.Any(), gomock.Any(), gomock.Any(),
+				gomock.Any(), gomock.Any(), gomock.Any()).Return(&storageGroupPerfMetricsResult, nil).Times(1)
+			performanceMetric := metric.PerformanceMetrics{
 				BaseMetrics: &metric.BaseMetrics{
 					VolumeFinder:           volFinder,
 					PowerMaxClients:        clients,
@@ -96,9 +106,9 @@ func Test_CapacityMetricsCollect(t *testing.T) {
 					MaxPowerMaxConnections: service.DefaultMaxPowerMaxConnections,
 				},
 			}
-			return capacityMetric, ctrl, nil
+			return performanceMetric, ctrl, nil
 		},
-		"failed to get pvs": func(*testing.T) (metric.CapacityMetrics, *gomock.Controller, error) {
+		"failed to get pvs": func(*testing.T) (metric.PerformanceMetrics, *gomock.Controller, error) {
 			ctrl := gomock.NewController(t)
 			metrics := mocks.NewMockMetricsRecorder(ctrl)
 			volFinder := mocks.NewMockVolumeFinder(ctrl)
@@ -109,7 +119,7 @@ func Test_CapacityMetricsCollect(t *testing.T) {
 
 			clients := make(map[string]types.PowerMaxClient)
 
-			capacityMetric := metric.CapacityMetrics{
+			performanceMetric := metric.PerformanceMetrics{
 				BaseMetrics: &metric.BaseMetrics{
 					VolumeFinder:           volFinder,
 					PowerMaxClients:        clients,
@@ -117,18 +127,18 @@ func Test_CapacityMetricsCollect(t *testing.T) {
 					MaxPowerMaxConnections: service.DefaultMaxPowerMaxConnections,
 				},
 			}
-			return capacityMetric, ctrl, err
+			return performanceMetric, ctrl, err
 		},
-		"get 0 pv": func(t *testing.T) (metric.CapacityMetrics, *gomock.Controller, error) {
+		"get 0 pv": func(t *testing.T) (metric.PerformanceMetrics, *gomock.Controller, error) {
 			ctrl := gomock.NewController(t)
 			metrics := mocks.NewMockMetricsRecorder(ctrl)
 			volFinder := mocks.NewMockVolumeFinder(ctrl)
 
-			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any()).Times(5)
+			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any()).Times(2)
 			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(nil, nil).Times(1)
 
 			clients := make(map[string]types.PowerMaxClient)
-			capacityMetric := metric.CapacityMetrics{
+			performanceMetric := metric.PerformanceMetrics{
 				BaseMetrics: &metric.BaseMetrics{
 					VolumeFinder:           volFinder,
 					PowerMaxClients:        clients,
@@ -136,9 +146,9 @@ func Test_CapacityMetricsCollect(t *testing.T) {
 					MaxPowerMaxConnections: service.DefaultMaxPowerMaxConnections,
 				},
 			}
-			return capacityMetric, ctrl, nil
+			return performanceMetric, ctrl, nil
 		},
-		"failed to get client": func(t *testing.T) (metric.CapacityMetrics, *gomock.Controller, error) {
+		"failed to get client": func(t *testing.T) (metric.PerformanceMetrics, *gomock.Controller, error) {
 			ctrl := gomock.NewController(t)
 			metrics := mocks.NewMockMetricsRecorder(ctrl)
 			volFinder := mocks.NewMockVolumeFinder(ctrl)
@@ -146,7 +156,7 @@ func Test_CapacityMetricsCollect(t *testing.T) {
 			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any()).Times(0)
 			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(mockVolumes, nil).Times(1)
 
-			capacityMetric := metric.CapacityMetrics{
+			performanceMetric := metric.PerformanceMetrics{
 				BaseMetrics: &metric.BaseMetrics{
 					VolumeFinder:           volFinder,
 					PowerMaxClients:        nil,
@@ -154,9 +164,9 @@ func Test_CapacityMetricsCollect(t *testing.T) {
 					MaxPowerMaxConnections: service.DefaultMaxPowerMaxConnections,
 				},
 			}
-			return capacityMetric, ctrl, nil
+			return performanceMetric, ctrl, nil
 		},
-		"failed to get volume": func(t *testing.T) (metric.CapacityMetrics, *gomock.Controller, error) {
+		"failed to get perf keys": func(t *testing.T) (metric.PerformanceMetrics, *gomock.Controller, error) {
 			ctrl := gomock.NewController(t)
 			metrics := mocks.NewMockMetricsRecorder(ctrl)
 			volFinder := mocks.NewMockVolumeFinder(ctrl)
@@ -168,10 +178,10 @@ func Test_CapacityMetricsCollect(t *testing.T) {
 			c := mocks.NewMockPowerMaxClient(ctrl)
 			clients["000197902599"] = c
 
-			err := errors.New("failed to get volume")
-			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, err).Times(2)
-
-			capacityMetric := metric.CapacityMetrics{
+			err := errors.New("failed to get perf keys")
+			c.EXPECT().GetArrayPerfKeys(gomock.Any()).Return(nil, err).Times(1)
+			c.EXPECT().GetStorageGroupPerfKeys(gomock.Any(), gomock.Any()).Return(nil, err).Times(1)
+			performanceMetric := metric.PerformanceMetrics{
 				BaseMetrics: &metric.BaseMetrics{
 					VolumeFinder:           volFinder,
 					PowerMaxClients:        clients,
@@ -179,25 +189,28 @@ func Test_CapacityMetricsCollect(t *testing.T) {
 					MaxPowerMaxConnections: service.DefaultMaxPowerMaxConnections,
 				},
 			}
-			return capacityMetric, ctrl, nil
+			return performanceMetric, ctrl, nil
 		},
-		"failed to record metrics": func(t *testing.T) (metric.CapacityMetrics, *gomock.Controller, error) {
+		"failed to get metrics": func(t *testing.T) (metric.PerformanceMetrics, *gomock.Controller, error) {
 			ctrl := gomock.NewController(t)
 			metrics := mocks.NewMockMetricsRecorder(ctrl)
 			volFinder := mocks.NewMockVolumeFinder(ctrl)
 
-			err := errors.New("failed to record metric")
-			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any()).Return(err).Times(6)
+			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any()).Times(0)
 			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(mockVolumes, nil).Times(1)
 
 			clients := make(map[string]types.PowerMaxClient)
 			c := mocks.NewMockPowerMaxClient(ctrl)
 			clients["000197902599"] = c
 
-			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(&volume00833, nil).Times(1)
-			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(&volume00834, nil).Times(1)
-
-			capacityMetric := metric.CapacityMetrics{
+			err := errors.New("failed to get metric")
+			c.EXPECT().GetArrayPerfKeys(gomock.Any()).Return(&arrayKeysResult, nil).Times(1)
+			c.EXPECT().GetStorageGroupPerfKeys(gomock.Any(), gomock.Any()).Return(&storageGroupTimeResult, nil).Times(1)
+			c.EXPECT().GetVolumesMetrics(gomock.Any(), gomock.Any(), gomock.Any(),
+				gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, err).Times(1)
+			c.EXPECT().GetStorageGroupMetrics(gomock.Any(), gomock.Any(), gomock.Any(),
+				gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, err).Times(1)
+			performanceMetric := metric.PerformanceMetrics{
 				BaseMetrics: &metric.BaseMetrics{
 					VolumeFinder:           volFinder,
 					PowerMaxClients:        clients,
@@ -205,14 +218,43 @@ func Test_CapacityMetricsCollect(t *testing.T) {
 					MaxPowerMaxConnections: service.DefaultMaxPowerMaxConnections,
 				},
 			}
-			return capacityMetric, ctrl, nil
+			return performanceMetric, ctrl, nil
+		},
+		"failed to record metrics": func(t *testing.T) (metric.PerformanceMetrics, *gomock.Controller, error) {
+			ctrl := gomock.NewController(t)
+			metrics := mocks.NewMockMetricsRecorder(ctrl)
+			volFinder := mocks.NewMockVolumeFinder(ctrl)
+
+			err := errors.New("failed to record metric")
+			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any()).Return(err).Times(3)
+			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(mockVolumes, nil).Times(1)
+
+			clients := make(map[string]types.PowerMaxClient)
+			c := mocks.NewMockPowerMaxClient(ctrl)
+			clients["000197902599"] = c
+
+			c.EXPECT().GetArrayPerfKeys(gomock.Any()).Return(&arrayKeysResult, nil).Times(1)
+			c.EXPECT().GetStorageGroupPerfKeys(gomock.Any(), gomock.Any()).Return(&storageGroupTimeResult, nil).Times(1)
+			c.EXPECT().GetVolumesMetrics(gomock.Any(), gomock.Any(), gomock.Any(),
+				gomock.Any(), gomock.Any(), gomock.Any()).Return(&volumePerfMetricsResult, nil).Times(1)
+			c.EXPECT().GetStorageGroupMetrics(gomock.Any(), gomock.Any(), gomock.Any(),
+				gomock.Any(), gomock.Any(), gomock.Any()).Return(&storageGroupPerfMetricsResult, nil).Times(1)
+			performanceMetric := metric.PerformanceMetrics{
+				BaseMetrics: &metric.BaseMetrics{
+					VolumeFinder:           volFinder,
+					PowerMaxClients:        clients,
+					MetricsRecorder:        metrics,
+					MaxPowerMaxConnections: service.DefaultMaxPowerMaxConnections,
+				},
+			}
+			return performanceMetric, ctrl, nil
 		},
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			capacityMetric, ctrl, err := tc(t)
-			capacityMetric.Logger = logrus.New()
-			assert.Equal(t, err, capacityMetric.Collect(context.Background()))
+			performanceMetric, ctrl, err := tc(t)
+			performanceMetric.Logger = logrus.New()
+			assert.Equal(t, err, performanceMetric.Collect(context.Background()))
 			ctrl.Finish()
 		})
 	}

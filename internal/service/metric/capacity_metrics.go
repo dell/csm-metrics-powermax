@@ -119,7 +119,7 @@ func (m *CapacityMetrics) gatherCapacityMetrics(ctx context.Context, pvs []k8s.V
 					StorageClass:              volume.StorageClass,
 					PersistentVolumeName:      volume.PersistentVolume,
 					PersistentVolumeClaimName: volume.VolumeClaimName,
-					NameSpace:                 volume.Namespace,
+					Namespace:                 volume.Namespace,
 					Driver:                    volume.Driver,
 					Total:                     vol.CapacityGB,
 					Used:                      float64(vol.AllocatedPercent) / 100 * vol.CapacityGB,
@@ -141,7 +141,7 @@ func (m *CapacityMetrics) gatherCapacityMetrics(ctx context.Context, pvs []k8s.V
 				StorageClass:              "",
 				PersistentVolumeName:      "",
 				PersistentVolumeClaimName: "",
-				NameSpace:                 "",
+				Namespace:                 "",
 				Driver:                    "",
 				Total:                     0,
 				Used:                      0,
@@ -198,7 +198,7 @@ func (m *CapacityMetrics) pushCapacityMetrics(ctx context.Context, volumeCapacit
 					attribute.String("StorageClass", metric.StorageClass),
 					attribute.String("PersistentVolumeName", metric.PersistentVolumeName),
 					attribute.String("PersistentVolumeClaimName", metric.PersistentVolumeClaimName),
-					attribute.String("NameSpace", metric.NameSpace),
+					attribute.String("Namespace", metric.Namespace),
 					attribute.String("PlotWithMean", "No"),
 				}
 				err := m.MetricsRecorder.RecordNumericMetrics(ctx, collectMetrics("powermax_volume_", labels, metric))
