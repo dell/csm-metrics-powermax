@@ -116,9 +116,9 @@ type PowerMaxArray struct {
 
 // VolumeCapacityMetricsRecord struct for volume capacity
 type VolumeCapacityMetricsRecord struct {
-	ArrayID, VolumeID, SrpID, StorageGroupID                                         string
-	StorageClass, Driver, PersistentVolumeName, PersistentVolumeClaimName, Namespace string
-	Total, Used, UsedPercent                                                         float64
+	ArrayID, VolumeID, SrpID, StorageGroupID                                                                 string
+	StorageClass, Driver, PersistentVolumeName, PersistentVolumeStatus, PersistentVolumeClaimName, Namespace string
+	Total, Used, UsedPercent                                                                                 float64
 }
 
 // StorageGroupPerfMetricsRecord struct for storage group performance
