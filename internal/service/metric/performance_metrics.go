@@ -19,13 +19,14 @@ package metric
 import (
 	"context"
 	"fmt"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/dell/csm-metrics-powermax/internal/k8s"
 	"github.com/dell/csm-metrics-powermax/internal/service/types"
 	"github.com/dell/csm-metrics-powermax/utils"
 	"go.opentelemetry.io/otel/attribute"
-	"strings"
-	"sync"
-	"time"
 )
 
 // PerformanceMetrics performance metrics
@@ -187,7 +188,7 @@ func (m *PerformanceMetrics) gatherVolumePerformanceMetrics(ctx context.Context,
 							StorageClass:              volume.StorageClass,
 							Driver:                    volume.Driver,
 							PersistentVolumeName:      volume.PersistentVolume,
-							PersistentVolumeClaimName: volume.PersistentVolumeClaim,
+							PersistentVolumeClaimName: volume.VolumeClaimName,
 							Namespace:                 volume.Namespace,
 							MBRead:                    volumeResult.VolumeResult[0].MBRead,
 							MBWritten:                 volumeResult.VolumeResult[0].MBWritten,
