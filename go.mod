@@ -1,6 +1,6 @@
 module github.com/dell/csm-metrics-powermax
 
-go 1.19
+go 1.20
 
 require (
 	github.com/dell/gopowermax/v2 v2.1.1-0.20230118020618-73d5cfc00853
