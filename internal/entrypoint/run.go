@@ -19,6 +19,7 @@ package entrypoint
 import (
 	"context"
 	"fmt"
+	"github.com/dell/csm-metrics-powermax/internal/common"
 	"os"
 	"runtime"
 	"time"
@@ -41,6 +42,8 @@ const (
 	DefaultEndPoint = "karavi-metrics-powermax"
 	// DefaultNameSpace for PowerMax pod running metrics collection
 	DefaultNameSpace = "karavi"
+	// LivenessProbeInterval the interval to probe PowerMax connection liveness
+	LivenessProbeInterval = 30 * time.Second
 )
 
 var (
@@ -53,6 +56,7 @@ type Config struct {
 	LeaderElector             types.LeaderElector
 	CapacityTickInterval      time.Duration
 	PerformanceTickInterval   time.Duration
+	LivenessProbeTickInterval time.Duration
 	CapacityMetricsEnabled    bool
 	PerformanceMetricsEnabled bool
 	CollectorAddress          string
@@ -111,6 +115,12 @@ func Run(ctx context.Context, config *Config, exporter otlexporters.Otlexporter,
 	performanceTickInterval := config.PerformanceTickInterval
 	performanceTicker := time.NewTicker(performanceTickInterval)
 
+	livenessProbeTickInterval := config.LivenessProbeTickInterval
+	if livenessProbeTickInterval == 0 {
+		livenessProbeTickInterval = LivenessProbeInterval
+	}
+	livenessProbeTick := time.NewTicker(livenessProbeTickInterval)
+
 	for {
 		select {
 		case <-capacityTicker.C:
@@ -133,6 +143,9 @@ func Run(ctx context.Context, config *Config, exporter otlexporters.Otlexporter,
 				continue
 			}
 			powerMaxSvc.ExportPerformanceMetrics(ctx)
+		case <-livenessProbeTick.C:
+			logger.Info("validate powermax connection")
+			validatePowerMaxArrays(ctx, powerMaxSvc)
 		case err := <-errCh:
 			if err == nil {
 				continue
@@ -152,6 +165,21 @@ func Run(ctx context.Context, config *Config, exporter otlexporters.Otlexporter,
 		if performanceTickInterval != config.PerformanceTickInterval {
 			performanceTickInterval = config.PerformanceTickInterval
 			performanceTicker = time.NewTicker(performanceTickInterval)
+		}
+	}
+}
+
+func validatePowerMaxArrays(ctx context.Context, powerMaxSvc types.Service) {
+	for arrayID, powerMaxArrays := range powerMaxSvc.GetPowerMaxClients() {
+		for _, array := range powerMaxArrays {
+			err := common.Authenticate(ctx, array.Client, array)
+			if err != nil {
+				array.IsActive = false
+				powerMaxSvc.GetLogger().WithError(err).Errorf("authentication failed to PowerMax array %s, %s", arrayID, array.Endpoint)
+				continue
+			}
+			array.IsActive = true
+			powerMaxSvc.GetLogger().Infof("authentication successful to PowerMax array %s, %s", arrayID, array.Endpoint)
 		}
 	}
 }

@@ -58,12 +58,16 @@ func Test_ExportCapacityMetrics(t *testing.T) {
 
 			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any()).Times(6)
 
-			clients := make(map[string]types.PowerMaxClient)
 			c := mocks.NewMockPowerMaxClient(ctrl)
-			clients["000197902599"] = c
-
 			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), "00833").Return(&volume00833, nil).Times(1)
 			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), "00834").Return(&volume00834, nil).Times(1)
+
+			clients := make(map[string][]types.PowerMaxArray)
+			array := types.PowerMaxArray{
+				Client:   c,
+				IsActive: true,
+			}
+			clients["000197902599"] = append(clients["000197902599"], array)
 
 			service := service.PowerMaxService{
 				Logger:                 logrus.New(),
@@ -115,16 +119,21 @@ func Test_ExportPerformanceMetrics(t *testing.T) {
 
 			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any()).Times(3)
 
-			clients := make(map[string]types.PowerMaxClient)
 			c := mocks.NewMockPowerMaxClient(ctrl)
-			clients["000197902599"] = c
-
 			c.EXPECT().GetArrayPerfKeys(gomock.Any()).Return(&arrayKeysResult, nil).Times(1)
 			c.EXPECT().GetStorageGroupPerfKeys(gomock.Any(), gomock.Any()).Return(&storageGroupTimeResult, nil).Times(1)
 			c.EXPECT().GetVolumesMetrics(gomock.Any(), gomock.Any(), gomock.Any(),
 				gomock.Any(), gomock.Any(), gomock.Any()).Return(&volumePerfMetricsResult, nil).Times(1)
 			c.EXPECT().GetStorageGroupMetrics(gomock.Any(), gomock.Any(), gomock.Any(),
 				gomock.Any(), gomock.Any(), gomock.Any()).Return(&storageGroupPerfMetricsResult, nil).Times(1)
+
+			clients := make(map[string][]types.PowerMaxArray)
+			array := types.PowerMaxArray{
+				Client:   c,
+				IsActive: true,
+			}
+			clients["000197902599"] = append(clients["000197902599"], array)
+
 			service := service.PowerMaxService{
 				Logger:                 logrus.New(),
 				MetricsRecorder:        metrics,

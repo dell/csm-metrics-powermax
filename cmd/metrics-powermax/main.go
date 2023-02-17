@@ -173,17 +173,14 @@ func updatePowerMaxArrays(ctx context.Context, powerMaxSvc *service.PowerMaxServ
 	if err != nil {
 		logger.WithError(err).Fatal("initialize powermax arrays in controller service")
 	}
-	powerMaxClients := make(map[string]types.PowerMaxClient)
-	storageArrayID := make([]k8s.StorageArrayID, len(arrays))
 
-	for arrayID, powerMaxArray := range arrays {
-		powerMaxClients[arrayID] = powerMaxArray.Client
-		logger.WithField("arrayID", arrayID).Debug("setting powermax client")
+	powerMaxClients := make(map[string][]types.PowerMaxArray)
 
-		var arrayID = k8s.StorageArrayID{
-			ID: arrayID,
+	for arrayID, powerMaxArrays := range arrays {
+		for _, array := range powerMaxArrays {
+			powerMaxClients[arrayID] = append(powerMaxClients[arrayID], array)
 		}
-		storageArrayID = append(storageArrayID, arrayID)
+		logger.WithField("arrayID", arrayID).Debug("setting powermax client")
 	}
 	powerMaxSvc.PowerMaxClients = powerMaxClients
 }

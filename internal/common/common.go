@@ -130,7 +130,7 @@ func InitK8sUtils(logger *logrus.Logger, callback func(k8sutils.UtilsInterface, 
 
 // GetPowerMaxArrays parses reverseproxy config file, initializes valid pmax and composes map of arrays for ease of access.
 // Note that if you want to monitor secret change, InitK8sUtils should be invoked first.
-func GetPowerMaxArrays(ctx context.Context, k8sUtils k8sutils.UtilsInterface, filePath string, logger *logrus.Logger) (map[string]types.PowerMaxArray, error) {
+func GetPowerMaxArrays(ctx context.Context, k8sUtils k8sutils.UtilsInterface, filePath string, logger *logrus.Logger) (map[string][]types.PowerMaxArray, error) {
 	if k8sUtils == nil {
 		err := errors.New("k8sUtils is nil")
 		logger.WithError(err).Errorf("k8sUtils is not initialized")
@@ -149,7 +149,7 @@ func GetPowerMaxArrays(ctx context.Context, k8sUtils k8sutils.UtilsInterface, fi
 		return nil, err
 	}
 
-	arrayMap := make(map[string]types.PowerMaxArray)
+	arrayMap := make(map[string][]types.PowerMaxArray)
 	for arrayID, arrayList := range getPowerMaxArrays(proxyConfig) {
 		for _, array := range arrayList {
 			logger.Infof("validating PowerMax connection for %s, %s", arrayID, array.Endpoint)
@@ -166,23 +166,28 @@ func GetPowerMaxArrays(ctx context.Context, k8sUtils k8sutils.UtilsInterface, fi
 				continue
 			}
 
-			err = c.Authenticate(ctx, &pmax.ConfigConnect{
-				Endpoint: array.Endpoint,
-				Username: array.Username,
-				Password: array.Password,
-				Version:  defaultU4PVersion,
-			})
+			err = Authenticate(ctx, c, array)
 
 			if err != nil {
 				logger.WithError(err).Errorf("authentication failed to PowerMax array %s, %s", arrayID, array.Endpoint)
 				continue
 			}
+			array.IsActive = true
 			array.Client = c
-			arrayMap[arrayID] = array
-			break
+			arrayMap[arrayID] = append(arrayMap[arrayID], array)
 		}
 	}
 	logger.Infof("got %d valid PowerMax connections", len(arrayMap))
 
 	return arrayMap, nil
+}
+
+// Authenticate PowerMax array if credential is correct or connection is valid
+func Authenticate(ctx context.Context, client types.PowerMaxClient, array types.PowerMaxArray) error {
+	return client.Authenticate(ctx, &pmax.ConfigConnect{
+		Endpoint: array.Endpoint,
+		Username: array.Username,
+		Password: array.Password,
+		Version:  defaultU4PVersion,
+	})
 }

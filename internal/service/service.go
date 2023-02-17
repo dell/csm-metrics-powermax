@@ -34,7 +34,7 @@ type PowerMaxService struct {
 	MetricsRecorder        types.MetricsRecorder
 	MaxPowerMaxConnections int
 	Logger                 *logrus.Logger
-	PowerMaxClients        map[string]types.PowerMaxClient
+	PowerMaxClients        map[string][]types.PowerMaxArray
 	VolumeFinder           types.VolumeFinder
 	StorageClassFinder     types.StorageClassFinder
 }
@@ -45,7 +45,7 @@ func (s *PowerMaxService) GetLogger() *logrus.Logger {
 }
 
 // GetPowerMaxClients return PowerMaxClients
-func (s *PowerMaxService) GetPowerMaxClients() map[string]types.PowerMaxClient {
+func (s *PowerMaxService) GetPowerMaxClients() map[string][]types.PowerMaxArray {
 	return s.PowerMaxClients
 }
 

@@ -24,6 +24,7 @@ import (
 	context "context"
 	reflect "reflect"
 
+	pmax "github.com/dell/gopowermax/v2"
 	v100 "github.com/dell/gopowermax/v2/types/v100"
 	gomock "github.com/golang/mock/gomock"
 )
@@ -49,6 +50,20 @@ func NewMockPowerMaxClient(ctrl *gomock.Controller) *MockPowerMaxClient {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockPowerMaxClient) EXPECT() *MockPowerMaxClientMockRecorder {
 	return m.recorder
+}
+
+// Authenticate mocks base method.
+func (m *MockPowerMaxClient) Authenticate(arg0 context.Context, arg1 *pmax.ConfigConnect) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Authenticate", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Authenticate indicates an expected call of Authenticate.
+func (mr *MockPowerMaxClientMockRecorder) Authenticate(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Authenticate", reflect.TypeOf((*MockPowerMaxClient)(nil).Authenticate), arg0, arg1)
 }
 
 // GetArrayPerfKeys mocks base method.

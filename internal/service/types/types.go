@@ -18,9 +18,9 @@ package types
 
 import (
 	"context"
+	pmax "github.com/dell/gopowermax/v2"
 
 	"github.com/dell/csm-metrics-powermax/internal/k8s"
-	pmax "github.com/dell/gopowermax/v2"
 	types "github.com/dell/gopowermax/v2/types/v100"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/attribute"
@@ -33,6 +33,7 @@ import (
 //
 //go:generate mockgen -destination=mocks/powermax_client_mocks.go -package=mocks github.com/dell/csm-metrics-powermax/internal/service/types PowerMaxClient
 type PowerMaxClient interface {
+	Authenticate(ctx context.Context, configConnect *pmax.ConfigConnect) error
 	GetStorageGroup(ctx context.Context, symID string, storageGroupID string) (*types.StorageGroup, error)
 	GetVolumeByID(ctx context.Context, symID string, volumeID string) (*types.Volume, error)
 	GetArrayPerfKeys(ctx context.Context) (*types.ArrayKeysResult, error)
@@ -77,7 +78,7 @@ type NumericMetric struct {
 //go:generate mockgen -destination=mocks/service_mocks.go -package=mocks github.com/dell/csm-metrics-powermax/internal/service/types Service
 type Service interface {
 	GetLogger() *logrus.Logger
-	GetPowerMaxClients() map[string]PowerMaxClient
+	GetPowerMaxClients() map[string][]PowerMaxArray
 	GetMetricsRecorder() MetricsRecorder
 	GetMaxPowerMaxConnections() int
 	GetVolumeFinder() VolumeFinder
@@ -111,7 +112,8 @@ type PowerMaxArray struct {
 	Password       string
 	Insecure       bool
 	IsPrimary      bool
-	Client         pmax.Pmax
+	IsActive       bool
+	Client         PowerMaxClient
 }
 
 // VolumeCapacityMetricsRecord struct for volume capacity

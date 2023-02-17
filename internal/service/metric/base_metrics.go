@@ -19,10 +19,11 @@ package metric
 import (
 	"context"
 	"fmt"
-	"github.com/dell/csm-metrics-powermax/internal/service/types"
-	"github.com/sirupsen/logrus"
 	"sync"
 	"time"
+
+	"github.com/dell/csm-metrics-powermax/internal/service/types"
+	"github.com/sirupsen/logrus"
 )
 
 var lock = &sync.Mutex{}
@@ -37,7 +38,7 @@ type BaseMetrics struct {
 	Collector              MetricsCollector
 	Logger                 *logrus.Logger
 	VolumeFinder           types.VolumeFinder
-	PowerMaxClients        map[string]types.PowerMaxClient
+	PowerMaxClients        map[string][]types.PowerMaxArray
 	MetricsRecorder        types.MetricsRecorder
 	MaxPowerMaxConnections int
 }
@@ -63,15 +64,21 @@ func (m *BaseMetrics) TimeSince(start time.Time, fName string) {
 	}
 }
 
-// GetPowerMaxClient return the PowerMaxClient based the given arrayID
+// GetPowerMaxClient return the first live PowerMaxClient based on the given arrayID
 func (m *BaseMetrics) GetPowerMaxClient(arrayID string) (types.PowerMaxClient, error) {
 	if m.PowerMaxClients == nil {
 		return nil, fmt.Errorf("PowerMaxClients is empty")
 	}
-	if goPowerMaxClient, ok := m.PowerMaxClients[arrayID]; ok {
-		return goPowerMaxClient, nil
+	if arrays, ok := m.PowerMaxClients[arrayID]; ok {
+		for _, array := range arrays {
+			if array.IsActive {
+				m.Logger.WithFields(logrus.Fields{"arrayID": arrayID, "endpoint": array.Endpoint}).Debug("connection is active")
+				return array.Client, nil
+			}
+			m.Logger.WithFields(logrus.Fields{"arrayID": arrayID, "endpoint": array.Endpoint}).Warn("connection is inactive")
+		}
 	}
-	return nil, fmt.Errorf("unable to find gopowermax client")
+	return nil, fmt.Errorf("unable to find active gopowermax client for array %s", arrayID)
 }
 
 // ExportMetrics collect and export metrics to Otel
