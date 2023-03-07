@@ -81,8 +81,8 @@ github.com/cucumber/messages-go/v10 v10.0.3 h1:m/9SD/K/A15WP7i1aemIv7cwvUw+viS51
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/dell/gopowermax/v2 v2.1.1-0.20230118020618-73d5cfc00853 h1:ekFGFLusi+TSjQPrh27lbmsGJF//zxiwoF7yAJvcl8Y=
-github.com/dell/gopowermax/v2 v2.1.1-0.20230118020618-73d5cfc00853/go.mod h1:m5/9UOSuhs12+CnSpytJaWC53m2i4TNJ1360w7gChmc=
+github.com/dell/gopowermax/v2 v2.2.0 h1:g41Ms/GWxwZbe3IJeeVfdX1/IgnZNzpxHGi+VO+mcBA=
+github.com/dell/gopowermax/v2 v2.2.0/go.mod h1:06DoVqIp9Xt//mEqgSTzTbG2xXhWbT0mCjIjGrRRoAI=
 github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815/go.mod h1:WwZ+bS3ebgob9U8Nd0kOddGdZWjyMGR8Wziv+TBNwSE=
 github.com/elazarl/goproxy v0.0.0-20180725130230-947c36da3153/go.mod h1:/Zj4wYkgs4iZTTu3o/KG3Itv/qCCa8VVMlb3i9OVuzc=
 github.com/emicklei/go-restful v0.0.0-20170410110728-ff4f55a20633/go.mod h1:otzb+WCGbkyDHkqmQmT5YD2WR4BBwUdeQoFo8l/7tVs=
