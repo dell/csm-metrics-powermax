@@ -19,17 +19,18 @@ package common_test
 import (
 	"context"
 	"fmt"
+	"log"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"strings"
+	"testing"
+
 	"github.com/dell/csm-metrics-powermax/internal/common"
 	"github.com/dell/csm-metrics-powermax/internal/k8sutils"
 	"github.com/dell/csm-metrics-powermax/internal/reverseproxy/k8smock"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
-	"log"
-	"net/http"
-	"net/http/httptest"
-	"strings"
-	"testing"
 
 	"github.com/gorilla/mux"
 )
@@ -73,11 +74,11 @@ func Test_Run(t *testing.T) {
 			logger.Info(test(t))
 			filePath, k8sUtils, expectError := test(t)
 
-			fileContentBytes, _ := ioutil.ReadFile(filePath)
+			fileContentBytes, _ := os.ReadFile(filePath)
 
 			newContent := strings.ReplaceAll(string(fileContentBytes), "[serverip]", serverIP)
 			newContent = strings.ReplaceAll(newContent, "[serverport]", serverPort)
-			ioutil.WriteFile(filePath, []byte(newContent), 0644)
+			os.WriteFile(filePath, []byte(newContent), 0644)
 
 			clusters, err := common.GetPowerMaxArrays(context.Background(), k8sUtils, filePath, logger)
 
@@ -88,7 +89,7 @@ func Test_Run(t *testing.T) {
 				assert.NotNil(t, clusters)
 				assert.Nil(t, err)
 			}
-			ioutil.WriteFile(filePath, fileContentBytes, 0644)
+			os.WriteFile(filePath, fileContentBytes, 0644)
 		})
 	}
 }
@@ -120,11 +121,11 @@ func Test_Run_Unauthorized(t *testing.T) {
 			logger.Info(test(t))
 			filePath, k8sUtils, expectError := test(t)
 
-			fileContentBytes, _ := ioutil.ReadFile(filePath)
+			fileContentBytes, _ := os.ReadFile(filePath)
 
 			newContent := strings.ReplaceAll(string(fileContentBytes), "[serverip]", serverIP)
 			newContent = strings.ReplaceAll(newContent, "[serverport]", serverPort)
-			ioutil.WriteFile(filePath, []byte(newContent), 0644)
+			os.WriteFile(filePath, []byte(newContent), 0644)
 
 			clusters, err := common.GetPowerMaxArrays(context.Background(), k8sUtils, filePath, logger)
 
@@ -135,7 +136,7 @@ func Test_Run_Unauthorized(t *testing.T) {
 				assert.NotNil(t, clusters)
 				assert.Nil(t, err)
 			}
-			ioutil.WriteFile(filePath, fileContentBytes, 0644)
+			os.WriteFile(filePath, fileContentBytes, 0644)
 		})
 	}
 }

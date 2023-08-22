@@ -18,14 +18,14 @@ package utils
 
 import (
 	"errors"
-	common "github.com/dell/csm-metrics-powermax/internal/reverseproxy/common"
-	log "github.com/sirupsen/logrus"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	common "github.com/dell/csm-metrics-powermax/internal/reverseproxy/common"
+	log "github.com/sirupsen/logrus"
 )
 
 // IsStringInSlice - Returns true if a string is present in a slice
@@ -60,12 +60,12 @@ func RemoveTempFiles() error {
 	rootDir := RootDir()
 	certsDir := path.Join(rootDir, common.DefaultCertDirName)
 	tmpConfigDir := path.Join(rootDir, common.TempConfigDir)
-	certFiles, err := ioutil.ReadDir(certsDir)
+	certFiles, err := os.ReadDir(certsDir)
 	if err != nil {
 		log.Fatalf("Failed to list cert files in `%s`", certsDir)
 		return err
 	}
-	configFiles, err := ioutil.ReadDir(tmpConfigDir)
+	configFiles, err := os.ReadDir(tmpConfigDir)
 	if err != nil {
 		log.Fatalf("Failed to list config files in `%s`", tmpConfigDir)
 		return err
@@ -87,8 +87,8 @@ func RemoveTempFiles() error {
 }
 
 func checkFileExists(filePath string) bool {
-	_, error := os.Stat(filePath)
-	return !errors.Is(error, os.ErrNotExist)
+	_, err := os.Stat(filePath)
+	return !errors.Is(err, os.ErrNotExist)
 }
 
 func removeFile(filePath string) error {
