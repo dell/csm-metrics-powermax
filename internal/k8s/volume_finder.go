@@ -18,6 +18,7 @@ package k8s
 
 import (
 	"context"
+
 	"github.com/sirupsen/logrus"
 
 	corev1 "k8s.io/api/core/v1"
@@ -56,7 +57,7 @@ type VolumeInfo struct {
 }
 
 // GetPersistentVolumes will return a list of persistent volume information
-func (f VolumeFinder) GetPersistentVolumes(ctx context.Context) ([]VolumeInfo, error) {
+func (f VolumeFinder) GetPersistentVolumes(_ context.Context) ([]VolumeInfo, error) {
 	volumeInfo := make([]VolumeInfo, 0)
 
 	volumes, err := f.API.GetPersistentVolumes()

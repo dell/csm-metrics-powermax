@@ -97,7 +97,7 @@ func (m *PerformanceMetrics) Collect(ctx context.Context) error {
 		defer wg.Done()
 		for range m.pushVolumePerformanceMetrics(ctx, m.gatherVolumePerformanceMetrics(ctx, array2Sgs, id2Volume)) {
 			// consume the channel until it is empty and closed
-		}
+		} // revive:disable-line:empty-block
 	}()
 
 	// Collect storage group performance metric
@@ -105,7 +105,7 @@ func (m *PerformanceMetrics) Collect(ctx context.Context) error {
 		defer wg.Done()
 		for range m.pushStorageGroupPerformanceMetrics(ctx, m.gatherStorageGroupPerformanceMetrics(ctx, array2Sgs)) {
 			// consume the channel until it is empty and closed
-		}
+		} // revive:disable-line:empty-block
 	}()
 	wg.Wait()
 	return nil
@@ -167,8 +167,10 @@ func (m *PerformanceMetrics) gatherVolumePerformanceMetrics(ctx context.Context,
 				for sgID := range sgs {
 					querySgParams = querySgParams + sgID + ","
 				}
-				volumesMetrics, err := pmaxClient.GetVolumesMetrics(ctx, arrayID, querySgParams, []string{"MBRead", "MBWritten",
-					"ReadResponseTime", "WriteResponseTime", "Reads", "Writes"},
+				volumesMetrics, err := pmaxClient.GetVolumesMetrics(ctx, arrayID, querySgParams, []string{
+					"MBRead", "MBWritten",
+					"ReadResponseTime", "WriteResponseTime", "Reads", "Writes",
+				},
 					array2LastAvailTime[arrayID], array2LastAvailTime[arrayID])
 				if err != nil {
 					m.Logger.WithError(err).WithField("arrayID", arrayID).Warn("failed to get volume metrics")
@@ -237,7 +239,6 @@ func (m *PerformanceMetrics) pushVolumePerformanceMetrics(ctx context.Context, v
 
 	ch := make(chan string)
 	go func() {
-
 		// for volume metrics
 		for metric := range volumePerfMetrics {
 			wg.Add(1)
@@ -313,8 +314,10 @@ func (m *PerformanceMetrics) gatherStorageGroupPerformanceMetrics(ctx context.Co
 						m.Logger.WithField("storageGroupID", storageGroupID).Warn("last available time for storage group is not found")
 						continue
 					}
-					sgMetrics, err := pmaxClient.GetStorageGroupMetrics(ctx, arrayID, storageGroupID, []string{"HostMBReads", "HostMBWritten",
-						"ReadResponseTime", "WriteResponseTime", "HostReads", "HostWrites", "AvgIOSize"},
+					sgMetrics, err := pmaxClient.GetStorageGroupMetrics(ctx, arrayID, storageGroupID, []string{
+						"HostMBReads", "HostMBWritten",
+						"ReadResponseTime", "WriteResponseTime", "HostReads", "HostWrites", "AvgIOSize",
+					},
 						storageGroup2LastAvailTime[arrayID+"="+storageGroupID], storageGroup2LastAvailTime[arrayID+"="+storageGroupID])
 					if err != nil {
 						m.Logger.WithError(err).WithField("storageGroupID ID", storageGroupID).Warn("failed to get storage group metrics")

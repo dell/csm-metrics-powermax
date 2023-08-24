@@ -21,10 +21,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-
-	common "github.com/dell/csm-metrics-powermax/internal/reverseproxy/common"
 	"strconv"
 	"time"
+
+	common "github.com/dell/csm-metrics-powermax/internal/reverseproxy/common"
 
 	log "github.com/sirupsen/logrus"
 	"k8s.io/client-go/tools/clientcmd"

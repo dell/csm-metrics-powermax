@@ -62,7 +62,7 @@ func (m *CapacityMetrics) Collect(ctx context.Context) error {
 
 	for range m.pushCapacityMetrics(ctx, m.gatherCapacityMetrics(ctx, pvs)) {
 		// consume the channel until it is empty and closed
-	}
+	} // revive:disable-line:empty-block
 	return nil
 }
 
@@ -105,7 +105,6 @@ func (m *CapacityMetrics) gatherCapacityMetrics(ctx context.Context, pvs []k8s.V
 				}
 
 				vol, err := pmaxClient.GetVolumeByID(ctx, arrayID, volumeID)
-
 				if err != nil {
 					m.Logger.WithError(err).WithField("arrayID", arrayID).WithField("volumeID", volumeID).Error("getting capacity metrics for volume")
 					return
@@ -164,7 +163,6 @@ func (m *CapacityMetrics) pushCapacityMetrics(ctx context.Context, volumeCapacit
 
 	ch := make(chan string)
 	go func() {
-
 		// Sum based on array id for total capacity metrics for array and storage class
 		arrayIDMap := make(map[string]types.VolumeCapacityMetricsRecord)
 		storageClassMap := make(map[string]types.VolumeCapacityMetricsRecord)

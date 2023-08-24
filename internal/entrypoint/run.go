@@ -19,10 +19,11 @@ package entrypoint
 import (
 	"context"
 	"fmt"
-	"github.com/dell/csm-metrics-powermax/internal/common"
 	"os"
 	"runtime"
 	"time"
+
+	"github.com/dell/csm-metrics-powermax/internal/common"
 
 	"github.com/dell/csm-metrics-powermax/internal/service/types"
 
@@ -46,10 +47,8 @@ const (
 	LivenessProbeInterval = 30 * time.Second
 )
 
-var (
-	// ConfigValidatorFunc is used to override config validation in testing
-	ConfigValidatorFunc func(*Config) error = ValidateConfig
-)
+// ConfigValidatorFunc is used to override config validation in testing
+var ConfigValidatorFunc = ValidateConfig
 
 // Config holds data that will be used by the service
 type Config struct {

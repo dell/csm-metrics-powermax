@@ -19,14 +19,15 @@ package common
 import (
 	"context"
 	"errors"
+	"os"
+	"time"
+
 	"github.com/dell/csm-metrics-powermax/internal/k8sutils"
 	"github.com/dell/csm-metrics-powermax/internal/reverseproxy/config"
 	"github.com/dell/csm-metrics-powermax/internal/service/types"
 	pmax "github.com/dell/gopowermax/v2"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
-	"os"
-	"time"
 )
 
 const (
@@ -160,7 +161,6 @@ func GetPowerMaxArrays(ctx context.Context, k8sUtils k8sutils.UtilsInterface, fi
 				ApplicationName,
 				true,
 				false)
-
 			if err != nil {
 				logger.WithError(err).Errorf("cannot connect to PowerMax array %s, %s", arrayID, array.Endpoint)
 				continue

@@ -19,6 +19,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -37,8 +38,6 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"os"
-
 	"go.opentelemetry.io/otel/metric/global"
 
 	"github.com/fsnotify/fsnotify"
@@ -52,12 +51,13 @@ const (
 	defaultReverseProxyConfigFile = "/etc/reverseproxy/config.yaml"
 )
 
-var logger *logrus.Logger
-var powerMaxSvc *service.PowerMaxService
-var ctx context.Context
+var (
+	logger      *logrus.Logger
+	powerMaxSvc *service.PowerMaxService
+	ctx         context.Context
+)
 
 func main() {
-
 	logger = logrus.New()
 
 	viper.SetConfigFile(defaultConfigFile)

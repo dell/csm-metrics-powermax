@@ -18,14 +18,15 @@ package config
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"testing"
+
 	k8sutils "github.com/dell/csm-metrics-powermax/internal/k8sutils"
 	common "github.com/dell/csm-metrics-powermax/internal/reverseproxy/common"
 	k8smock "github.com/dell/csm-metrics-powermax/internal/reverseproxy/k8smock"
 	utils "github.com/dell/csm-metrics-powermax/internal/reverseproxy/utils"
 	"github.com/stretchr/testify/assert"
-	"os"
-	"path/filepath"
-	"testing"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -58,7 +59,6 @@ func TestMain(m *testing.M) {
 	err := utils.RemoveTempFiles()
 	if err != nil {
 		log.Fatalf("Failed to cleanup temp files. (%s)", err.Error())
-		status = 1
 	}
 	os.Exit(status)
 }
