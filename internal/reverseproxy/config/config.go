@@ -19,10 +19,11 @@ package config
 import (
 	"crypto/subtle"
 	"fmt"
+	"net/url"
+
 	k8sutils "github.com/dell/csm-metrics-powermax/internal/k8sutils"
 	common "github.com/dell/csm-metrics-powermax/internal/reverseproxy/common"
 	utils "github.com/dell/csm-metrics-powermax/internal/reverseproxy/utils"
-	"net/url"
 
 	"github.com/spf13/viper"
 )
@@ -153,7 +154,7 @@ func (proxy *StandAloneProxyConfig) updateProxyCredentials(creds common.Credenti
 
 // GetManagementServers - Returns the list of management servers present in StandAloneProxyConfig
 func (proxy *StandAloneProxyConfig) GetManagementServers() []ManagementServer {
-	var mgmtServers = make([]ManagementServer, 0)
+	mgmtServers := make([]ManagementServer, 0)
 	for _, v := range proxy.managementServers {
 		mgmtServers = append(mgmtServers, *v)
 	}
@@ -186,7 +187,7 @@ func (proxy *StandAloneProxyConfig) GetManagedArraysAndServers() map[string]Stor
 
 // GetStorageArray - Returns a list of storage array given a storage array id
 func (proxy *StandAloneProxyConfig) GetStorageArray(storageArrayID string) []StorageArray {
-	var storageArrays = make([]StorageArray, 0)
+	storageArrays := make([]StorageArray, 0)
 	if storageArrayID != "" {
 		if storageArray, ok := proxy.managedArrays[storageArrayID]; ok {
 			storageArrays = append(storageArrays, *storageArray)

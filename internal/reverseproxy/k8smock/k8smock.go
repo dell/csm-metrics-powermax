@@ -19,14 +19,15 @@ package k8smock
 import (
 	"context"
 	"fmt"
-	k8sutils "github.com/dell/csm-metrics-powermax/internal/k8sutils"
-	common "github.com/dell/csm-metrics-powermax/internal/reverseproxy/common"
-	utils "github.com/dell/csm-metrics-powermax/internal/reverseproxy/utils"
 	"os"
 	"path"
 	"path/filepath"
 	"strconv"
 	"time"
+
+	k8sutils "github.com/dell/csm-metrics-powermax/internal/k8sutils"
+	common "github.com/dell/csm-metrics-powermax/internal/reverseproxy/common"
+	utils "github.com/dell/csm-metrics-powermax/internal/reverseproxy/utils"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -143,7 +144,7 @@ func (mockUtils *MockUtils) GetCredentialsFromSecret(secret *corev1.Secret) (*co
 }
 
 // StartInformer - mock implementation for StartInformer
-func (mockUtils *MockUtils) StartInformer(callback func(k8sutils.UtilsInterface, *corev1.Secret)) error {
+func (mockUtils *MockUtils) StartInformer(_ func(k8sutils.UtilsInterface, *corev1.Secret)) error {
 	return nil
 }
 

@@ -18,6 +18,7 @@ package types
 
 import (
 	"context"
+
 	pmax "github.com/dell/gopowermax/v2"
 
 	"github.com/dell/csm-metrics-powermax/internal/k8s"

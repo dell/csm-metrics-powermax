@@ -36,7 +36,6 @@ import (
 )
 
 func Test_Run(t *testing.T) {
-
 	mockUtils := k8smock.Init()
 	mockUtils.CreateNewCredentialSecret("powermax-creds")
 
@@ -78,7 +77,7 @@ func Test_Run(t *testing.T) {
 
 			newContent := strings.ReplaceAll(string(fileContentBytes), "[serverip]", serverIP)
 			newContent = strings.ReplaceAll(newContent, "[serverport]", serverPort)
-			os.WriteFile(filePath, []byte(newContent), 0644)
+			os.WriteFile(filePath, []byte(newContent), 0o600)
 
 			clusters, err := common.GetPowerMaxArrays(context.Background(), k8sUtils, filePath, logger)
 
@@ -89,13 +88,12 @@ func Test_Run(t *testing.T) {
 				assert.NotNil(t, clusters)
 				assert.Nil(t, err)
 			}
-			os.WriteFile(filePath, fileContentBytes, 0644)
+			os.WriteFile(filePath, fileContentBytes, 0o600)
 		})
 	}
 }
 
 func Test_Run_Unauthorized(t *testing.T) {
-
 	mockUtils := k8smock.Init()
 	mockUtils.CreateNewCredentialSecret("powermax-creds")
 
@@ -125,7 +123,7 @@ func Test_Run_Unauthorized(t *testing.T) {
 
 			newContent := strings.ReplaceAll(string(fileContentBytes), "[serverip]", serverIP)
 			newContent = strings.ReplaceAll(newContent, "[serverport]", serverPort)
-			os.WriteFile(filePath, []byte(newContent), 0644)
+			os.WriteFile(filePath, []byte(newContent), 0o600)
 
 			clusters, err := common.GetPowerMaxArrays(context.Background(), k8sUtils, filePath, logger)
 
@@ -136,7 +134,7 @@ func Test_Run_Unauthorized(t *testing.T) {
 				assert.NotNil(t, clusters)
 				assert.Nil(t, err)
 			}
-			os.WriteFile(filePath, fileContentBytes, 0644)
+			os.WriteFile(filePath, fileContentBytes, 0o600)
 		})
 	}
 }

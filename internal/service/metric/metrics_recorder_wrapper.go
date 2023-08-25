@@ -18,6 +18,7 @@ package metric
 
 import (
 	"context"
+
 	"github.com/dell/csm-metrics-powermax/internal/service/types"
 )
 
