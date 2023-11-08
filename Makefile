@@ -30,8 +30,9 @@ test:
 	go test -count=1 -cover -race -timeout 30s -short `go list ./... | grep -v mock`
 
 .PHONY: docker
-docker:
-	SERVICE=cmd/metrics-powermax docker build -t csm-metrics-powermax -f Dockerfile cmd/metrics-powermax/
+docker: download-csm-common
+	$(eval include csm-common.mk)
+	SERVICE=cmd/metrics-powermax docker build -t csm-metrics-powermax -f Dockerfile --build-arg BASEIMAGE=$(DEFAULT_BASEIMAGE) cmd/metrics-powermax/
 
 .PHONY: push
 push:
@@ -44,3 +45,7 @@ tag:
 .PHONY: check
 check:
 	./scripts/check.sh ./cmd/... ./opentelemetry/... ./internal/...
+
+.PHONY: download-csm-common
+download-csm-common:
+	curl -O -L https://raw.githubusercontent.com/dell/csm/main/config/csm-common.mk
