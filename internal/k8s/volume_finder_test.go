@@ -372,6 +372,107 @@ func Test_K8sPersistentVolumeFinder(t *testing.T) {
 				},
 			})), ctrl
 		},
+		"success filtering the persistent volumes which do not have claims": func(*testing.T) (k8s.VolumeFinder, []checkFn, *gomock.Controller) {
+			ctrl := gomock.NewController(t)
+			api := mocks.NewMockVolumeGetter(ctrl)
+
+			t1, err := time.Parse(time.RFC3339, "2022-06-06T20:00:00+00:00")
+			assert.Nil(t, err)
+
+			volumes := &corev1.PersistentVolumeList{
+				Items: []corev1.PersistentVolume{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:              "k8s-7242537ae1",
+							CreationTimestamp: metav1.Time{Time: t1},
+						},
+						Spec: corev1.PersistentVolumeSpec{
+							Capacity: map[corev1.ResourceName]resource.Quantity{
+								corev1.ResourceStorage: resource.MustParse("16Gi"),
+							},
+							PersistentVolumeSource: corev1.PersistentVolumeSource{
+								CSI: &corev1.CSIPersistentVolumeSource{
+									Driver: "csi-powermax.dellemc.com",
+									VolumeAttributes: map[string]string{
+										"CapacityGB":     "12.00",
+										"CreationTime":   "20221107085924",
+										"SRP":            "SRP_1",
+										"ServiceLevel":   "Gold",
+										"StorageGroup":   "csi-BYM-Gold-SRP_1-SG",
+										"powermax/SYMID": "000197902573",
+										"storage.kubernetes.io/csiProvisionerIdentity": "1667811541157-8081-csi-powermax.dellemc.com",
+									},
+									VolumeHandle: "csi-BYM-yiming-398993ad1b-powermaxtest-000197902573-00822",
+								},
+							},
+							ClaimRef: &corev1.ObjectReference{
+								Name:      "pvc-name",
+								Namespace: "namespace-1",
+								UID:       "pvc-uid",
+							},
+							StorageClassName: "storage-class-name",
+						},
+						Status: corev1.PersistentVolumeStatus{
+							Phase: "Bound",
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:              "k8s-7242537ae2",
+							CreationTimestamp: metav1.Time{Time: t1},
+						},
+						Spec: corev1.PersistentVolumeSpec{
+							Capacity: map[corev1.ResourceName]resource.Quantity{
+								corev1.ResourceStorage: resource.MustParse("8Gi"),
+							},
+							PersistentVolumeSource: corev1.PersistentVolumeSource{
+								CSI: &corev1.CSIPersistentVolumeSource{
+									Driver: "csi-powermax.dellemc.com",
+									VolumeAttributes: map[string]string{
+										"CapacityGB":     "12.00",
+										"CreationTime":   "20221107085924",
+										"SRP":            "SRP_1",
+										"ServiceLevel":   "Gold",
+										"StorageGroup":   "csi-BYM-Gold-SRP_1-SG",
+										"powermax/SYMID": "000197902573",
+										"storage.kubernetes.io/csiProvisionerIdentity": "1667811541157-8081-csi-powermax.dellemc.com",
+									},
+									VolumeHandle: "k8s-7242537ae2=_=_=19=_=_=System=_=_=pieisi93x",
+								},
+							},
+							ClaimRef:         nil,
+							StorageClassName: "storage-class-name",
+						},
+						Status: corev1.PersistentVolumeStatus{
+							Phase: "Available",
+						},
+					},
+				},
+			}
+
+			api.EXPECT().GetPersistentVolumes().Times(1).Return(volumes, nil)
+
+			finder := k8s.VolumeFinder{API: api, DriverNames: []string{"csi-powermax.dellemc.com"}, Logger: logrus.New()}
+			return finder, check(hasNoError, checkExpectedOutput([]k8s.VolumeInfo{
+				{
+					Namespace:              "namespace-1",
+					PersistentVolumeClaim:  "pvc-uid",
+					PersistentVolumeStatus: "Bound",
+					VolumeClaimName:        "pvc-name",
+					PersistentVolume:       "k8s-7242537ae1",
+					StorageClass:           "storage-class-name",
+					Driver:                 "csi-powermax.dellemc.com",
+					ProvisionedSize:        "16Gi",
+					VolumeHandle:           "csi-BYM-yiming-398993ad1b-powermaxtest-000197902573-00822",
+					SRP:                    "SRP_1",
+					ServiceLevel:           "Gold",
+					StorageGroup:           "csi-BYM-Gold-SRP_1-SG",
+					SymID:                  "000197902573",
+					CreatedTime:            t1.String(),
+				},
+			})), ctrl
+		},
+
 		"error calling k8s": func(*testing.T) (k8s.VolumeFinder, []checkFn, *gomock.Controller) {
 			ctrl := gomock.NewController(t)
 			api := mocks.NewMockVolumeGetter(ctrl)
