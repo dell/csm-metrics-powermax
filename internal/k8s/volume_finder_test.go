@@ -452,7 +452,7 @@ func Test_K8sPersistentVolumeFinder(t *testing.T) {
 
 			api.EXPECT().GetPersistentVolumes().Times(1).Return(volumes, nil)
 
-			finder := k8s.VolumeFinder{API: api, DriverNames: []string{"csi-isilon.dellemc.com"}, Logger: logrus.New()}
+			finder := k8s.VolumeFinder{API: api, DriverNames: []string{"csi-powermax.dellemc.com"}, Logger: logrus.New()}
 			return finder, check(hasNoError, checkExpectedOutput([]k8s.VolumeInfo{
 				{
 					Namespace:              "namespace-1",
