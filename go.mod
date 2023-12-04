@@ -3,7 +3,7 @@ module github.com/dell/csm-metrics-powermax
 go 1.21
 
 require (
-	github.com/dell/gopowermax/v2 v2.4.0
+	github.com/dell/gopowermax/v2 v2.5.0
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/golang/mock v1.6.0
 	github.com/gorilla/mux v1.8.0
