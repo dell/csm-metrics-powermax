@@ -32,8 +32,7 @@ test:
 .PHONY: docker
 docker: download-csm-common
 	$(eval include csm-common.mk)
-	SERVICE=cmd/metrics-powermax docker build -t csm-metrics-powermax -f Dockerfile --build-arg BASEIMAGE=$(DEFAULT_BASEIMAGE) cmd/metrics-powermax/
-
+    docker build -t csm-metrics-powermax -f Dockerfile --build-arg BASEIMAGE=$(DEFAULT_BASEIMAGE)
 .PHONY: push
 push:
 	docker push ${DOCKER_REPO}/csm-metrics-powermax\:latest
