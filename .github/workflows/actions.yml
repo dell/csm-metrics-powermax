@@ -58,11 +58,13 @@ jobs:
     name: Image Scanner
     runs-on: ubuntu-latest
     steps:
-      - name: Set up Go lastest
+      - name: Set up Go latest
         uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
         id: go
       - name: Checkout the code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Install Mockgen
         run: go get github.com/golang/mock/mockgen@v1.6.0
       - name: Get dependencies
