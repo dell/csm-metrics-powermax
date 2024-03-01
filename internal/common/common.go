@@ -118,7 +118,6 @@ func InitK8sUtils(logger *logrus.Logger, callback func(k8sutils.UtilsInterface, 
 
 	var err error
 	k8sUtils, err = k8sutils.Init(powerMaxNamespace, defaultUnisphereCertDir, true, time.Second*30)
-
 	if err != nil {
 		logger.WithError(err).Errorf("cannot initialize k8sUtils")
 	}
@@ -167,7 +166,6 @@ func GetPowerMaxArrays(ctx context.Context, k8sUtils k8sutils.UtilsInterface, fi
 			}
 
 			err = Authenticate(ctx, c, array)
-
 			if err != nil {
 				logger.WithError(err).Errorf("authentication failed to PowerMax array %s, %s", arrayID, array.Endpoint)
 				continue

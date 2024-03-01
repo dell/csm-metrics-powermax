@@ -139,7 +139,7 @@ func main() {
 	updateMaxConnections(powerMaxSvc)
 
 	viper.WatchConfig()
-	viper.OnConfigChange(func(e fsnotify.Event) {
+	viper.OnConfigChange(func(_ fsnotify.Event) {
 		updateLoggingSettings(logger)
 		updateCollectorAddress(config, exporter)
 		updatePowerMaxConnection(ctx, powerMaxSvc, storageClassFinder, volumeFinder)
@@ -149,7 +149,7 @@ func main() {
 	})
 
 	configFileListener.WatchConfig()
-	configFileListener.OnConfigChange(func(e fsnotify.Event) {
+	configFileListener.OnConfigChange(func(_ fsnotify.Event) {
 		updatePowerMaxConnection(ctx, powerMaxSvc, storageClassFinder, volumeFinder)
 	})
 
