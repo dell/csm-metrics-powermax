@@ -161,7 +161,7 @@ func getHandler(router http.Handler) http.Handler {
 // getRouter return a valid REST response
 func getRouter() http.Handler {
 	router := mux.NewRouter()
-	router.HandleFunc("/univmax/restapi/version", func(w http.ResponseWriter, r *http.Request) {
+	router.HandleFunc("/univmax/restapi/version", func(w http.ResponseWriter, _ *http.Request) {
 		w.Write([]byte("{\"version\": \"T10.0.0.1311\"}"))
 	})
 	return router
@@ -170,7 +170,7 @@ func getRouter() http.Handler {
 // getRouter return an invalid REST response
 func getUnauthorizedRouter() http.Handler {
 	router := mux.NewRouter()
-	router.HandleFunc("/univmax/restapi/version", func(w http.ResponseWriter, r *http.Request) {
+	router.HandleFunc("/univmax/restapi/version", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(401)
 		w.Write([]byte("<html><head><title>Error</title></head><body>Unauthorized</body></html>"))
 	})
