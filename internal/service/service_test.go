@@ -41,12 +41,12 @@ func Test_ExportCapacityMetrics(t *testing.T) {
 	var volume00833 v100.Volume
 	var volume00834 v100.Volume
 
-	mockVolBytes, err := os.ReadFile(filepath.Join(mockDir, "persistent_volumes.json"))
-	err = json.Unmarshal(mockVolBytes, &mockVolumes)
-	vol00833Bytes, err := os.ReadFile(filepath.Join(mockDir, "pmax_vol_00833.json"))
-	err = json.Unmarshal(vol00833Bytes, &volume00833)
-	vol00834Bytes, err := os.ReadFile(filepath.Join(mockDir, "pmax_vol_00834.json"))
-	err = json.Unmarshal(vol00834Bytes, &volume00834)
+	mockVolBytes, _ := os.ReadFile(filepath.Join(mockDir, "persistent_volumes.json"))
+	_ = json.Unmarshal(mockVolBytes, &mockVolumes)
+	vol00833Bytes, _ := os.ReadFile(filepath.Join(mockDir, "pmax_vol_00833.json"))
+	_ = json.Unmarshal(vol00833Bytes, &volume00833)
+	vol00834Bytes, _ := os.ReadFile(filepath.Join(mockDir, "pmax_vol_00834.json"))
+	err := json.Unmarshal(vol00834Bytes, &volume00834)
 	assert.Nil(t, err)
 
 	tests := map[string]func(t *testing.T) (service.PowerMaxService, *gomock.Controller){
@@ -97,16 +97,16 @@ func Test_ExportPerformanceMetrics(t *testing.T) {
 	var volumePerfMetricsResult v100.VolumeMetricsIterator
 	var storageGroupPerfMetricsResult v100.StorageGroupMetricsIterator
 
-	mockVolBytes, err := os.ReadFile(filepath.Join(mockDir, "persistent_volumes.json"))
-	err = json.Unmarshal(mockVolBytes, &mockVolumes)
-	arrayKeyBytes, err := os.ReadFile(filepath.Join(mockDir, "array_perf_key.json"))
-	err = json.Unmarshal(arrayKeyBytes, &arrayKeysResult)
-	sgKeyBytes, err := os.ReadFile(filepath.Join(mockDir, "storage_group_perf_key.json"))
-	err = json.Unmarshal(sgKeyBytes, &storageGroupTimeResult)
-	sgMetricBytes, err := os.ReadFile(filepath.Join(mockDir, "storage_group_perf_metrics.json"))
-	err = json.Unmarshal(sgMetricBytes, &storageGroupPerfMetricsResult)
-	volMetricBytes, err := os.ReadFile(filepath.Join(mockDir, "vol_perf_metrics.json"))
-	err = json.Unmarshal(volMetricBytes, &volumePerfMetricsResult)
+	mockVolBytes, _ := os.ReadFile(filepath.Join(mockDir, "persistent_volumes.json"))
+	_ = json.Unmarshal(mockVolBytes, &mockVolumes)
+	arrayKeyBytes, _ := os.ReadFile(filepath.Join(mockDir, "array_perf_key.json"))
+	_ = json.Unmarshal(arrayKeyBytes, &arrayKeysResult)
+	sgKeyBytes, _ := os.ReadFile(filepath.Join(mockDir, "storage_group_perf_key.json"))
+	_ = json.Unmarshal(sgKeyBytes, &storageGroupTimeResult)
+	sgMetricBytes, _ := os.ReadFile(filepath.Join(mockDir, "storage_group_perf_metrics.json"))
+	_ = json.Unmarshal(sgMetricBytes, &storageGroupPerfMetricsResult)
+	volMetricBytes, _ := os.ReadFile(filepath.Join(mockDir, "vol_perf_metrics.json"))
+	err := json.Unmarshal(volMetricBytes, &volumePerfMetricsResult)
 	assert.Nil(t, err)
 
 	tests := map[string]func(t *testing.T) (service.PowerMaxService, *gomock.Controller){

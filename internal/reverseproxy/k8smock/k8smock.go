@@ -150,7 +150,6 @@ func (mockUtils *MockUtils) StartInformer(_ func(k8sutils.UtilsInterface, *corev
 
 // StopInformer - mock implementation for StopInformer
 func (mockUtils *MockUtils) StopInformer() {
-	return
 }
 
 // CreateNewCertSecret - creates a new mock secret for certs

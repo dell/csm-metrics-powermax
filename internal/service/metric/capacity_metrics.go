@@ -277,7 +277,7 @@ func (m *CapacityMetrics) pushCapacityMetrics(ctx context.Context, volumeCapacit
 				if err != nil {
 					m.Logger.WithError(err).WithField("array_id", metric.ArrayID).Error("recording capacity statistics for array")
 				} else {
-					ch <- fmt.Sprintf(metric.ArrayID)
+					ch <- metric.ArrayID
 				}
 			}(metric)
 		}
@@ -300,7 +300,7 @@ func (m *CapacityMetrics) pushCapacityMetrics(ctx context.Context, volumeCapacit
 				if err != nil {
 					m.Logger.WithError(err).WithField("array_id", metric.ArrayID).Error("recording capacity statistics for storage class")
 				} else {
-					ch <- fmt.Sprintf(metric.ArrayID)
+					ch <- metric.ArrayID
 				}
 			}(metric)
 		}

@@ -68,16 +68,16 @@ func TestPerformanceMetrics_Collect(t *testing.T) {
 	var volumePerfMetricsResult v100.VolumeMetricsIterator
 	var storageGroupPerfMetricsResult v100.StorageGroupMetricsIterator
 
-	mockVolBytes, err := os.ReadFile(filepath.Join(mockDir, "persistent_volumes.json"))
-	err = json.Unmarshal(mockVolBytes, &mockVolumes)
-	arrayKeyBytes, err := os.ReadFile(filepath.Join(mockDir, "array_perf_key.json"))
-	err = json.Unmarshal(arrayKeyBytes, &arrayKeysResult)
-	sgKeyBytes, err := os.ReadFile(filepath.Join(mockDir, "storage_group_perf_key.json"))
-	err = json.Unmarshal(sgKeyBytes, &storageGroupTimeResult)
-	sgMetricBytes, err := os.ReadFile(filepath.Join(mockDir, "storage_group_perf_metrics.json"))
-	err = json.Unmarshal(sgMetricBytes, &storageGroupPerfMetricsResult)
-	volMetricBytes, err := os.ReadFile(filepath.Join(mockDir, "vol_perf_metrics.json"))
-	err = json.Unmarshal(volMetricBytes, &volumePerfMetricsResult)
+	mockVolBytes, _ := os.ReadFile(filepath.Join(mockDir, "persistent_volumes.json"))
+	_ = json.Unmarshal(mockVolBytes, &mockVolumes)
+	arrayKeyBytes, _ := os.ReadFile(filepath.Join(mockDir, "array_perf_key.json"))
+	_ = json.Unmarshal(arrayKeyBytes, &arrayKeysResult)
+	sgKeyBytes, _ := os.ReadFile(filepath.Join(mockDir, "storage_group_perf_key.json"))
+	_ = json.Unmarshal(sgKeyBytes, &storageGroupTimeResult)
+	sgMetricBytes, _ := os.ReadFile(filepath.Join(mockDir, "storage_group_perf_metrics.json"))
+	_ = json.Unmarshal(sgMetricBytes, &storageGroupPerfMetricsResult)
+	volMetricBytes, _ := os.ReadFile(filepath.Join(mockDir, "vol_perf_metrics.json"))
+	err := json.Unmarshal(volMetricBytes, &volumePerfMetricsResult)
 	assert.Nil(t, err)
 
 	tests := map[string]func(t *testing.T) (metric.PerformanceMetrics, *gomock.Controller, error){

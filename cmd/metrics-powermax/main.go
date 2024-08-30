@@ -177,9 +177,7 @@ func updatePowerMaxArrays(ctx context.Context, powerMaxSvc *service.PowerMaxServ
 	powerMaxClients := make(map[string][]types.PowerMaxArray)
 
 	for arrayID, powerMaxArrays := range arrays {
-		for _, array := range powerMaxArrays {
-			powerMaxClients[arrayID] = append(powerMaxClients[arrayID], array)
-		}
+		powerMaxClients[arrayID] = append(powerMaxClients[arrayID], powerMaxArrays...)
 		logger.WithField("arrayID", arrayID).Debug("setting powermax client")
 	}
 	powerMaxSvc.PowerMaxClients = powerMaxClients
