@@ -66,7 +66,7 @@ func TestMain(m *testing.M) {
 func TestReadConfig(t *testing.T) {
 	proxyConfigMap, err := readConfig()
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Errorf("%s", err.Error())
 		return
 	}
 	fmt.Printf("%v", proxyConfigMap)
