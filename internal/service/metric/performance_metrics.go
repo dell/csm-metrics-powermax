@@ -18,7 +18,6 @@ package metric
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -251,7 +250,7 @@ func (m *PerformanceMetrics) pushVolumePerformanceMetrics(ctx context.Context, v
 				if err != nil {
 					m.Logger.WithError(err).WithField("volume_id", metric.VolumeID).Error("recording performance statistics for volume")
 				} else {
-					ch <- fmt.Sprintf(metric.VolumeID)
+					ch <- metric.VolumeID
 				}
 			}(*metric)
 		}
@@ -381,7 +380,7 @@ func (m *PerformanceMetrics) pushStorageGroupPerformanceMetrics(ctx context.Cont
 				if err != nil {
 					m.Logger.WithError(err).WithField("storage_group_id", metric.ArrayID).Error("recording performance statistics for storage group")
 				} else {
-					ch <- fmt.Sprintf(metric.StorageGroupID)
+					ch <- metric.StorageGroupID
 				}
 			}(*metric)
 		}

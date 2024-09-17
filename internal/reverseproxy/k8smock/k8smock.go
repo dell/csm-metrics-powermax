@@ -150,55 +150,54 @@ func (mockUtils *MockUtils) StartInformer(_ func(k8sutils.UtilsInterface, *corev
 
 // StopInformer - mock implementation for StopInformer
 func (mockUtils *MockUtils) StopInformer() {
-	return
 }
 
 // CreateNewCertSecret - creates a new mock secret for certs
 func (mockUtils *MockUtils) CreateNewCertSecret(secretName string) (*corev1.Secret, error) {
-	secret, _ := mockUtils.KubernetesClient.CoreV1().Secrets(common.DefaultNameSpace).Get(context.TODO(), secretName, metav1.GetOptions{})
-	if secret != nil {
-		return secret, nil
+	secret, err := mockUtils.KubernetesClient.CoreV1().Secrets(common.DefaultNameSpace).Get(context.TODO(), secretName, metav1.GetOptions{})
+	if secret == nil || err != nil {
+		data := map[string][]byte{
+			"cert": []byte("This is a dummy cert file"),
+		}
+		if mockUtils.SecretCert != nil {
+			data["cert"] = mockUtils.SecretCert
+		}
+		secretObj := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      secretName,
+				Namespace: common.DefaultNameSpace,
+			},
+			Data: data,
+			Type: "Generic",
+		}
+		return mockUtils.KubernetesClient.CoreV1().Secrets(common.DefaultNameSpace).Create(context.TODO(), secretObj, metav1.CreateOptions{})
 	}
-	data := map[string][]byte{
-		"cert": []byte("This is a dummy cert file"),
-	}
-	if mockUtils.SecretCert != nil {
-		data["cert"] = mockUtils.SecretCert
-	}
-	secretObj := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      secretName,
-			Namespace: common.DefaultNameSpace,
-		},
-		Data: data,
-		Type: "Generic",
-	}
-	return mockUtils.KubernetesClient.CoreV1().Secrets(common.DefaultNameSpace).Create(context.TODO(), secretObj, metav1.CreateOptions{})
+	return secret, nil
 }
 
 // CreateNewCredentialSecret - creates a new mock secret for credentials
 func (mockUtils *MockUtils) CreateNewCredentialSecret(secretName string) (*corev1.Secret, error) {
-	secret, _ := mockUtils.KubernetesClient.CoreV1().Secrets(common.DefaultNameSpace).Get(context.TODO(), secretName, metav1.GetOptions{})
-	if secret != nil {
-		return secret, nil
+	secret, err := mockUtils.KubernetesClient.CoreV1().Secrets(common.DefaultNameSpace).Get(context.TODO(), secretName, metav1.GetOptions{})
+	if secret == nil || err != nil {
+		data := map[string][]byte{
+			"username": []byte("test-username"),
+			"password": []byte("test-password"),
+		}
+		if mockUtils.Username != nil {
+			data["username"] = mockUtils.Username
+		}
+		if mockUtils.Password != nil {
+			data["password"] = mockUtils.Password
+		}
+		secretObj := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      secretName,
+				Namespace: common.DefaultNameSpace,
+			},
+			Data: data,
+			Type: "Generic",
+		}
+		return mockUtils.KubernetesClient.CoreV1().Secrets(common.DefaultNameSpace).Create(context.TODO(), secretObj, metav1.CreateOptions{})
 	}
-	data := map[string][]byte{
-		"username": []byte("test-username"),
-		"password": []byte("test-password"),
-	}
-	if mockUtils.Username != nil {
-		data["username"] = mockUtils.Username
-	}
-	if mockUtils.Password != nil {
-		data["password"] = mockUtils.Password
-	}
-	secretObj := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      secretName,
-			Namespace: common.DefaultNameSpace,
-		},
-		Data: data,
-		Type: "Generic",
-	}
-	return mockUtils.KubernetesClient.CoreV1().Secrets(common.DefaultNameSpace).Create(context.TODO(), secretObj, metav1.CreateOptions{})
+	return secret, nil
 }

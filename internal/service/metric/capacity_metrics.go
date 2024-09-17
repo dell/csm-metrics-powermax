@@ -208,7 +208,7 @@ func (m *CapacityMetrics) pushCapacityMetrics(ctx context.Context, volumeCapacit
 				if err != nil {
 					m.Logger.WithError(err).WithField("array_id", metric.ArrayID).WithField("volume_id", metric.VolumeID).Error("recording capacity metrics for volume")
 				} else {
-					ch <- fmt.Sprintf(metric.VolumeID)
+					ch <- metric.VolumeID
 				}
 			}(metric)
 		}
@@ -232,7 +232,7 @@ func (m *CapacityMetrics) pushCapacityMetrics(ctx context.Context, volumeCapacit
 				if err != nil {
 					m.Logger.WithError(err).WithField("array_id", metric.ArrayID).WithField("storage_group_id", metric.StorageGroupID).Error("recording capacity statistics for storage group")
 				} else {
-					ch <- fmt.Sprintf(metric.StorageGroupID)
+					ch <- metric.StorageGroupID
 				}
 			}(metric)
 		}
@@ -255,7 +255,7 @@ func (m *CapacityMetrics) pushCapacityMetrics(ctx context.Context, volumeCapacit
 				if err != nil {
 					m.Logger.WithError(err).WithField("array_id", metric.ArrayID).WithField("srp_id", metric.SrpID).Error("recording capacity statistics for srp")
 				} else {
-					ch <- fmt.Sprintf(metric.SrpID)
+					ch <- metric.SrpID
 				}
 			}(metric)
 		}
@@ -277,7 +277,7 @@ func (m *CapacityMetrics) pushCapacityMetrics(ctx context.Context, volumeCapacit
 				if err != nil {
 					m.Logger.WithError(err).WithField("array_id", metric.ArrayID).Error("recording capacity statistics for array")
 				} else {
-					ch <- fmt.Sprintf(metric.ArrayID)
+					ch <- metric.ArrayID
 				}
 			}(metric)
 		}
@@ -300,7 +300,7 @@ func (m *CapacityMetrics) pushCapacityMetrics(ctx context.Context, volumeCapacit
 				if err != nil {
 					m.Logger.WithError(err).WithField("array_id", metric.ArrayID).Error("recording capacity statistics for storage class")
 				} else {
-					ch <- fmt.Sprintf(metric.ArrayID)
+					ch <- metric.ArrayID
 				}
 			}(metric)
 		}

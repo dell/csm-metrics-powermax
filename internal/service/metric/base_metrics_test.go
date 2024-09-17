@@ -40,12 +40,12 @@ func Test_ExportMetrics(t *testing.T) {
 	var volume00833 v100.Volume
 	var volume00834 v100.Volume
 
-	mockVolBytes, err := os.ReadFile(filepath.Join(mockDir, "persistent_volumes.json"))
-	err = json.Unmarshal(mockVolBytes, &mockVolumes)
-	vol00833Bytes, err := os.ReadFile(filepath.Join(mockDir, "pmax_vol_00833.json"))
-	err = json.Unmarshal(vol00833Bytes, &volume00833)
-	vol00834Bytes, err := os.ReadFile(filepath.Join(mockDir, "pmax_vol_00834.json"))
-	err = json.Unmarshal(vol00834Bytes, &volume00834)
+	mockVolBytes, _ := os.ReadFile(filepath.Join(mockDir, "persistent_volumes.json"))
+	_ = json.Unmarshal(mockVolBytes, &mockVolumes)
+	vol00833Bytes, _ := os.ReadFile(filepath.Join(mockDir, "pmax_vol_00833.json"))
+	_ = json.Unmarshal(vol00833Bytes, &volume00833)
+	vol00834Bytes, _ := os.ReadFile(filepath.Join(mockDir, "pmax_vol_00834.json"))
+	err := json.Unmarshal(vol00834Bytes, &volume00834)
 	assert.Nil(t, err)
 
 	tests := map[string]func(t *testing.T) (*metric.BaseMetrics, *gomock.Controller){
