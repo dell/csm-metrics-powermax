@@ -232,7 +232,7 @@ func (utils *K8sUtils) StartInformer(callback func(UtilsInterface, *corev1.Secre
 		return nil
 	}
 
-	utils.SecretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err := utils.SecretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			callback(utils, obj.(*corev1.Secret))
 		},
@@ -245,6 +245,10 @@ func (utils *K8sUtils) StartInformer(callback func(UtilsInterface, *corev1.Secre
 			callback(utils, newSecret)
 		},
 	})
+
+	if err != nil {
+		return err
+	}
 
 	utils.InformerFactory.Start(utils.stopCh)
 	return nil
