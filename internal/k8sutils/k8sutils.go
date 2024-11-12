@@ -236,9 +236,9 @@ func (utils *K8sUtils) StartInformer(callback func(UtilsInterface, *corev1.Secre
 		AddFunc: func(obj interface{}) {
 			callback(utils, obj.(*corev1.Secret))
 		},
-		UpdateFunc: func(old, new interface{}) {
+		UpdateFunc: func(old, n interface{}) {
 			oldSecret := old.(*corev1.Secret)
-			newSecret := new.(*corev1.Secret)
+			newSecret := n.(*corev1.Secret)
 			if oldSecret.ResourceVersion == newSecret.ResourceVersion {
 				return
 			}
