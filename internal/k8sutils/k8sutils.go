@@ -245,7 +245,6 @@ func (utils *K8sUtils) StartInformer(callback func(UtilsInterface, *corev1.Secre
 			callback(utils, newSecret)
 		},
 	})
-
 	if err != nil {
 		return err
 	}
