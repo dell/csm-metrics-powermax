@@ -244,7 +244,7 @@ func (m *PerformanceMetrics) pushVolumePerformanceMetrics(ctx context.Context, v
 			go func(metric types.VolumePerfMetricsRecord) {
 				defer wg.Done()
 
-				err := m.MetricsRecorder.RecordNumericMetrics(ctx, collectVolPerfMetrics("powermax_volume", metric))
+				err := m.MetricsRecorder.RecordVolPerfMetrics("powermax_volume", metric)
 				m.Logger.Debugf("class volume performance metrics %+v", metric)
 
 				if err != nil {
@@ -374,7 +374,7 @@ func (m *PerformanceMetrics) pushStorageGroupPerformanceMetrics(ctx context.Cont
 			go func(metric types.StorageGroupPerfMetricsRecord) {
 				defer wg.Done()
 
-				err := m.MetricsRecorder.RecordNumericMetrics(ctx, collectStorageGroupPerfMetrics("powermax_storage_group", metric))
+				err := m.MetricsRecorder.RecordStorageGroupPerfMetrics("powermax_storage_group", metric)
 				m.Logger.Debugf("storage group performance metrics metrics %+v", metric)
 
 				if err != nil {

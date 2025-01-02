@@ -38,7 +38,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"go.opentelemetry.io/otel/metric/global"
+	"go.opentelemetry.io/otel"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
@@ -122,7 +122,7 @@ func main() {
 
 	powerMaxSvc = &service.PowerMaxService{
 		MetricsRecorder: &metric.MetricsRecorderWrapper{
-			Meter: global.Meter("powermax"),
+			Meter: otel.Meter("powermax"),
 		},
 		Logger:             logger,
 		VolumeFinder:       volumeFinder,

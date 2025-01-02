@@ -202,7 +202,7 @@ func (m *CapacityMetrics) pushCapacityMetrics(ctx context.Context, volumeCapacit
 					attribute.String("Namespace", metric.Namespace),
 					attribute.String("PlotWithMean", "No"),
 				}
-				err := m.MetricsRecorder.RecordNumericMetrics(ctx, collectMetrics("powermax_volume_", labels, metric))
+				err := m.MetricsRecorder.RecordNumericMetrics("powermax_volume_", labels, metric)
 				m.Logger.Debugf("volume capacity metrics %+v", metric)
 
 				if err != nil {
@@ -226,7 +226,7 @@ func (m *CapacityMetrics) pushCapacityMetrics(ctx context.Context, volumeCapacit
 					attribute.String("SrpID", metric.SrpID),
 					attribute.String("PlotWithMean", "No"),
 				}
-				err := m.MetricsRecorder.RecordNumericMetrics(ctx, collectMetrics("powermax_storage_group_", labels, metric))
+				err := m.MetricsRecorder.RecordNumericMetrics("powermax_storage_group_", labels, metric)
 				m.Logger.Debugf("storage group capacity metrics %+v", metric)
 
 				if err != nil {
@@ -249,7 +249,7 @@ func (m *CapacityMetrics) pushCapacityMetrics(ctx context.Context, volumeCapacit
 					attribute.String("SrpID", metric.SrpID),
 					attribute.String("PlotWithMean", "No"),
 				}
-				err := m.MetricsRecorder.RecordNumericMetrics(ctx, collectMetrics("powermax_srp_", labels, metric))
+				err := m.MetricsRecorder.RecordNumericMetrics("powermax_srp_", labels, metric)
 				m.Logger.Debugf("srp capacity metrics %+v", metric)
 
 				if err != nil {
@@ -271,7 +271,7 @@ func (m *CapacityMetrics) pushCapacityMetrics(ctx context.Context, volumeCapacit
 					attribute.String("Driver", metric.Driver),
 					attribute.String("PlotWithMean", "No"),
 				}
-				err := m.MetricsRecorder.RecordNumericMetrics(ctx, collectMetrics("powermax_array_", labels, metric))
+				err := m.MetricsRecorder.RecordNumericMetrics("powermax_array_", labels, metric)
 				m.Logger.Debugf("array capacity metrics %+v", metric)
 
 				if err != nil {
@@ -294,7 +294,7 @@ func (m *CapacityMetrics) pushCapacityMetrics(ctx context.Context, volumeCapacit
 					attribute.String("StorageClass", metric.StorageClass),
 					attribute.String("PlotWithMean", "No"),
 				}
-				err := m.MetricsRecorder.RecordNumericMetrics(ctx, collectMetrics("powermax_storage_class_", labels, metric))
+				err := m.MetricsRecorder.RecordNumericMetrics("powermax_storage_class_", labels, metric)
 				m.Logger.Debugf("storage class capacity metrics metrics %+v", metric)
 
 				if err != nil {
