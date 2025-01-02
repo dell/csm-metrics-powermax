@@ -57,7 +57,7 @@ func Test_ExportCapacityMetrics(t *testing.T) {
 			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(mockVolumes, nil).Times(1)
 			scFinder := mocks.NewMockStorageClassFinder(ctrl)
 
-			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any()).Times(6)
+			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any(), gomock.Any()).Times(6)
 
 			c := mocks.NewMockPowerMaxClient(ctrl)
 			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), "00833").Return(&volume00833, nil).Times(1)
@@ -118,7 +118,8 @@ func Test_ExportPerformanceMetrics(t *testing.T) {
 
 			scFinder := mocks.NewMockStorageClassFinder(ctrl)
 
-			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any()).Times(3)
+			metrics.EXPECT().RecordStorageGroupPerfMetrics(gomock.Any(), gomock.Any()).Times(1)
+			metrics.EXPECT().RecordVolPerfMetrics(gomock.Any(), gomock.Any()).Times(2)
 
 			c := mocks.NewMockPowerMaxClient(ctrl)
 			c.EXPECT().GetArrayPerfKeys(gomock.Any()).Return(&arrayKeysResult, nil).Times(1)

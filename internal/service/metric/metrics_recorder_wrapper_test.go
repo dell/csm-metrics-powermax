@@ -17,66 +17,43 @@
 package metric_test
 
 import (
-	"context"
-	"errors"
 	"testing"
 
 	"github.com/dell/csm-metrics-powermax/internal/service/metric"
 	"github.com/dell/csm-metrics-powermax/internal/service/types"
-	"github.com/dell/csm-metrics-powermax/internal/service/types/mocks"
-	"github.com/dell/csm-metrics-powermax/internal/service/types/mocks/asyncfloat64mock"
 	"github.com/golang/mock/gomock"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
-	"go.opentelemetry.io/otel/metric/global"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 func Test_RecordNumericMetrics(t *testing.T) {
-	tests := map[string]func(t *testing.T) (*metric.MetricsRecorderWrapper, []types.NumericMetric, *gomock.Controller, error){
-		"success": func(*testing.T) (*metric.MetricsRecorderWrapper, []types.NumericMetric, *gomock.Controller, error) {
+	tests := map[string]func(t *testing.T) (*metric.MetricsRecorderWrapper, types.VolumeCapacityMetricsRecord, []attribute.KeyValue, *gomock.Controller, error){
+		"success": func(*testing.T) (*metric.MetricsRecorderWrapper, types.VolumeCapacityMetricsRecord, []attribute.KeyValue, *gomock.Controller, error) {
 			ctrl := gomock.NewController(t)
-			otMeter := global.Meter("powermax_test")
-			meter := mocks.NewMockAsyncMetricCreator(ctrl)
-			recorder := &metric.MetricsRecorderWrapper{meter}
-			provider := asyncfloat64mock.NewMockInstrumentProvider(ctrl)
-
-			total, err := otMeter.AsyncFloat64().UpDownCounter("powermax_srp_total_capacity_gigabytes")
-			if err != nil {
-				t.Fatal(err)
-			}
-			used, err := otMeter.AsyncFloat64().UpDownCounter("powermax_srp_used_capacity_gigabytes")
-			if err != nil {
-				t.Fatal(err)
+			otMeter := otel.Meter("powermax_test")
+			recorder := &metric.MetricsRecorderWrapper{
+				Meter: otMeter,
 			}
 
-			meter.EXPECT().AsyncFloat64().Return(provider).Times(2)
-			provider.EXPECT().UpDownCounter(gomock.Any(), gomock.Any()).Return(total, nil).Times(1)
-			provider.EXPECT().UpDownCounter(gomock.Any(), gomock.Any()).Return(used, nil).Times(1)
+			metrics := types.VolumeCapacityMetricsRecord{
+				Total:       10,
+				Used:        5,
+				UsedPercent: 50,
+			}
+			labels := []attribute.KeyValue{
+				attribute.String("ArrayID", uuid.NewString()),
+				attribute.String("Driver", "powermax"),
+			}
 
-			var metrics []types.NumericMetric
-			metrics = append(metrics, types.NumericMetric{Name: "powermax_srp_total_capacity_gigabytes", Value: 16})
-			metrics = append(metrics, types.NumericMetric{Name: "powermax_srp_used_capacity_gigabytes", Value: 8})
-			return recorder, metrics, ctrl, nil
-		},
-		"failed": func(*testing.T) (*metric.MetricsRecorderWrapper, []types.NumericMetric, *gomock.Controller, error) {
-			ctrl := gomock.NewController(t)
-			meter := mocks.NewMockAsyncMetricCreator(ctrl)
-			recorder := &metric.MetricsRecorderWrapper{meter}
-			provider := asyncfloat64mock.NewMockInstrumentProvider(ctrl)
-
-			err := errors.New("error")
-			meter.EXPECT().AsyncFloat64().Return(provider).Times(1)
-			provider.EXPECT().UpDownCounter(gomock.Any(), gomock.Any()).Return(nil, err).Times(1)
-
-			var metrics []types.NumericMetric
-			metrics = append(metrics, types.NumericMetric{Name: "powermax_srp_total_capacity_gigabytes", Value: 16})
-			metrics = append(metrics, types.NumericMetric{Name: "powermax_srp_used_capacity_gigabytes", Value: 8})
-			return recorder, metrics, ctrl, err
+			return recorder, metrics, labels, ctrl, nil
 		},
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			recorder, metrics, ctrl, err := tc(t)
-			assert.Equal(t, err, recorder.RecordNumericMetrics(context.Background(), metrics))
+			recorder, metrics, labels, ctrl, err := tc(t)
+			assert.Equal(t, err, recorder.RecordNumericMetrics("powermax_numeric_", labels, metrics))
 			ctrl.Finish()
 		})
 	}

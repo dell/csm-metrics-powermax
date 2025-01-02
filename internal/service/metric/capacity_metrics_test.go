@@ -79,7 +79,7 @@ func Test_CapacityMetricsCollect(t *testing.T) {
 			volFinder := mocks.NewMockVolumeFinder(ctrl)
 
 			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(mockVolumes, nil).Times(1)
-			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any()).Times(6)
+			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any(), gomock.Any()).Times(6)
 
 			c := mocks.NewMockPowerMaxClient(ctrl)
 			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(&volume00833, nil).Times(1)
@@ -107,7 +107,7 @@ func Test_CapacityMetricsCollect(t *testing.T) {
 			metrics := mocks.NewMockMetricsRecorder(ctrl)
 			volFinder := mocks.NewMockVolumeFinder(ctrl)
 
-			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any()).Times(0)
+			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 			err := errors.New("find no PVs, will do nothing")
 			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(nil, err).Times(1)
 
@@ -128,7 +128,7 @@ func Test_CapacityMetricsCollect(t *testing.T) {
 			metrics := mocks.NewMockMetricsRecorder(ctrl)
 			volFinder := mocks.NewMockVolumeFinder(ctrl)
 
-			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any()).Times(5)
+			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any(), gomock.Any()).Times(5)
 			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(nil, nil).Times(1)
 
 			clients := make(map[string][]types.PowerMaxArray)
@@ -147,7 +147,7 @@ func Test_CapacityMetricsCollect(t *testing.T) {
 			metrics := mocks.NewMockMetricsRecorder(ctrl)
 			volFinder := mocks.NewMockVolumeFinder(ctrl)
 
-			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any()).Times(0)
+			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(mockVolumes, nil).Times(1)
 
 			capacityMetric := metric.CapacityMetrics{
@@ -165,7 +165,7 @@ func Test_CapacityMetricsCollect(t *testing.T) {
 			metrics := mocks.NewMockMetricsRecorder(ctrl)
 			volFinder := mocks.NewMockVolumeFinder(ctrl)
 
-			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any()).Times(0)
+			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(mockVolumes, nil).Times(1)
 
 			err := errors.New("failed to get volume")
@@ -196,7 +196,7 @@ func Test_CapacityMetricsCollect(t *testing.T) {
 			volFinder := mocks.NewMockVolumeFinder(ctrl)
 
 			err := errors.New("failed to record metric")
-			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any()).Return(err).Times(6)
+			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any(), gomock.Any()).Return(err).Times(6)
 			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(mockVolumes, nil).Times(1)
 
 			c := mocks.NewMockPowerMaxClient(ctrl)
