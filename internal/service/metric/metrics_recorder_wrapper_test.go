@@ -58,3 +58,60 @@ func Test_RecordNumericMetrics(t *testing.T) {
 		})
 	}
 }
+
+func Test_RecordVolPerfMetrics(t *testing.T) {
+	tests := map[string]func(t *testing.T) (*metric.MetricsRecorderWrapper, types.VolumePerfMetricsRecord, *gomock.Controller, error){
+		"success": func(*testing.T) (*metric.MetricsRecorderWrapper, types.VolumePerfMetricsRecord, *gomock.Controller, error) {
+			ctrl := gomock.NewController(t)
+			otMeter := otel.Meter("powermax_test")
+			recorder := &metric.MetricsRecorderWrapper{
+				Meter: otMeter,
+			}
+
+			metrics := types.VolumePerfMetricsRecord{
+				ArrayID:                   uuid.NewString(),
+				VolumeID:                  uuid.NewString(),
+				Driver:                    "powermax",
+				StorageClass:              "myStorageClass",
+				PersistentVolumeName:      "myPersistentVolumeName",
+				PersistentVolumeClaimName: "myPersistentVolumeClaimName",
+				Namespace:                 "myNamespace",
+			}
+
+			return recorder, metrics, ctrl, nil
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			recorder, metrics, ctrl, err := tc(t)
+			assert.Equal(t, err, recorder.RecordVolPerfMetrics("powermax_volume_", metrics))
+			ctrl.Finish()
+		})
+	}
+}
+
+func Test_RecordStorageGroupPerfMetrics(t *testing.T) {
+	tests := map[string]func(t *testing.T) (*metric.MetricsRecorderWrapper, types.StorageGroupPerfMetricsRecord, *gomock.Controller, error){
+		"success": func(*testing.T) (*metric.MetricsRecorderWrapper, types.StorageGroupPerfMetricsRecord, *gomock.Controller, error) {
+			ctrl := gomock.NewController(t)
+			otMeter := otel.Meter("powermax_test")
+			recorder := &metric.MetricsRecorderWrapper{
+				Meter: otMeter,
+			}
+
+			metrics := types.StorageGroupPerfMetricsRecord{
+				ArrayID:        uuid.NewString(),
+				StorageGroupID: uuid.NewString(),
+			}
+
+			return recorder, metrics, ctrl, nil
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			recorder, metrics, ctrl, err := tc(t)
+			assert.Equal(t, err, recorder.RecordStorageGroupPerfMetrics("powermax_storage_group_", metrics))
+			ctrl.Finish()
+		})
+	}
+}
