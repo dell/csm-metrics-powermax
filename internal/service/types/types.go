@@ -18,6 +18,7 @@ package types
 
 import (
 	"context"
+
 	"go.opentelemetry.io/otel/metric"
 
 	pmax "github.com/dell/gopowermax/v2"
@@ -88,15 +89,14 @@ type Service interface {
 
 // MeterCreator interface is used to create and provide Meter instances, which are used to report measurements
 //
-//go:generate mockgen -destination=mocks/asyncint64mock/instrument_asyncint64_provider_mocks.go -package=asyncint64mock go.opentelemetry.io/otel/metric/instrument/asyncint64 InstrumentProvider
-//go:generate mockgen -destination=mocks/asyncfloat64mock/instrument_asyncfloat64_provider_mocks.go -package=asyncfloat64mock go.opentelemetry.io/otel/metric/instrument/asyncfloat64 InstrumentProvider
+//go:generate mockgen -destination=mocks/meter_mocks.go -package=mocks go.opentelemetry.io/otel/metric Meter
 type MeterCreator interface {
 	MetricProvider() metric.Meter
 }
 
 // MetricsRecorder supports recording storage resources metrics
 //
-//go:generate mockgen -destination=mocks/types_mocks.go -package=mocks github.com/dell/csm-metrics-powermax/internal/service/types MetricsRecorder,AsyncMetricCreator
+//go:generate mockgen -destination=mocks/types_mocks.go -package=mocks github.com/dell/csm-metrics-powermax/internal/service/types MetricsRecorder,MeterCreator
 type MetricsRecorder interface {
 	RecordNumericMetrics(prefix string, labels []attribute.KeyValue, metric VolumeCapacityMetricsRecord) error
 	RecordVolPerfMetrics(prefix string, metric VolumePerfMetricsRecord) error
