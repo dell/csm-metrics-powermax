@@ -143,7 +143,7 @@ func Run(ctx context.Context, config *Config, exporter otlexporters.Otlexporter,
 			}
 			powerMaxSvc.ExportPerformanceMetrics(ctx)
 		case <-livenessProbeTick.C:
-			logger.Info("validate powermax connection")
+			logger.Info("[FERNANDO] validate powermax connection")
 			validatePowerMaxArrays(ctx, powerMaxSvc)
 		case err := <-errCh:
 			if err == nil {

@@ -105,6 +105,7 @@ func (m *CapacityMetrics) gatherCapacityMetrics(ctx context.Context, pvs []k8s.V
 				}
 
 				vol, err := pmaxClient.GetVolumeByID(ctx, arrayID, volumeID)
+				m.Logger.Printf("[FERNANDO] volume info: %+v", vol)
 				if err != nil {
 					m.Logger.WithError(err).WithField("arrayID", arrayID).WithField("volumeID", volumeID).Error("getting capacity metrics for volume")
 					return

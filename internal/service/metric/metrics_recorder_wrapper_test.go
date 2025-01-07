@@ -18,6 +18,7 @@ package metric_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/dell/csm-metrics-powermax/internal/service/metric"
 	"github.com/dell/csm-metrics-powermax/internal/service/types"
@@ -110,7 +111,11 @@ func Test_RecordStorageGroupPerfMetrics(t *testing.T) {
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			recorder, metrics, ctrl, err := tc(t)
-			assert.Equal(t, err, recorder.RecordStorageGroupPerfMetrics("powermax_storage_group_", metrics))
+			retErr := recorder.RecordStorageGroupPerfMetrics("powermax_storage_group_", metrics)
+			assert.Equal(t, err, retErr)
+
+			time.Sleep(5 * time.Second)
+
 			ctrl.Finish()
 		})
 	}
