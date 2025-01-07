@@ -99,9 +99,11 @@ func TestRootDir(t *testing.T) {
 
 func TestRemoveTempFiles(t *testing.T) {
 	tests := []struct {
-		name     string
-		files    []string
-		expected []string
+		name            string
+		files           []string
+		expected        []string
+		customCertDir   string
+		customConfigDir string
 	}{
 		{
 			name:     "Empty slice",
@@ -117,6 +119,14 @@ func TestRemoveTempFiles(t *testing.T) {
 			name:     "Slice contains certs",
 			files:    []string{"cert1.pem", "cert2.pem", "cert3.pem"},
 			expected: []string{},
+		},
+		{
+			name:            "Invalid config dir",
+			customConfigDir: "missing-directory",
+		},
+		{
+			name:          "Invalid config dir",
+			customCertDir: "missing-directory",
 		},
 	}
 
@@ -138,7 +148,17 @@ func TestRemoveTempFiles(t *testing.T) {
 				}
 			}
 
+			customCertDir = test.customCertDir
+			customConfigDir = test.customConfigDir
+
 			err := RemoveTempFiles()
+
+			// if passing a custom directory, we expect an error since the directory doesn't exist
+			if test.customConfigDir != "" || test.customCertDir != "" {
+				assert.NotNil(t, err)
+				return
+			}
+
 			if err != nil {
 				t.Fatalf("Failed to remove temporary files: %s", err.Error())
 			}
