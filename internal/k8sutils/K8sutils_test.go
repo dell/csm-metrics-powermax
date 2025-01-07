@@ -2,6 +2,8 @@ package k8sutils
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -304,6 +306,22 @@ func TestStartInformer(t *testing.T) {
 
 		})
 	}
+}
+
+func TestCreateOutOfClusterKubeClient(t *testing.T) {
+	client := &KubernetesClient{}
+
+	home := os.Getenv("HOME")
+	os.Setenv("HOME", "")
+	defer os.Setenv("HOME", home)
+
+	wd, _ := os.Getwd()
+	str := filepath.Join(wd, "..", "k8s/testdata")
+	os.Setenv("X_CSI_KUBECONFIG_PATH", str)
+
+	err := client.CreateOutOfClusterKubeClient()
+	assert.Nil(t, err)
+	assert.NotNil(t, client.Clientset)
 }
 
 // func TestInit(t *testing.T) {
