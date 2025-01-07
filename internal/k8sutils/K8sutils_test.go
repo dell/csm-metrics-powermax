@@ -255,6 +255,19 @@ func TestGetCredentialsFromSecretName(t *testing.T) {
 				}, nil
 			},
 		},
+		{
+			name:       "secret doesn't exist",
+			namespace:  "test-namespace",
+			secretName: "test-secret",
+			setup: func() (*K8sUtils, error) {
+				client := fake.NewSimpleClientset(&corev1.Secret{})
+				return &K8sUtils{
+					KubernetesClient: &KubernetesClient{Clientset: client},
+					Namespace:        "test-namespace",
+				}, nil
+			},
+			wantErr: errors.New("secrets \"test-secret\" not found"),
+		},
 	}
 
 	for _, tt := range tests {
@@ -363,29 +376,28 @@ func TestInit(t *testing.T) {
 		name       string
 		namespace  string
 		secretName string
+		inCluster  bool
 		setup      func() (*K8sUtils, error)
 		wantErr    error
 	}{
 		{
-			name:       "valid secret",
-			namespace:  "test-namespace",
-			secretName: "test-secret",
+			name:      "successful out of cluster",
+			inCluster: false,
 			setup: func() (*K8sUtils, error) {
-				client := fake.NewSimpleClientset(&corev1.Secret{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "test-secret",
-						Namespace: "test-namespace",
-					},
-					Data: map[string][]byte{
-						"username": []byte("user"),
-						"password": []byte("pass"),
-					},
-				})
 				return &K8sUtils{
-					KubernetesClient: &KubernetesClient{Clientset: client},
-					Namespace:        "test-namespace",
+					Namespace: "test-namespace",
 				}, nil
 			},
+		},
+		{
+			name:      "error in cluster",
+			inCluster: true,
+			setup: func() (*K8sUtils, error) {
+				return &K8sUtils{
+					Namespace: "test-namespace",
+				}, nil
+			},
+			wantErr: errors.New("unable to load in-cluster configuration, KUBERNETES_SERVICE_HOST and KUBERNETES_SERVICE_PORT must be defined"),
 		},
 	}
 
@@ -399,9 +411,15 @@ func TestInit(t *testing.T) {
 			str := filepath.Join(wd, "..", "k8s/testdata")
 			os.Setenv("X_CSI_KUBECONFIG_PATH", str)
 
-			utils, err := Init(tt.namespace, "", false, 0)
-			assert.NotNil(t, utils)
-			assert.Nil(t, err)
+			defer func() { k8sUtils = nil }()
+
+			utils, err := Init(tt.namespace, "", tt.inCluster, 0)
+			if err != nil {
+				assert.Equal(t, tt.wantErr, err)
+			} else {
+				assert.NotNil(t, utils)
+				assert.Nil(t, err)
+			}
 		})
 	}
 }
