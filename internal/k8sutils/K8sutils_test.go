@@ -192,6 +192,19 @@ func TestGetCertFileFromSecretName(t *testing.T) {
 				}, nil
 			},
 		},
+		{
+			name:       "secret not found",
+			namespace:  "test-namespace",
+			secretName: "test-secret",
+			setup: func() (*K8sUtils, error) {
+				client := fake.NewSimpleClientset(&corev1.Secret{})
+				return &K8sUtils{
+					KubernetesClient: &KubernetesClient{Clientset: client},
+					Namespace:        "test-namespace",
+				}, nil
+			},
+			wantErr: errors.New("secrets \"test-secret\" not found"),
+		},
 	}
 
 	for _, tt := range tests {
@@ -270,12 +283,14 @@ func TestStartInformer(t *testing.T) {
 		namespace  string
 		secretName string
 		setup      func() (*K8sUtils, error)
+		callback   func(ui UtilsInterface, s *corev1.Secret)
 		wantErr    error
 	}{
 		{
 			name:       "valid secret",
 			namespace:  "test-namespace",
 			secretName: "test-secret",
+			callback:   func(ui UtilsInterface, s *corev1.Secret) {},
 			setup: func() (*K8sUtils, error) {
 				client := fake.NewSimpleClientset(&corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
@@ -299,6 +314,13 @@ func TestStartInformer(t *testing.T) {
 				}, nil
 			},
 		},
+		{
+			name:     "nil callback",
+			callback: nil,
+			setup: func() (*K8sUtils, error) {
+				return &K8sUtils{}, nil
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -310,7 +332,7 @@ func TestStartInformer(t *testing.T) {
 			k8sUtils = client
 			defer func() { k8sUtils = nil }()
 
-			err = client.StartInformer(func(ui UtilsInterface, s *corev1.Secret) {})
+			err = client.StartInformer(tt.callback)
 			assert.Nil(t, err)
 
 			// TODO: waiting here allows the UpdateFunc callback to be invoked
