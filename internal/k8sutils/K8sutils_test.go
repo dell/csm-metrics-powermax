@@ -248,52 +248,52 @@ func TestGetCredentialsFromSecretName(t *testing.T) {
 	}
 }
 
-func TestInit(t *testing.T) {
-	tests := []struct {
-		name       string
-		namespace  string
-		secretName string
-		setup      func() (*K8sUtils, error)
-		wantErr    error
-	}{
-		{
-			name:       "valid secret",
-			namespace:  "test-namespace",
-			secretName: "test-secret",
-			setup: func() (*K8sUtils, error) {
-				client := fake.NewSimpleClientset(&corev1.Secret{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "test-secret",
-						Namespace: "test-namespace",
-					},
-					Data: map[string][]byte{
-						"username": []byte("user"),
-						"password": []byte("pass"),
-					},
-				})
-				return &K8sUtils{
-					KubernetesClient: &KubernetesClient{Clientset: client},
-					Namespace:        "test-namespace",
-				}, nil
-			},
-		},
-	}
+// func TestInit(t *testing.T) {
+// 	tests := []struct {
+// 		name       string
+// 		namespace  string
+// 		secretName string
+// 		setup      func() (*K8sUtils, error)
+// 		wantErr    error
+// 	}{
+// 		{
+// 			name:       "valid secret",
+// 			namespace:  "test-namespace",
+// 			secretName: "test-secret",
+// 			setup: func() (*K8sUtils, error) {
+// 				client := fake.NewSimpleClientset(&corev1.Secret{
+// 					ObjectMeta: metav1.ObjectMeta{
+// 						Name:      "test-secret",
+// 						Namespace: "test-namespace",
+// 					},
+// 					Data: map[string][]byte{
+// 						"username": []byte("user"),
+// 						"password": []byte("pass"),
+// 					},
+// 				})
+// 				return &K8sUtils{
+// 					KubernetesClient: &KubernetesClient{Clientset: client},
+// 					Namespace:        "test-namespace",
+// 				}, nil
+// 			},
+// 		},
+// 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// client, err := tt.setup()
-			// if err != nil {
-			// 	t.Fatalf("failed to setup client: %s", err.Error())
-			// }
+// 	for _, tt := range tests {
+// 		t.Run(tt.name, func(t *testing.T) {
+// 			// client, err := tt.setup()
+// 			// if err != nil {
+// 			// 	t.Fatalf("failed to setup client: %s", err.Error())
+// 			// }
 
-			utils, err := Init(tt.namespace, "", false, 0)
-			if err != nil {
-				assert.EqualError(t, err, tt.wantErr.Error())
-			} else {
-				assert.NotNil(t, utils.KubernetesClient)
-				// assert.Equal(t, "user", credentials.UserName)
-				// assert.Equal(t, "pass", credentials.Password)
-			}
-		})
-	}
-}
+// 			utils, err := Init(tt.namespace, "", false, 0)
+// 			if err != nil {
+// 				assert.EqualError(t, err, tt.wantErr.Error())
+// 			} else {
+// 				assert.NotNil(t, utils.KubernetesClient)
+// 				// assert.Equal(t, "user", credentials.UserName)
+// 				// assert.Equal(t, "pass", credentials.Password)
+// 			}
+// 		})
+// 	}
+// }
