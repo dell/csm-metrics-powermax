@@ -62,7 +62,7 @@ var k8sUtils *K8sUtils
 
 // KubernetesClient - client connection
 type KubernetesClient struct {
-	Clientset *kubernetes.Clientset
+	Clientset kubernetes.Interface
 }
 
 func getKubeConfigPathFromEnv() string {
