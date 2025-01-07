@@ -1,6 +1,7 @@
 package k8sutils
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -46,7 +47,7 @@ func TestGetCertFileFromSecret(t *testing.T) {
 			defer func() { k8sUtils = nil }()
 			utils := k8sUtils
 
-			_, _ = utils.getCertFileFromSecret(tt.secret)
+			_, _ = utils.GetCertFileFromSecret(tt.secret)
 		})
 	}
 }
@@ -76,6 +77,17 @@ func TestGetCredentialFromSecret(t *testing.T) {
 			wantErr: nil,
 		},
 		{
+			name: "secret doesn't contain username or password",
+			secret: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "Test-Secret",
+				},
+				Data: map[string][]byte{},
+			},
+			want:    nil,
+			wantErr: errors.New("username not found in secret data"),
+		},
+		{
 			name:    "Empty Secret",
 			secret:  nil,
 			want:    nil,
@@ -91,9 +103,9 @@ func TestGetCredentialFromSecret(t *testing.T) {
 			k8sUtils = utils
 			defer func() { k8sUtils = nil }()
 
-			got, err := utils.getCredentialFromSecret(tt.secret)
-			assert.Equal(t, err, tt.wantErr)
-			assert.Equal(t, got, tt.want)
+			got, err := utils.GetCredentialsFromSecret(tt.secret)
+			assert.Equal(t, tt.wantErr, err)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
@@ -368,6 +380,26 @@ func TestInit(t *testing.T) {
 			utils, err := Init(tt.namespace, "", false, 0)
 			assert.NotNil(t, utils)
 			assert.Nil(t, err)
+		})
+	}
+}
+
+func TestCreateInClusterKubeClient(t *testing.T) {
+	tests := []struct {
+		name    string
+		wantErr error
+	}{
+		{
+			name:    "not in cluster",
+			wantErr: errors.New("unable to load in-cluster configuration, KUBERNETES_SERVICE_HOST and KUBERNETES_SERVICE_PORT must be defined"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &KubernetesClient{}
+			err := c.CreateInClusterKubeClient()
+			assert.Equal(t, tt.wantErr, err)
 		})
 	}
 }
