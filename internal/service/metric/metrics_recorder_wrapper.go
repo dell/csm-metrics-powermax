@@ -35,7 +35,6 @@ type MetricsRecorderWrapper struct {
 
 // RecordNumericMetrics record metrics using Otel's InstrumentProvider
 func (mrw *MetricsRecorderWrapper) RecordNumericMetrics(prefix string, labels []attribute.KeyValue, metric types.VolumeCapacityMetricsRecord) error {
-
 	totalCapacity, err := mrw.Meter.Float64ObservableUpDownCounter(prefix + "total_capacity_gigabytes")
 	if err != nil {
 		return err
@@ -53,7 +52,7 @@ func (mrw *MetricsRecorderWrapper) RecordNumericMetrics(prefix string, labels []
 
 	done := make(chan struct{})
 
-	reg, err := mrw.Meter.RegisterCallback(func(ctx context.Context, observer otelmetric.Observer) error {
+	reg, err := mrw.Meter.RegisterCallback(func(_ context.Context, observer otelmetric.Observer) error {
 		observer.ObserveFloat64(totalCapacity, metric.Total, otelmetric.WithAttributes(labels...))
 		observer.ObserveFloat64(usedCapacity, metric.Used, otelmetric.WithAttributes(labels...))
 		observer.ObserveFloat64(usedCapacityPercentage, metric.Used*100/metric.Total, otelmetric.WithAttributes(labels...))
@@ -65,7 +64,6 @@ func (mrw *MetricsRecorderWrapper) RecordNumericMetrics(prefix string, labels []
 		totalCapacity,
 		usedCapacity,
 		usedCapacityPercentage)
-
 	if err != nil {
 		return err
 	}
@@ -76,7 +74,6 @@ func (mrw *MetricsRecorderWrapper) RecordNumericMetrics(prefix string, labels []
 }
 
 func (mrw *MetricsRecorderWrapper) RecordVolPerfMetrics(prefix string, metric types.VolumePerfMetricsRecord) error {
-
 	labels := []attribute.KeyValue{
 		attribute.String("VolumeID", metric.VolumeID),
 		attribute.String("ArrayID", metric.ArrayID),
@@ -119,7 +116,7 @@ func (mrw *MetricsRecorderWrapper) RecordVolPerfMetrics(prefix string, metric ty
 	}
 
 	done := make(chan struct{})
-	reg, err := mrw.Meter.RegisterCallback(func(ctx context.Context, observer otelmetric.Observer) error {
+	reg, err := mrw.Meter.RegisterCallback(func(_ context.Context, observer otelmetric.Observer) error {
 		observer.ObserveFloat64(readBWMegabytes, metric.MBRead, otelmetric.WithAttributes(labels...))
 		observer.ObserveFloat64(writeBWMegabytes, metric.MBWritten, otelmetric.WithAttributes(labels...))
 		observer.ObserveFloat64(readLatency, metric.ReadResponseTime, otelmetric.WithAttributes(labels...))
@@ -137,7 +134,6 @@ func (mrw *MetricsRecorderWrapper) RecordVolPerfMetrics(prefix string, metric ty
 		writeLatency,
 		readIOPS,
 		writeIOPS)
-
 	if err != nil {
 		return err
 	}
@@ -148,7 +144,6 @@ func (mrw *MetricsRecorderWrapper) RecordVolPerfMetrics(prefix string, metric ty
 }
 
 func (mrw *MetricsRecorderWrapper) RecordStorageGroupPerfMetrics(prefix string, metric types.StorageGroupPerfMetricsRecord) error {
-
 	labels := []attribute.KeyValue{
 		attribute.String("ArrayID", metric.ArrayID),
 		attribute.String("StorageGroupID", metric.StorageGroupID),
@@ -191,7 +186,7 @@ func (mrw *MetricsRecorderWrapper) RecordStorageGroupPerfMetrics(prefix string, 
 	}
 
 	done := make(chan struct{})
-	reg, err := mrw.Meter.RegisterCallback(func(ctx context.Context, observer otelmetric.Observer) error {
+	reg, err := mrw.Meter.RegisterCallback(func(_ context.Context, observer otelmetric.Observer) error {
 		observer.ObserveFloat64(readBWMegabytes, metric.HostMBReads, otelmetric.WithAttributes(labels...))
 		observer.ObserveFloat64(writeBWMegabytes, metric.HostMBWritten, otelmetric.WithAttributes(labels...))
 		observer.ObserveFloat64(readLatency, metric.ReadResponseTime, otelmetric.WithAttributes(labels...))
@@ -211,7 +206,6 @@ func (mrw *MetricsRecorderWrapper) RecordStorageGroupPerfMetrics(prefix string, 
 		readIOPS,
 		writeIOPS,
 		averageIOSize)
-
 	if err != nil {
 		return err
 	}

@@ -2,11 +2,12 @@ package k8sutils
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/dell/csm-metrics-powermax/internal/reverseproxy/common"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"testing"
 )
 
 func TestGetCertFileFromSecret(t *testing.T) {
@@ -33,7 +34,7 @@ func TestGetCertFileFromSecret(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func(*testing.T) {
 			k8sUtils = &K8sUtils{
 				CertDirectory: "/test/certs",
 			}
