@@ -356,53 +356,102 @@ func TestStartInformer(t *testing.T) {
 }
 
 func TestCreateOutOfClusterKubeClient(t *testing.T) {
-	client := &KubernetesClient{}
 
-	home := os.Getenv("HOME")
-	os.Setenv("HOME", "")
-	defer os.Setenv("HOME", home)
-
-	wd, _ := os.Getwd()
-	str := filepath.Join(wd, "..", "k8s/testdata")
-	os.Setenv("X_CSI_KUBECONFIG_PATH", str)
-
-	err := client.CreateOutOfClusterKubeClient()
-	assert.Nil(t, err)
-	assert.NotNil(t, client.Clientset)
-}
-
-func TestInit(t *testing.T) {
 	tests := []struct {
-		name       string
-		namespace  string
-		secretName string
-		inCluster  bool
-		setup      func() (*K8sUtils, error)
-		wantErr    error
+		name    string
+		setup   func() error
+		wantErr error
 	}{
 		{
-			name:      "successful out of cluster",
-			inCluster: false,
-			setup: func() (*K8sUtils, error) {
-				return &K8sUtils{
-					Namespace: "test-namespace",
-				}, nil
+			name: "valid with empty HOME variable",
+			setup: func() error {
+				os.Setenv("HOME", "")
+
+				wd, err := os.Getwd()
+				if err != nil {
+					return err
+				}
+				path := filepath.Join(wd, "..", "k8s/testdata")
+				os.Setenv("X_CSI_KUBECONFIG_PATH", path)
+				return nil
 			},
 		},
 		{
-			name:      "error in cluster",
-			inCluster: true,
-			setup: func() (*K8sUtils, error) {
-				return &K8sUtils{
-					Namespace: "test-namespace",
-				}, nil
+			name: "valid with empty X_CSI_KUBECONFIG_PATH variable",
+			setup: func() error {
+				wd, err := os.Getwd()
+				if err != nil {
+					return err
+				}
+				path := filepath.Join(wd, "..", "k8s/testdata")
+				os.Setenv("HOME", path)
+
+				os.Setenv("X_CSI_KUBECONFIG_PATH", "")
+				return nil
 			},
-			wantErr: errors.New("unable to load in-cluster configuration, KUBERNETES_SERVICE_HOST and KUBERNETES_SERVICE_PORT must be defined"),
+		},
+		{
+			name: "invalid with empty HOME and X_CSI_KUBECONFIG_PATH variable",
+			setup: func() error {
+				os.Setenv("HOME", "")
+				os.Setenv("X_CSI_KUBECONFIG_PATH", "")
+				return nil
+			},
+			wantErr: errors.New("failed to get kube config path"),
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			err := tt.setup()
+			if err != nil {
+				t.Fatalf("failed to setup test: %s", err.Error())
+			}
+			client := &KubernetesClient{}
+
+			err = client.CreateOutOfClusterKubeClient()
+			if err != nil {
+				assert.Equal(t, tt.wantErr, err)
+			} else {
+				assert.Nil(t, err)
+				assert.NotNil(t, client.Clientset)
+			}
+		})
+	}
+
+}
+
+func TestInit(t *testing.T) {
+	tests := []struct {
+		name      string
+		inCluster bool
+		setup     func()
+		wantErr   error
+	}{
+		{
+			name:      "successful out of cluster",
+			inCluster: false,
+			setup:     func() {},
+		},
+		{
+			name:      "successful with non-nil k8sutil",
+			inCluster: false,
+			setup: func() {
+				k8sUtils = &K8sUtils{}
+			},
+		},
+		{
+			name:      "error in cluster",
+			inCluster: true,
+			setup:     func() {},
+			wantErr:   errors.New("unable to load in-cluster configuration, KUBERNETES_SERVICE_HOST and KUBERNETES_SERVICE_PORT must be defined"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.setup()
+
 			home := os.Getenv("HOME")
 			os.Setenv("HOME", "")
 			defer os.Setenv("HOME", home)
@@ -413,7 +462,7 @@ func TestInit(t *testing.T) {
 
 			defer func() { k8sUtils = nil }()
 
-			utils, err := Init(tt.namespace, "", tt.inCluster, 0)
+			utils, err := Init("namespace", "", tt.inCluster, 0)
 			if err != nil {
 				assert.Equal(t, tt.wantErr, err)
 			} else {
