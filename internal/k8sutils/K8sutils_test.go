@@ -3,11 +3,13 @@ package k8sutils
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/dell/csm-metrics-powermax/internal/reverseproxy/common"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
@@ -244,6 +246,62 @@ func TestGetCredentialsFromSecretName(t *testing.T) {
 				assert.Equal(t, "user", credentials.UserName)
 				assert.Equal(t, "pass", credentials.Password)
 			}
+		})
+	}
+}
+
+func TestStartInformer(t *testing.T) {
+	tests := []struct {
+		name       string
+		namespace  string
+		secretName string
+		setup      func() (*K8sUtils, error)
+		wantErr    error
+	}{
+		{
+			name:       "valid secret",
+			namespace:  "test-namespace",
+			secretName: "test-secret",
+			setup: func() (*K8sUtils, error) {
+				client := fake.NewSimpleClientset(&corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-secret",
+						Namespace: "test-namespace",
+					},
+					Data: map[string][]byte{
+						"username": []byte("user"),
+						"password": []byte("pass"),
+					},
+				})
+
+				informerFactory := informers.NewSharedInformerFactory(client, time.Second)
+				secretInformer := informerFactory.Core().V1().Secrets()
+
+				return &K8sUtils{
+					KubernetesClient: &KubernetesClient{Clientset: client},
+					Namespace:        "test-namespace",
+					SecretInformer:   secretInformer,
+					InformerFactory:  informerFactory,
+				}, nil
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client, err := tt.setup()
+			if err != nil {
+				t.Fatalf("failed to setup client: %s", err.Error())
+			}
+			k8sUtils = client
+			defer func() { k8sUtils = nil }()
+
+			err = client.StartInformer(func(ui UtilsInterface, s *corev1.Secret) {})
+			assert.Nil(t, err)
+
+			// TODO: waiting here allows the UpdateFunc callback to be invoked
+			time.Sleep(1 * time.Second)
+
 		})
 	}
 }
