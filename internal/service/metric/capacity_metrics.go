@@ -156,7 +156,7 @@ func (m *CapacityMetrics) gatherCapacityMetrics(ctx context.Context, pvs []k8s.V
 	return ch
 }
 
-func (m *CapacityMetrics) pushCapacityMetrics(ctx context.Context, volumeCapacityMetrics <-chan *types.VolumeCapacityMetricsRecord) <-chan string {
+func (m *CapacityMetrics) pushCapacityMetrics(_ context.Context, volumeCapacityMetrics <-chan *types.VolumeCapacityMetricsRecord) <-chan string {
 	start := time.Now()
 	defer m.TimeSince(start, "pushCapacityMetrics")
 	var wg sync.WaitGroup
@@ -320,17 +320,4 @@ func cumulate(key string, cacheMap map[string]types.VolumeCapacityMetricsRecord,
 		volMetrics.Used = volMetrics.Used + metric.Used
 		cacheMap[key] = volMetrics
 	}
-}
-
-func collectMetrics(prefix string, labels []attribute.KeyValue, metric types.VolumeCapacityMetricsRecord) []types.NumericMetric {
-	var list []types.NumericMetric
-
-	list = append(list, types.NumericMetric{Labels: labels, Name: prefix + "total_capacity_gigabytes", Value: metric.Total})
-	list = append(list, types.NumericMetric{Labels: labels, Name: prefix + "used_capacity_gigabytes", Value: metric.Used})
-
-	if metric.Total > 0 {
-		list = append(list, types.NumericMetric{Labels: labels, Name: prefix + "used_capacity_percentage", Value: metric.Used * 100 / metric.Total})
-	}
-
-	return list
 }

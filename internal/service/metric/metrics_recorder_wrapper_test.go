@@ -21,6 +21,7 @@ import (
 
 	"github.com/dell/csm-metrics-powermax/internal/service/metric"
 	"github.com/dell/csm-metrics-powermax/internal/service/types"
+	otlexporters "github.com/dell/csm-metrics-powermax/opentelemetry/exporters"
 	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -29,8 +30,14 @@ import (
 )
 
 func Test_RecordNumericMetrics(t *testing.T) {
-	tests := map[string]func(t *testing.T) (*metric.MetricsRecorderWrapper, types.VolumeCapacityMetricsRecord, []attribute.KeyValue, *gomock.Controller, error){
-		"success": func(*testing.T) (*metric.MetricsRecorderWrapper, types.VolumeCapacityMetricsRecord, []attribute.KeyValue, *gomock.Controller, error) {
+	tests := map[string]func(t *testing.T) (*metric.MetricsRecorderWrapper, types.VolumeCapacityMetricsRecord, []attribute.KeyValue, *gomock.Controller, *otlexporters.OtlCollectorExporter, error){
+		"success": func(*testing.T) (*metric.MetricsRecorderWrapper, types.VolumeCapacityMetricsRecord, []attribute.KeyValue, *gomock.Controller, *otlexporters.OtlCollectorExporter, error) {
+			exporter := &otlexporters.OtlCollectorExporter{}
+			err := exporter.InitExporter()
+			if err != nil {
+				t.Fatal(err)
+			}
+
 			ctrl := gomock.NewController(t)
 			otMeter := otel.Meter("powermax_test")
 			recorder := &metric.MetricsRecorderWrapper{
@@ -47,12 +54,12 @@ func Test_RecordNumericMetrics(t *testing.T) {
 				attribute.String("Driver", "powermax"),
 			}
 
-			return recorder, metrics, labels, ctrl, nil
+			return recorder, metrics, labels, ctrl, exporter, nil
 		},
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			recorder, metrics, labels, ctrl, err := tc(t)
+			recorder, metrics, labels, ctrl, _, err := tc(t)
 			assert.Equal(t, err, recorder.RecordNumericMetrics("powermax_numeric_", labels, metrics))
 			ctrl.Finish()
 		})
@@ -60,8 +67,14 @@ func Test_RecordNumericMetrics(t *testing.T) {
 }
 
 func Test_RecordVolPerfMetrics(t *testing.T) {
-	tests := map[string]func(t *testing.T) (*metric.MetricsRecorderWrapper, types.VolumePerfMetricsRecord, *gomock.Controller, error){
-		"success": func(*testing.T) (*metric.MetricsRecorderWrapper, types.VolumePerfMetricsRecord, *gomock.Controller, error) {
+	tests := map[string]func(t *testing.T) (*metric.MetricsRecorderWrapper, types.VolumePerfMetricsRecord, *gomock.Controller, *otlexporters.OtlCollectorExporter, error){
+		"success": func(*testing.T) (*metric.MetricsRecorderWrapper, types.VolumePerfMetricsRecord, *gomock.Controller, *otlexporters.OtlCollectorExporter, error) {
+			exporter := &otlexporters.OtlCollectorExporter{}
+			err := exporter.InitExporter()
+			if err != nil {
+				t.Fatal(err)
+			}
+
 			ctrl := gomock.NewController(t)
 			otMeter := otel.Meter("powermax_test")
 			recorder := &metric.MetricsRecorderWrapper{
@@ -78,12 +91,12 @@ func Test_RecordVolPerfMetrics(t *testing.T) {
 				Namespace:                 "myNamespace",
 			}
 
-			return recorder, metrics, ctrl, nil
+			return recorder, metrics, ctrl, exporter, nil
 		},
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			recorder, metrics, ctrl, err := tc(t)
+			recorder, metrics, ctrl, _, err := tc(t)
 			assert.Equal(t, err, recorder.RecordVolPerfMetrics("powermax_volume_", metrics))
 			ctrl.Finish()
 		})
@@ -91,8 +104,14 @@ func Test_RecordVolPerfMetrics(t *testing.T) {
 }
 
 func Test_RecordStorageGroupPerfMetrics(t *testing.T) {
-	tests := map[string]func(t *testing.T) (*metric.MetricsRecorderWrapper, types.StorageGroupPerfMetricsRecord, *gomock.Controller, error){
-		"success": func(*testing.T) (*metric.MetricsRecorderWrapper, types.StorageGroupPerfMetricsRecord, *gomock.Controller, error) {
+	tests := map[string]func(t *testing.T) (*metric.MetricsRecorderWrapper, types.StorageGroupPerfMetricsRecord, *gomock.Controller, *otlexporters.OtlCollectorExporter, error){
+		"success": func(*testing.T) (*metric.MetricsRecorderWrapper, types.StorageGroupPerfMetricsRecord, *gomock.Controller, *otlexporters.OtlCollectorExporter, error) {
+			exporter := &otlexporters.OtlCollectorExporter{}
+			err := exporter.InitExporter()
+			if err != nil {
+				t.Fatal(err)
+			}
+
 			ctrl := gomock.NewController(t)
 			otMeter := otel.Meter("powermax_test")
 			recorder := &metric.MetricsRecorderWrapper{
@@ -104,12 +123,12 @@ func Test_RecordStorageGroupPerfMetrics(t *testing.T) {
 				StorageGroupID: uuid.NewString(),
 			}
 
-			return recorder, metrics, ctrl, nil
+			return recorder, metrics, ctrl, exporter, nil
 		},
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			recorder, metrics, ctrl, err := tc(t)
+			recorder, metrics, ctrl, _, err := tc(t)
 			assert.Equal(t, err, recorder.RecordStorageGroupPerfMetrics("powermax_storage_group_", metrics))
 			ctrl.Finish()
 		})

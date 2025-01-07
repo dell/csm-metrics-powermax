@@ -18,9 +18,10 @@ package metric
 
 import (
 	"context"
+	"sync"
+
 	"github.com/dell/csm-metrics-powermax/utils"
 	otelmetric "go.opentelemetry.io/otel/metric"
-	"sync"
 
 	"github.com/dell/csm-metrics-powermax/internal/service/types"
 	"go.opentelemetry.io/otel/attribute"
