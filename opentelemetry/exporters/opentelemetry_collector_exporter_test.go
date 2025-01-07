@@ -2,17 +2,18 @@ package otlexporters
 
 import (
 	"errors"
-	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"testing"
+
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 )
 
 func TestInitExporter(t *testing.T) {
-	tests := [] struct {
-		name string
-		collector *OtlCollectorExporter
-		opts []otlpmetricgrpc.Option
+	tests := []struct {
+		name          string
+		collector     *OtlCollectorExporter
+		opts          []otlpmetricgrpc.Option
 		ExpectedError error
-	} {
+	}{
 		{
 			name: "Successful Exporter Initialization",
 			collector: &OtlCollectorExporter{
