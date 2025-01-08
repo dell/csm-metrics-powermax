@@ -36,7 +36,6 @@ func TestGetCertFileFromSecret(t *testing.T) {
 	tests := []struct {
 		name   string
 		secret *corev1.Secret
-		want   error
 	}{
 		{
 			name: "valid secret",
@@ -469,7 +468,10 @@ func TestInit(t *testing.T) {
 			os.Setenv("HOME", "")
 			defer os.Setenv("HOME", home)
 
-			wd, _ := os.Getwd()
+			wd, err := os.Getwd()
+			if err != nil {
+				t.Fatalf("failed to get working directory: %s", err.Error())
+			}
 			str := filepath.Join(wd, "..", "k8s/testdata")
 			os.Setenv("X_CSI_KUBECONFIG_PATH", str)
 
