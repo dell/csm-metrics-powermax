@@ -28,6 +28,11 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+var (
+	customCertDir   = ""
+	customConfigDir = ""
+)
+
 // IsStringInSlice - Returns true if a string is present in a slice
 func IsStringInSlice(slice []string, str string) bool {
 	for _, el := range slice {
@@ -54,9 +59,6 @@ func RootDir() string {
 	d := path.Join(path.Dir(b))
 	return filepath.Dir(d)
 }
-
-var customCertDir = ""
-var customConfigDir = ""
 
 // RemoveTempFiles - Removes temporary files created during testing
 func RemoveTempFiles() error {

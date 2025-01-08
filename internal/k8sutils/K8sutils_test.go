@@ -303,7 +303,7 @@ func TestStartInformer(t *testing.T) {
 			name:       "valid secret",
 			namespace:  "test-namespace",
 			secretName: "test-secret",
-			callback:   func(ui UtilsInterface, s *corev1.Secret) {},
+			callback:   func(_ UtilsInterface, _ *corev1.Secret) {},
 			setup: func() (*K8sUtils, error) {
 				client := fake.NewSimpleClientset(&corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
@@ -350,13 +350,11 @@ func TestStartInformer(t *testing.T) {
 
 			// TODO: waiting here allows the UpdateFunc callback to be invoked
 			time.Sleep(1 * time.Second)
-
 		})
 	}
 }
 
 func TestCreateOutOfClusterKubeClient(t *testing.T) {
-
 	tests := []struct {
 		name    string
 		setup   func() error
@@ -418,7 +416,6 @@ func TestCreateOutOfClusterKubeClient(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestInit(t *testing.T) {
