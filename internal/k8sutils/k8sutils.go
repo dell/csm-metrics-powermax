@@ -94,7 +94,7 @@ func (c *KubernetesClient) CreateInClusterKubeClient() error {
 func (c *KubernetesClient) createClientSet(config *rest.Config) error {
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		return nil
+		return err
 	}
 	c.Clientset = clientset
 	return nil
