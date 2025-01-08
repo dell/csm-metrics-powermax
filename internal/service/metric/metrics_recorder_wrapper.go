@@ -33,19 +33,32 @@ type MetricsRecorderWrapper struct {
 	QuotaMetrics sync.Map
 }
 
+const (
+	TotalCapacityGigabytes          = "total_capacity_gigabytes"
+	UsedCapacityGigabytes           = "used_capacity_gigabytes"
+	UsedCapacityPercentage          = "used_capacity_percentage"
+	ReadBWMegabytesPerSecond        = "_read_bw_megabytes_per_second"
+	WriteBWMegabytesPerSecond       = "_write_bw_megabytes_per_second"
+	ReadLatencyMilliseconds         = "_read_latency_milliseconds"
+	WriteLatencyMilliseconds        = "_write_latency_milliseconds"
+	ReadIOPerSecond                 = "_read_io_per_second"
+	WriteIOPerSecond                = "_write_io_per_second"
+	AverageIOSizeMegabytesPerSecond = "_average_io_size_megabytes_per_second"
+)
+
 // RecordNumericMetrics record metrics using Otel's InstrumentProvider
 func (mrw *MetricsRecorderWrapper) RecordNumericMetrics(prefix string, labels []attribute.KeyValue, metric types.VolumeCapacityMetricsRecord) error {
-	totalCapacity, err := mrw.Meter.Float64ObservableUpDownCounter(prefix + "total_capacity_gigabytes")
+	totalCapacity, err := mrw.Meter.Float64ObservableUpDownCounter(prefix + TotalCapacityGigabytes)
 	if err != nil {
 		return err
 	}
 
-	usedCapacity, err := mrw.Meter.Float64ObservableUpDownCounter(prefix + "used_capacity_gigabytes")
+	usedCapacity, err := mrw.Meter.Float64ObservableUpDownCounter(prefix + UsedCapacityGigabytes)
 	if err != nil {
 		return err
 	}
 
-	usedCapacityPercentage, err := mrw.Meter.Float64ObservableUpDownCounter(prefix + "used_capacity_percentage")
+	usedCapacityPercentage, err := mrw.Meter.Float64ObservableUpDownCounter(prefix + UsedCapacityPercentage)
 	if err != nil {
 		return err
 	}
@@ -85,32 +98,32 @@ func (mrw *MetricsRecorderWrapper) RecordVolPerfMetrics(prefix string, metric ty
 		attribute.String("PlotWithMean", "No"),
 	}
 
-	readBWMegabytes, err := mrw.Meter.Float64ObservableUpDownCounter(prefix + "_read_bw_megabytes_per_second")
+	readBWMegabytes, err := mrw.Meter.Float64ObservableUpDownCounter(prefix + ReadBWMegabytesPerSecond)
 	if err != nil {
 		return err
 	}
 
-	writeBWMegabytes, err := mrw.Meter.Float64ObservableUpDownCounter(prefix + "_write_bw_megabytes_per_second")
+	writeBWMegabytes, err := mrw.Meter.Float64ObservableUpDownCounter(prefix + WriteBWMegabytesPerSecond)
 	if err != nil {
 		return err
 	}
 
-	readLatency, err := mrw.Meter.Float64ObservableUpDownCounter(prefix + "_read_latency_milliseconds")
+	readLatency, err := mrw.Meter.Float64ObservableUpDownCounter(prefix + ReadLatencyMilliseconds)
 	if err != nil {
 		return err
 	}
 
-	writeLatency, err := mrw.Meter.Float64ObservableUpDownCounter(prefix + "_write_latency_milliseconds")
+	writeLatency, err := mrw.Meter.Float64ObservableUpDownCounter(prefix + WriteLatencyMilliseconds)
 	if err != nil {
 		return err
 	}
 
-	readIOPS, err := mrw.Meter.Float64ObservableUpDownCounter(prefix + "_read_io_per_second")
+	readIOPS, err := mrw.Meter.Float64ObservableUpDownCounter(prefix + ReadIOPerSecond)
 	if err != nil {
 		return err
 	}
 
-	writeIOPS, err := mrw.Meter.Float64ObservableUpDownCounter(prefix + "_write_io_per_second")
+	writeIOPS, err := mrw.Meter.Float64ObservableUpDownCounter(prefix + WriteIOPerSecond)
 	if err != nil {
 		return err
 	}
@@ -150,37 +163,37 @@ func (mrw *MetricsRecorderWrapper) RecordStorageGroupPerfMetrics(prefix string, 
 		attribute.String("PlotWithMean", "No"),
 	}
 
-	readBWMegabytes, err := mrw.Meter.Float64ObservableUpDownCounter(prefix + "_read_bw_megabytes_per_second")
+	readBWMegabytes, err := mrw.Meter.Float64ObservableUpDownCounter(prefix + ReadBWMegabytesPerSecond)
 	if err != nil {
 		return err
 	}
 
-	writeBWMegabytes, err := mrw.Meter.Float64ObservableUpDownCounter(prefix + "_write_bw_megabytes_per_second")
+	writeBWMegabytes, err := mrw.Meter.Float64ObservableUpDownCounter(prefix + WriteBWMegabytesPerSecond)
 	if err != nil {
 		return err
 	}
 
-	readLatency, err := mrw.Meter.Float64ObservableUpDownCounter(prefix + "_read_latency_milliseconds")
+	readLatency, err := mrw.Meter.Float64ObservableUpDownCounter(prefix + ReadLatencyMilliseconds)
 	if err != nil {
 		return err
 	}
 
-	writeLatency, err := mrw.Meter.Float64ObservableUpDownCounter(prefix + "_write_latency_milliseconds")
+	writeLatency, err := mrw.Meter.Float64ObservableUpDownCounter(prefix + WriteLatencyMilliseconds)
 	if err != nil {
 		return err
 	}
 
-	readIOPS, err := mrw.Meter.Float64ObservableUpDownCounter(prefix + "_read_io_per_second")
+	readIOPS, err := mrw.Meter.Float64ObservableUpDownCounter(prefix + ReadIOPerSecond)
 	if err != nil {
 		return err
 	}
 
-	writeIOPS, err := mrw.Meter.Float64ObservableUpDownCounter(prefix + "_write_io_per_second")
+	writeIOPS, err := mrw.Meter.Float64ObservableUpDownCounter(prefix + WriteIOPerSecond)
 	if err != nil {
 		return err
 	}
 
-	averageIOSize, err := mrw.Meter.Float64ObservableUpDownCounter(prefix + "_average_io_size_megabytes_per_second")
+	averageIOSize, err := mrw.Meter.Float64ObservableUpDownCounter(prefix + AverageIOSizeMegabytesPerSecond)
 	if err != nil {
 		return err
 	}
