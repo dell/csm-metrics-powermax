@@ -156,7 +156,7 @@ func (m *CapacityMetrics) gatherCapacityMetrics(ctx context.Context, pvs []k8s.V
 	return ch
 }
 
-func (m *CapacityMetrics) pushCapacityMetrics(ctx context.Context, volumeCapacityMetrics <-chan *types.VolumeCapacityMetricsRecord) <-chan string {
+func (m *CapacityMetrics) pushCapacityMetrics(_ context.Context, volumeCapacityMetrics <-chan *types.VolumeCapacityMetricsRecord) <-chan string {
 	start := time.Now()
 	defer m.TimeSince(start, "pushCapacityMetrics")
 	var wg sync.WaitGroup
@@ -202,7 +202,7 @@ func (m *CapacityMetrics) pushCapacityMetrics(ctx context.Context, volumeCapacit
 					attribute.String("Namespace", metric.Namespace),
 					attribute.String("PlotWithMean", "No"),
 				}
-				err := m.MetricsRecorder.RecordNumericMetrics(ctx, collectMetrics("powermax_volume_", labels, metric))
+				err := m.MetricsRecorder.RecordNumericMetrics("powermax_volume_", labels, metric)
 				m.Logger.Debugf("volume capacity metrics %+v", metric)
 
 				if err != nil {
@@ -226,7 +226,7 @@ func (m *CapacityMetrics) pushCapacityMetrics(ctx context.Context, volumeCapacit
 					attribute.String("SrpID", metric.SrpID),
 					attribute.String("PlotWithMean", "No"),
 				}
-				err := m.MetricsRecorder.RecordNumericMetrics(ctx, collectMetrics("powermax_storage_group_", labels, metric))
+				err := m.MetricsRecorder.RecordNumericMetrics("powermax_storage_group_", labels, metric)
 				m.Logger.Debugf("storage group capacity metrics %+v", metric)
 
 				if err != nil {
@@ -249,7 +249,7 @@ func (m *CapacityMetrics) pushCapacityMetrics(ctx context.Context, volumeCapacit
 					attribute.String("SrpID", metric.SrpID),
 					attribute.String("PlotWithMean", "No"),
 				}
-				err := m.MetricsRecorder.RecordNumericMetrics(ctx, collectMetrics("powermax_srp_", labels, metric))
+				err := m.MetricsRecorder.RecordNumericMetrics("powermax_srp_", labels, metric)
 				m.Logger.Debugf("srp capacity metrics %+v", metric)
 
 				if err != nil {
@@ -271,7 +271,7 @@ func (m *CapacityMetrics) pushCapacityMetrics(ctx context.Context, volumeCapacit
 					attribute.String("Driver", metric.Driver),
 					attribute.String("PlotWithMean", "No"),
 				}
-				err := m.MetricsRecorder.RecordNumericMetrics(ctx, collectMetrics("powermax_array_", labels, metric))
+				err := m.MetricsRecorder.RecordNumericMetrics("powermax_array_", labels, metric)
 				m.Logger.Debugf("array capacity metrics %+v", metric)
 
 				if err != nil {
@@ -294,7 +294,7 @@ func (m *CapacityMetrics) pushCapacityMetrics(ctx context.Context, volumeCapacit
 					attribute.String("StorageClass", metric.StorageClass),
 					attribute.String("PlotWithMean", "No"),
 				}
-				err := m.MetricsRecorder.RecordNumericMetrics(ctx, collectMetrics("powermax_storage_class_", labels, metric))
+				err := m.MetricsRecorder.RecordNumericMetrics("powermax_storage_class_", labels, metric)
 				m.Logger.Debugf("storage class capacity metrics metrics %+v", metric)
 
 				if err != nil {
@@ -320,17 +320,4 @@ func cumulate(key string, cacheMap map[string]types.VolumeCapacityMetricsRecord,
 		volMetrics.Used = volMetrics.Used + metric.Used
 		cacheMap[key] = volMetrics
 	}
-}
-
-func collectMetrics(prefix string, labels []attribute.KeyValue, metric types.VolumeCapacityMetricsRecord) []types.NumericMetric {
-	var list []types.NumericMetric
-
-	list = append(list, types.NumericMetric{Labels: labels, Name: prefix + "total_capacity_gigabytes", Value: metric.Total})
-	list = append(list, types.NumericMetric{Labels: labels, Name: prefix + "used_capacity_gigabytes", Value: metric.Used})
-
-	if metric.Total > 0 {
-		list = append(list, types.NumericMetric{Labels: labels, Name: prefix + "used_capacity_percentage", Value: metric.Used * 100 / metric.Total})
-	}
-
-	return list
 }

@@ -19,14 +19,14 @@ package types
 import (
 	"context"
 
+	"go.opentelemetry.io/otel/metric"
+
 	pmax "github.com/dell/gopowermax/v2"
 
 	"github.com/dell/csm-metrics-powermax/internal/k8s"
 	types "github.com/dell/gopowermax/v2/types/v100"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric/instrument/asyncfloat64"
-	"go.opentelemetry.io/otel/metric/instrument/asyncint64"
 	v1 "k8s.io/api/storage/v1"
 )
 
@@ -87,20 +87,20 @@ type Service interface {
 	ExportPerformanceMetrics(ctx context.Context)
 }
 
-// AsyncMetricCreator to create AsyncInt64/AsyncFloat64 InstrumentProvider
+// MeterCreator interface is used to create and provide Meter instances, which are used to report measurements
 //
-//go:generate mockgen -destination=mocks/asyncint64mock/instrument_asyncint64_provider_mocks.go -package=asyncint64mock go.opentelemetry.io/otel/metric/instrument/asyncint64 InstrumentProvider
-//go:generate mockgen -destination=mocks/asyncfloat64mock/instrument_asyncfloat64_provider_mocks.go -package=asyncfloat64mock go.opentelemetry.io/otel/metric/instrument/asyncfloat64 InstrumentProvider
-type AsyncMetricCreator interface {
-	AsyncInt64() asyncint64.InstrumentProvider
-	AsyncFloat64() asyncfloat64.InstrumentProvider
+//go:generate mockgen -destination=mocks/meter_mocks.go -package=mocks go.opentelemetry.io/otel/metric Meter
+type MeterCreator interface {
+	MetricProvider() metric.Meter
 }
 
 // MetricsRecorder supports recording storage resources metrics
 //
-//go:generate mockgen -destination=mocks/types_mocks.go -package=mocks github.com/dell/csm-metrics-powermax/internal/service/types MetricsRecorder,AsyncMetricCreator
+//go:generate mockgen -destination=mocks/types_mocks.go -package=mocks github.com/dell/csm-metrics-powermax/internal/service/types MetricsRecorder,MeterCreator
 type MetricsRecorder interface {
-	RecordNumericMetrics(ctx context.Context, metric []NumericMetric) error
+	RecordNumericMetrics(prefix string, labels []attribute.KeyValue, metric VolumeCapacityMetricsRecord) error
+	RecordVolPerfMetrics(prefix string, metric VolumePerfMetricsRecord) error
+	RecordStorageGroupPerfMetrics(prefix string, metric StorageGroupPerfMetricsRecord) error
 }
 
 // PowerMaxArray is a struct that stores all PowerMax connection information.

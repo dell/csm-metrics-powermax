@@ -24,8 +24,6 @@ import (
 
 	"github.com/dell/csm-metrics-powermax/internal/k8s"
 	"github.com/dell/csm-metrics-powermax/internal/service/types"
-	"github.com/dell/csm-metrics-powermax/utils"
-	"go.opentelemetry.io/otel/attribute"
 )
 
 // PerformanceMetrics performance metrics
@@ -231,7 +229,7 @@ func (m *PerformanceMetrics) gatherVolumePerformanceMetrics(ctx context.Context,
 	return ch
 }
 
-func (m *PerformanceMetrics) pushVolumePerformanceMetrics(ctx context.Context, volumePerfMetrics <-chan *types.VolumePerfMetricsRecord) <-chan string {
+func (m *PerformanceMetrics) pushVolumePerformanceMetrics(_ context.Context, volumePerfMetrics <-chan *types.VolumePerfMetricsRecord) <-chan string {
 	start := time.Now()
 	defer m.TimeSince(start, "pushVolumePerformanceMetrics")
 	var wg sync.WaitGroup
@@ -244,7 +242,7 @@ func (m *PerformanceMetrics) pushVolumePerformanceMetrics(ctx context.Context, v
 			go func(metric types.VolumePerfMetricsRecord) {
 				defer wg.Done()
 
-				err := m.MetricsRecorder.RecordNumericMetrics(ctx, collectVolPerfMetrics("powermax_volume", metric))
+				err := m.MetricsRecorder.RecordVolPerfMetrics("powermax_volume", metric)
 				m.Logger.Debugf("class volume performance metrics %+v", metric)
 
 				if err != nil {
@@ -361,7 +359,7 @@ func (m *PerformanceMetrics) gatherStorageGroupPerformanceMetrics(ctx context.Co
 	return ch
 }
 
-func (m *PerformanceMetrics) pushStorageGroupPerformanceMetrics(ctx context.Context, storageGroupPerfMetrics <-chan *types.StorageGroupPerfMetricsRecord) <-chan string {
+func (m *PerformanceMetrics) pushStorageGroupPerformanceMetrics(_ context.Context, storageGroupPerfMetrics <-chan *types.StorageGroupPerfMetricsRecord) <-chan string {
 	start := time.Now()
 	defer m.TimeSince(start, "pushStorageGroupPerformanceMetrics")
 	var wg sync.WaitGroup
@@ -374,7 +372,7 @@ func (m *PerformanceMetrics) pushStorageGroupPerformanceMetrics(ctx context.Cont
 			go func(metric types.StorageGroupPerfMetricsRecord) {
 				defer wg.Done()
 
-				err := m.MetricsRecorder.RecordNumericMetrics(ctx, collectStorageGroupPerfMetrics("powermax_storage_group", metric))
+				err := m.MetricsRecorder.RecordStorageGroupPerfMetrics("powermax_storage_group", metric)
 				m.Logger.Debugf("storage group performance metrics metrics %+v", metric)
 
 				if err != nil {
@@ -389,46 +387,4 @@ func (m *PerformanceMetrics) pushStorageGroupPerformanceMetrics(ctx context.Cont
 	}()
 
 	return ch
-}
-
-func collectVolPerfMetrics(prefix string, metric types.VolumePerfMetricsRecord) []types.NumericMetric {
-	labels := []attribute.KeyValue{
-		attribute.String("VolumeID", metric.VolumeID),
-		attribute.String("ArrayID", metric.ArrayID),
-		attribute.String("Driver", metric.Driver),
-		attribute.String("StorageClass", metric.StorageClass),
-		attribute.String("PersistentVolumeName", metric.PersistentVolumeName),
-		attribute.String("PersistentVolumeClaimName", metric.PersistentVolumeClaimName),
-		attribute.String("Namespace", metric.Namespace),
-		attribute.String("PlotWithMean", "No"),
-	}
-	var list []types.NumericMetric
-
-	list = append(list, types.NumericMetric{Labels: labels, Name: prefix + "_read_bw_megabytes_per_second", Value: metric.MBRead})
-	list = append(list, types.NumericMetric{Labels: labels, Name: prefix + "_write_bw_megabytes_per_second", Value: metric.MBWritten})
-	list = append(list, types.NumericMetric{Labels: labels, Name: prefix + "_read_latency_milliseconds", Value: metric.ReadResponseTime})
-	list = append(list, types.NumericMetric{Labels: labels, Name: prefix + "_write_latency_milliseconds", Value: metric.WriteResponseTime})
-	list = append(list, types.NumericMetric{Labels: labels, Name: prefix + "_read_io_per_second", Value: metric.Reads})
-	list = append(list, types.NumericMetric{Labels: labels, Name: prefix + "_write_io_per_second", Value: metric.Writes})
-
-	return list
-}
-
-func collectStorageGroupPerfMetrics(prefix string, metric types.StorageGroupPerfMetricsRecord) []types.NumericMetric {
-	labels := []attribute.KeyValue{
-		attribute.String("ArrayID", metric.ArrayID),
-		attribute.String("StorageGroupID", metric.StorageGroupID),
-		attribute.String("PlotWithMean", "No"),
-	}
-	var list []types.NumericMetric
-
-	list = append(list, types.NumericMetric{Labels: labels, Name: prefix + "_read_bw_megabytes_per_second", Value: metric.HostMBReads})
-	list = append(list, types.NumericMetric{Labels: labels, Name: prefix + "_write_bw_megabytes_per_second", Value: metric.HostMBWritten})
-	list = append(list, types.NumericMetric{Labels: labels, Name: prefix + "_read_latency_milliseconds", Value: metric.ReadResponseTime})
-	list = append(list, types.NumericMetric{Labels: labels, Name: prefix + "_write_latency_milliseconds", Value: metric.WriteResponseTime})
-	list = append(list, types.NumericMetric{Labels: labels, Name: prefix + "_read_io_per_second", Value: metric.HostReads})
-	list = append(list, types.NumericMetric{Labels: labels, Name: prefix + "_write_io_per_second", Value: metric.HostWrites})
-	list = append(list, types.NumericMetric{Labels: labels, Name: prefix + "_average_io_size_megabytes_per_second", Value: utils.UnitsConvert(metric.AvgIOSize, utils.KB, utils.MB)})
-
-	return list
 }

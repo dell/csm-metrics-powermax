@@ -56,7 +56,7 @@ func Test_ExportMetrics(t *testing.T) {
 			scFinder := mocks.NewMockStorageClassFinder(ctrl)
 
 			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(mockVolumes, nil).Times(1)
-			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any()).Times(6)
+			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any(), gomock.Any()).Times(6)
 
 			c := mocks.NewMockPowerMaxClient(ctrl)
 			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(&volume00833, nil).Times(1)
@@ -103,7 +103,112 @@ func Test_ExportMetrics(t *testing.T) {
 
 			return base, ctrl
 		},
+		"error - not active": func(t *testing.T) (*metric.BaseMetrics, *gomock.Controller) {
+			ctrl := gomock.NewController(t)
+			metrics := mocks.NewMockMetricsRecorder(ctrl)
+			volFinder := mocks.NewMockVolumeFinder(ctrl)
+			scFinder := mocks.NewMockStorageClassFinder(ctrl)
+
+			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(mockVolumes, nil).Times(1)
+			// No call to RecordNumericMetrics since not active
+
+			c := mocks.NewMockPowerMaxClient(ctrl)
+			// Not active so no calls to GetVolumeByID
+
+			clients := make(map[string][]types.PowerMaxArray)
+			array := types.PowerMaxArray{
+				Client:   c,
+				IsActive: false,
+			}
+			clients["000197902599"] = append(clients["000197902599"], array)
+
+			service := service.PowerMaxService{
+				Logger:                 logrus.New(),
+				MetricsRecorder:        metrics,
+				VolumeFinder:           volFinder,
+				StorageClassFinder:     scFinder,
+				PowerMaxClients:        clients,
+				MaxPowerMaxConnections: service.DefaultMaxPowerMaxConnections,
+			}
+			base := metric.NewBaseMetrics(&service)
+			myCapacityInstance := &metric.CapacityMetrics{base}
+			base.Collector = myCapacityInstance
+
+			return base, ctrl
+		},
+		"success - no recorder ": func(t *testing.T) (*metric.BaseMetrics, *gomock.Controller) {
+			ctrl := gomock.NewController(t)
+			volFinder := mocks.NewMockVolumeFinder(ctrl)
+
+			c := mocks.NewMockPowerMaxClient(ctrl)
+			clients := make(map[string][]types.PowerMaxArray)
+			array := types.PowerMaxArray{
+				Client:   c,
+				IsActive: true,
+			}
+			clients["000197902599"] = append(clients["000197902599"], array)
+
+			base := &metric.BaseMetrics{
+				Logger:                 logrus.New(),
+				VolumeFinder:           volFinder,
+				PowerMaxClients:        clients,
+				MaxPowerMaxConnections: service.DefaultMaxPowerMaxConnections,
+				Collector:              &metric.CapacityMetrics{},
+				MetricsRecorder:        nil,
+			}
+
+			return base, ctrl
+		},
+		"success - no client ": func(t *testing.T) (*metric.BaseMetrics, *gomock.Controller) {
+			ctrl := gomock.NewController(t)
+			volFinder := mocks.NewMockVolumeFinder(ctrl)
+			metrics := mocks.NewMockMetricsRecorder(ctrl)
+
+			c := mocks.NewMockPowerMaxClient(ctrl)
+			clients := make(map[string][]types.PowerMaxArray)
+			array := types.PowerMaxArray{
+				Client:   c,
+				IsActive: true,
+			}
+			clients["000197902599"] = append(clients["000197902599"], array)
+
+			base := &metric.BaseMetrics{
+				Logger:                 logrus.New(),
+				MetricsRecorder:        metrics,
+				VolumeFinder:           volFinder,
+				Collector:              &metric.CapacityMetrics{},
+				PowerMaxClients:        nil,
+				MaxPowerMaxConnections: service.DefaultMaxPowerMaxConnections,
+			}
+
+			return base, ctrl
+		},
+		"success - no connections ": func(t *testing.T) (*metric.BaseMetrics, *gomock.Controller) {
+			ctrl := gomock.NewController(t)
+			volFinder := mocks.NewMockVolumeFinder(ctrl)
+			metrics := mocks.NewMockMetricsRecorder(ctrl)
+
+			c := mocks.NewMockPowerMaxClient(ctrl)
+			clients := make(map[string][]types.PowerMaxArray)
+			array := types.PowerMaxArray{
+				Client:   c,
+				IsActive: true,
+			}
+			clients["000197902599"] = append(clients["000197902599"], array)
+
+			base := &metric.BaseMetrics{
+				Logger:                 logrus.New(),
+				MetricsRecorder:        metrics,
+				VolumeFinder:           volFinder,
+				Collector:              &metric.CapacityMetrics{},
+				PowerMaxClients:        clients,
+				MaxPowerMaxConnections: 0,
+			}
+
+			return base, ctrl
+		},
 	}
+
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			baseMetric, ctrl := tc(t)

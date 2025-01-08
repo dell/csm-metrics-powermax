@@ -28,6 +28,11 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+var (
+	customCertDir   = ""
+	customConfigDir = ""
+)
+
 // IsStringInSlice - Returns true if a string is present in a slice
 func IsStringInSlice(slice []string, str string) bool {
 	for _, el := range slice {
@@ -58,16 +63,26 @@ func RootDir() string {
 // RemoveTempFiles - Removes temporary files created during testing
 func RemoveTempFiles() error {
 	rootDir := RootDir()
-	certsDir := path.Join(rootDir, common.DefaultCertDirName)
-	tmpConfigDir := path.Join(rootDir, common.TempConfigDir)
-	certFiles, err := os.ReadDir(certsDir)
+	certDir := common.DefaultCertDirName
+	if customCertDir != "" {
+		certDir = customCertDir
+	}
+	fullCertsDir := path.Join(rootDir, certDir)
+
+	configDir := common.TempConfigDir
+	if customConfigDir != "" {
+		configDir = customConfigDir
+	}
+	fullConfigDir := path.Join(rootDir, configDir)
+
+	certFiles, err := os.ReadDir(fullCertsDir)
 	if err != nil {
-		log.Fatalf("Failed to list cert files in `%s`", certsDir)
+		log.Errorf("Failed to list cert files in `%s`", fullCertsDir)
 		return err
 	}
-	configFiles, err := os.ReadDir(tmpConfigDir)
+	configFiles, err := os.ReadDir(fullConfigDir)
 	if err != nil {
-		log.Fatalf("Failed to list config files in `%s`", tmpConfigDir)
+		log.Errorf("Failed to list config files in `%s`", fullConfigDir)
 		return err
 	}
 	files := append(configFiles, certFiles...)
@@ -75,12 +90,12 @@ func RemoveTempFiles() error {
 		fileName := file.Name()
 		var err error
 		if strings.Contains(fileName, ".pem") {
-			err = removeFile(certsDir + "/" + fileName)
+			err = removeFile(fullCertsDir + "/" + fileName)
 		} else if strings.Contains(fileName, ".yaml") {
-			err = removeFile(tmpConfigDir + "/" + fileName)
+			err = removeFile(fullConfigDir + "/" + fileName)
 		}
 		if err != nil {
-			log.Fatalf("Failed to remove `%s`. (%s)", fileName, err.Error())
+			log.Errorf("Failed to remove `%s`. (%s)", fileName, err.Error())
 		}
 	}
 	return nil
