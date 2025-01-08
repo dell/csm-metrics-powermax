@@ -1,3 +1,19 @@
+/*
+ Copyright (c) 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+*/
+
 package k8sutils
 
 import (
@@ -272,14 +288,14 @@ func TestGetCredentialsFromSecretName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client, err := tt.setup()
+			utils, err := tt.setup()
 			if err != nil {
 				t.Fatalf("failed to setup client: %s", err.Error())
 			}
-			k8sUtils = client
+			k8sUtils = utils
 			defer func() { k8sUtils = nil }()
 
-			credentials, err := client.GetCredentialsFromSecretName(tt.secretName)
+			credentials, err := utils.GetCredentialsFromSecretName(tt.secretName)
 			if err != nil {
 				assert.EqualError(t, err, tt.wantErr.Error())
 			} else {
@@ -348,7 +364,7 @@ func TestStartInformer(t *testing.T) {
 			err = client.StartInformer(tt.callback)
 			assert.Nil(t, err)
 
-			// TODO: waiting here allows the UpdateFunc callback to be invoked
+			// waiting here allows the UpdateFunc callback to be invoked
 			time.Sleep(1 * time.Second)
 		})
 	}
