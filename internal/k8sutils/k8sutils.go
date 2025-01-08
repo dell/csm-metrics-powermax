@@ -88,9 +88,13 @@ func (c *KubernetesClient) CreateInClusterKubeClient() error {
 		return err
 	}
 	// creates the Clientset
+	return c.createClientSet(config)
+}
+
+func (c *KubernetesClient) createClientSet(config *rest.Config) error {
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		return err
+		return nil
 	}
 	c.Clientset = clientset
 	return nil
@@ -111,12 +115,7 @@ func (c *KubernetesClient) CreateOutOfClusterKubeClient() error {
 		return err
 	}
 	// create the Clientset
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return err
-	}
-	c.Clientset = clientset
-	return nil
+	return c.createClientSet(config)
 }
 
 // GetSecret - Given a namespace and secret name, returns a pointer to the secret object
