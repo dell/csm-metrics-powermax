@@ -25,7 +25,7 @@ LABEL vendor="Dell Technologies" \
       summary="Dell Container Storage Modules (CSM) for Observability - Metrics for PowerMax" \
       description="Provides insight into storage usage and performance as it relates to the CSI (Container Storage Interface) Driver for Dell PowerMax" \
       release="1.13.0" \
-      version="2.0.0" \
+      version="1.6.0" \
       license="Apache-2.0"
 
 COPY /licenses /licenses
