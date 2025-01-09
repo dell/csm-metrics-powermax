@@ -51,46 +51,44 @@ func GetK8sUtils() *k8sutils.K8sUtils {
 
 func getPowerMaxArrays(proxyConfig *config.ProxyConfig) map[string][]types.PowerMaxArray {
 	arrayMap := make(map[string][]types.PowerMaxArray)
-	if proxyConfig.Mode == config.StandAlone {
-		for _, storageArray := range proxyConfig.StandAloneProxyConfig.GetStorageArray("") {
-			var arrayList []types.PowerMaxArray
-			if _, ok := arrayMap[storageArray.StorageArrayIdentifier]; ok {
-				arrayList = arrayMap[storageArray.StorageArrayIdentifier]
-			}
+	for _, storageArray := range proxyConfig.ProxyConfig.GetStorageArray("") {
+		var arrayList []types.PowerMaxArray
+		if _, ok := arrayMap[storageArray.StorageArrayIdentifier]; ok {
+			arrayList = arrayMap[storageArray.StorageArrayIdentifier]
+		}
 
-			var primaryArray types.PowerMaxArray
-			primaryArray.StorageArrayID = storageArray.StorageArrayIdentifier
-			primaryArray.IsPrimary = true
-			primaryArray.Endpoint = storageArray.PrimaryURL.String()
+		var primaryArray types.PowerMaxArray
+		primaryArray.StorageArrayID = storageArray.StorageArrayIdentifier
+		primaryArray.IsPrimary = true
+		primaryArray.Endpoint = storageArray.PrimaryURL.String()
 
-			managementServers := proxyConfig.StandAloneProxyConfig.GetManagementServers()
-			managementServer := getManagementServer(primaryArray.Endpoint, managementServers)
+		managementServers := proxyConfig.ProxyConfig.GetManagementServers()
+		managementServer := getManagementServer(primaryArray.Endpoint, managementServers)
+
+		if managementServer != nil {
+			primaryArray.Insecure = managementServer.SkipCertificateValidation
+			primaryArray.Username = managementServer.Credentials.UserName
+			primaryArray.Password = managementServer.Credentials.Password
+		}
+
+		arrayList = append(arrayList, primaryArray)
+
+		if storageArray.SecondaryURL.Host != "" {
+			var backupArray types.PowerMaxArray
+			backupArray.StorageArrayID = storageArray.StorageArrayIdentifier
+			backupArray.IsPrimary = false
+			backupArray.Endpoint = storageArray.SecondaryURL.String()
+			managementServer := getManagementServer(backupArray.Endpoint, managementServers)
 
 			if managementServer != nil {
-				primaryArray.Insecure = managementServer.SkipCertificateValidation
-				primaryArray.Username = managementServer.Credentials.UserName
-				primaryArray.Password = managementServer.Credentials.Password
+				backupArray.Insecure = managementServer.SkipCertificateValidation
+				backupArray.Username = managementServer.Credentials.UserName
+				backupArray.Password = managementServer.Credentials.Password
 			}
-
-			arrayList = append(arrayList, primaryArray)
-
-			if storageArray.SecondaryURL.Host != "" {
-				var backupArray types.PowerMaxArray
-				backupArray.StorageArrayID = storageArray.StorageArrayIdentifier
-				backupArray.IsPrimary = false
-				backupArray.Endpoint = storageArray.SecondaryURL.String()
-				managementServer := getManagementServer(backupArray.Endpoint, managementServers)
-
-				if managementServer != nil {
-					backupArray.Insecure = managementServer.SkipCertificateValidation
-					backupArray.Username = managementServer.Credentials.UserName
-					backupArray.Password = managementServer.Credentials.Password
-				}
-				arrayList = append(arrayList, backupArray)
-			}
-
-			arrayMap[storageArray.StorageArrayIdentifier] = arrayList
+			arrayList = append(arrayList, backupArray)
 		}
+
+		arrayMap[storageArray.StorageArrayIdentifier] = arrayList
 	}
 
 	return arrayMap
