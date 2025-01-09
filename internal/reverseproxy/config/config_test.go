@@ -35,6 +35,10 @@ func readConfig() (*ProxyConfigMap, error) {
 	return ReadConfig("./../" + filepath.Join(common.TestConfigDir, common.TestConfigFileName))
 }
 
+func readConfigNoModeValid() (*ProxyConfigMap, error) {
+	return ReadConfig("./../" + filepath.Join(common.TestConfigDir, "config_no_mode_valid.yaml"))
+}
+
 func readInvalidStandAloneConfig() (*ProxyConfigMap, error) {
 	return ReadConfig("./../" + filepath.Join(common.TestConfigDir, "invalid_standalone_config.yaml"))
 }
@@ -104,7 +108,6 @@ func getStandAloneProxyConfig(t *testing.T) (*ProxyConfig, error) {
 			return nil, err
 		}
 	}
-	configMap.Mode = "StandAlone"
 	config, err := NewProxyConfig(configMap, k8sUtils)
 	if err != nil {
 		t.Errorf("Failed to create new standalone proxy config. (%s)", err.Error())
@@ -118,7 +121,7 @@ func TestNewStandAloneProxyConfig(t *testing.T) {
 	if err != nil {
 		return
 	}
-	if config.StandAloneProxyConfig == nil {
+	if config.ProxyConfig == nil {
 		t.Error("Config not created properly")
 		return
 	}
@@ -129,8 +132,8 @@ func TestStandAloneProxyConfig_GetStorageArray(t *testing.T) {
 	if err != nil {
 		return
 	}
-	fmt.Printf("Storage arrays: %+v\n", config.StandAloneProxyConfig.GetStorageArray("000000000001"))
-	fmt.Printf("All Storage arrays: %+v\n", config.StandAloneProxyConfig.GetStorageArray(""))
+	fmt.Printf("Storage arrays: %+v\n", config.ProxyConfig.GetStorageArray("000000000001"))
+	fmt.Printf("All Storage arrays: %+v\n", config.ProxyConfig.GetStorageArray(""))
 }
 
 func TestGetManagedArraysAndServers(t *testing.T) {
@@ -138,11 +141,11 @@ func TestGetManagedArraysAndServers(t *testing.T) {
 	if err != nil {
 		return
 	}
-	if config.StandAloneProxyConfig == nil {
+	if config.ProxyConfig == nil {
 		t.Error("Config not created properly")
 		return
 	}
-	fmt.Printf("Management arrays and servers: %+v\n", config.StandAloneProxyConfig.GetManagedArraysAndServers())
+	fmt.Printf("Management arrays and servers: %+v\n", config.ProxyConfig.GetManagedArraysAndServers())
 }
 
 func TestGetManagementServers(t *testing.T) {
@@ -150,11 +153,11 @@ func TestGetManagementServers(t *testing.T) {
 	if err != nil {
 		return
 	}
-	if config.StandAloneProxyConfig == nil {
+	if config.ProxyConfig == nil {
 		t.Error("Config not created properly")
 		return
 	}
-	fmt.Printf("Management servers: %+v\n", config.StandAloneProxyConfig.GetManagementServers())
+	fmt.Printf("Management servers: %+v\n", config.ProxyConfig.GetManagementServers())
 }
 
 func TestGetInvalidStandAloneProxyConfig(t *testing.T) {
@@ -164,6 +167,15 @@ func TestGetInvalidStandAloneProxyConfig(t *testing.T) {
 
 	assert.NotNil(t, err)
 	assert.Nil(t, config)
+}
+
+func TestGetNoModeConfig(t *testing.T) {
+	configMap, err := readConfigNoModeValid()
+	if err != nil {
+		t.Errorf("%s", err.Error())
+		return
+	}
+	assert.NotNil(t, configMap)
 }
 
 func TestGetUnknownModeConfig(t *testing.T) {

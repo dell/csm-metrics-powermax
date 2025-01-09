@@ -28,29 +28,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-// ProxyMode represents the mode the proxy is operating in
-type ProxyMode string
-
-// Constants for the proxy configuration
-// Linked :- In linked mode, proxy simply forwards, will be obsolete
-//
-//	all the request to one of the configured
-//	primary or backup unispheres based on a fail-over
-//	mechanism which is triggered automatically, in case one
-//	of the unispheres go down.
-//
-// StandAlone :- In stand-alone mode, proxy provides multi-array
-//
-//					 support with ACL to authenticate and authorize
-//	              users based on credentials set via k8s secrets.
-//	              Each array can have a primary and a backup unisphere
-//	              which follows the same fail-over mechanism as Linked
-//	              proxy
-const (
-	Linked     = ProxyMode("Linked")
-	StandAlone = ProxyMode("StandAlone")
-)
-
 // StorageArrayConfig represents the configuration of a storage array in the config file
 type StorageArrayConfig struct {
 	StorageArrayID         string   `yaml:"storageArrayId"`
@@ -101,32 +78,19 @@ type ManagementServer struct {
 	Limits                    common.Limits
 }
 
-// LinkConfig - represents linked proxy configuration in the config file
-type LinkConfig struct {
-	Primary ManagementServerConfig `yaml:"primary" mapstructure:"primary"`
-	Backup  ManagementServerConfig `yaml:"backup,omitempty" mapstructure:"backup"`
-}
-
-// StandAloneConfig - represents stand alone proxy configuration in the config file
-type StandAloneConfig struct {
+// Config - represents proxy configuration in the config file
+type Config struct {
 	StorageArrayConfig     []StorageArrayConfig     `yaml:"storageArrays" mapstructure:"storageArrays"`
 	ManagementServerConfig []ManagementServerConfig `yaml:"managementServers" mapstructure:"managementServers"`
 }
 
 // ProxyConfigMap - represents the configuration file
 type ProxyConfigMap struct {
-	Mode             ProxyMode         `yaml:"mode,omitempty"`
-	Port             string            `yaml:"port,omitempty"`
-	LogLevel         string            `yaml:"logLevel,omitempty"`
-	LogFormat        string            `yaml:"logFormat,omitempty"`
-	LinkConfig       *LinkConfig       `yaml:"linkConfig,omitempty" mapstructure:"linkConfig"`
-	StandAloneConfig *StandAloneConfig `yaml:"standAloneConfig,omitempty" mapstructure:"standAloneConfig"`
-}
-
-// LinkedProxyConfig - represents a configuration of the Linked Proxy (formed using LinkConfig)
-type LinkedProxyConfig struct {
-	Primary *ManagementServer
-	Backup  *ManagementServer
+	Port             string  `yaml:"port,omitempty"`
+	LogLevel         string  `yaml:"logLevel,omitempty"`
+	LogFormat        string  `yaml:"logFormat,omitempty"`
+	StandAloneConfig *Config `yaml:"standAloneConfig,omitempty" mapstructure:"standAloneConfig"`
+	Config           *Config `yaml:"config,omitempty" mapstructure:"config"`
 }
 
 // StandAloneProxyConfig - represents Stand Alone Proxy Config (formed using StandAloneConfig)
@@ -202,10 +166,8 @@ func (proxy *StandAloneProxyConfig) GetStorageArray(storageArrayID string) []Sto
 
 // ProxyConfig - represents the configuration of Proxy (formed using ProxyConfigMap)
 type ProxyConfig struct {
-	Mode                  ProxyMode
-	Port                  string
-	LinkProxyConfig       *LinkedProxyConfig
-	StandAloneProxyConfig *StandAloneProxyConfig
+	Port        string
+	ProxyConfig *StandAloneProxyConfig
 }
 
 // ProxyUser - used for storing a proxy user and list of associated storage array identifiers
@@ -216,120 +178,118 @@ type ProxyUser struct {
 
 // ParseConfig - Parses a given proxy config map
 func (proxyConfig *ProxyConfig) ParseConfig(proxyConfigMap ProxyConfigMap, k8sUtils k8sutils.UtilsInterface) error {
-	proxyMode := proxyConfigMap.Mode
-	proxyConfig.Mode = proxyMode
 	proxyConfig.Port = proxyConfigMap.Port
 	fmt.Printf("ConfigMap: %v\n", proxyConfigMap)
 
-	if proxyMode == StandAlone {
-		config := proxyConfigMap.StandAloneConfig
-		if config == nil {
-			return fmt.Errorf("proxy mode is specified as StandAlone but unable to parse config")
-		}
-		var proxy StandAloneProxyConfig
-		proxy.managedArrays = make(map[string]*StorageArray)
-		proxy.managementServers = make(map[url.URL]*ManagementServer)
-		proxy.proxyCredentials = make(map[string]*ProxyUser)
-		storageArrayIdentifiers := make(map[url.URL][]string)
-		ipAddresses := make([]string, 0)
-		for _, mgmtServer := range config.ManagementServerConfig {
-			ipAddresses = append(ipAddresses, mgmtServer.URL)
-		}
-		for _, array := range config.StorageArrayConfig {
-			if array.PrimaryURL == "" {
-				return fmt.Errorf("primary URL not configured for array: %s", array.StorageArrayID)
-			}
-			if !utils.IsStringInSlice(ipAddresses, array.PrimaryURL) {
-				return fmt.Errorf("primary URL: %s for array: %s not present among management URL addresses",
-					array.PrimaryURL, array)
-			}
-			if array.BackupURL != "" {
-				if !utils.IsStringInSlice(ipAddresses, array.BackupURL) {
-					return fmt.Errorf("backup URL: %s for array: %s is not in the list of management URL addresses. Ignoring it",
-						array.BackupURL, array)
-				}
-			}
-			primaryURL, err := url.Parse(array.PrimaryURL)
-			if err != nil {
-				return err
-			}
-			backupURL := &url.URL{}
-			if array.BackupURL != "" {
-				backupURL, err = url.Parse(array.BackupURL)
-				if err != nil {
-					return err
-				}
-			}
-			proxy.managedArrays[array.StorageArrayID] = &StorageArray{
-				StorageArrayIdentifier: array.StorageArrayID,
-				PrimaryURL:             *primaryURL,
-				SecondaryURL:           *backupURL,
-			}
-			// adding Primary and Backup URl to storageArrayIdentifier, later to be used in management server
-			if _, ok := storageArrayIdentifiers[*primaryURL]; ok {
-				storageArrayIdentifiers[*primaryURL] = append(storageArrayIdentifiers[*primaryURL], array.StorageArrayID)
-			} else {
-				storageArrayIdentifiers[*primaryURL] = []string{array.StorageArrayID}
-			}
-			if _, ok := storageArrayIdentifiers[*backupURL]; ok {
-				storageArrayIdentifiers[*backupURL] = append(storageArrayIdentifiers[*backupURL], array.StorageArrayID)
-			} else {
-				storageArrayIdentifiers[*backupURL] = []string{array.StorageArrayID}
-			}
-
-			// Reading proxy credentials for the array
-			if len(array.ProxyCredentialSecrets) > 0 {
-				proxy.managedArrays[array.StorageArrayID].ProxyCredentialSecrets = make(map[string]ProxyCredentialSecret)
-				for _, secret := range array.ProxyCredentialSecrets {
-					proxyCredentials, err := k8sUtils.GetCredentialsFromSecretName(secret)
-					if err != nil {
-						return err
-					}
-					proxyCredentialSecret := &ProxyCredentialSecret{
-						Credentials:      *proxyCredentials,
-						CredentialSecret: secret,
-					}
-					proxy.managedArrays[array.StorageArrayID].ProxyCredentialSecrets[secret] = *proxyCredentialSecret
-					proxy.updateProxyCredentials(*proxyCredentials, array.StorageArrayID)
-				}
-			}
-		}
-		for _, managementServer := range config.ManagementServerConfig {
-			var arrayCredentials common.Credentials
-			if managementServer.ArrayCredentialSecret != "" {
-				credentials, err := k8sUtils.GetCredentialsFromSecretName(managementServer.ArrayCredentialSecret)
-				if err != nil {
-					return err
-				}
-				arrayCredentials = *credentials
-			}
-			mgmtURL, err := url.Parse(managementServer.URL)
-			if err != nil {
-				return err
-			}
-			var certFile string
-			if managementServer.CertSecret != "" {
-				certFile, err = k8sUtils.GetCertFileFromSecretName(managementServer.CertSecret)
-				if err != nil {
-					return err
-				}
-			}
-			proxy.managementServers[*mgmtURL] = &ManagementServer{
-				URL:                       *mgmtURL,
-				StorageArrayIdentifiers:   storageArrayIdentifiers[*mgmtURL],
-				SkipCertificateValidation: managementServer.SkipCertificateValidation,
-				CertFile:                  certFile,
-				CertSecret:                managementServer.CertSecret,
-				Credentials:               arrayCredentials,
-				CredentialSecret:          managementServer.ArrayCredentialSecret,
-				Limits:                    managementServer.Limits,
-			}
-		}
-		proxyConfig.StandAloneProxyConfig = &proxy
-	} else {
-		return fmt.Errorf("unknown proxy mode: %s specified", string(proxyMode))
+	config := proxyConfigMap.StandAloneConfig
+	if config == nil {
+		config = proxyConfigMap.Config
 	}
-	if proxyConfig.LinkProxyConfig == nil && proxyConfig.StandAloneProxyConfig == nil {
+	if config == nil {
+		return fmt.Errorf("unable to parse config")
+	}
+	var proxy StandAloneProxyConfig
+	proxy.managedArrays = make(map[string]*StorageArray)
+	proxy.managementServers = make(map[url.URL]*ManagementServer)
+	proxy.proxyCredentials = make(map[string]*ProxyUser)
+	storageArrayIdentifiers := make(map[url.URL][]string)
+	ipAddresses := make([]string, 0)
+	for _, mgmtServer := range config.ManagementServerConfig {
+		ipAddresses = append(ipAddresses, mgmtServer.URL)
+	}
+	for _, array := range config.StorageArrayConfig {
+		if array.PrimaryURL == "" {
+			return fmt.Errorf("primary URL not configured for array: %s", array.StorageArrayID)
+		}
+		if !utils.IsStringInSlice(ipAddresses, array.PrimaryURL) {
+			return fmt.Errorf("primary URL: %s for array: %s not present among management URL addresses",
+				array.PrimaryURL, array)
+		}
+		if array.BackupURL != "" {
+			if !utils.IsStringInSlice(ipAddresses, array.BackupURL) {
+				return fmt.Errorf("backup URL: %s for array: %s is not in the list of management URL addresses. Ignoring it",
+					array.BackupURL, array)
+			}
+		}
+		primaryURL, err := url.Parse(array.PrimaryURL)
+		if err != nil {
+			return err
+		}
+		backupURL := &url.URL{}
+		if array.BackupURL != "" {
+			backupURL, err = url.Parse(array.BackupURL)
+			if err != nil {
+				return err
+			}
+		}
+		proxy.managedArrays[array.StorageArrayID] = &StorageArray{
+			StorageArrayIdentifier: array.StorageArrayID,
+			PrimaryURL:             *primaryURL,
+			SecondaryURL:           *backupURL,
+		}
+		// adding Primary and Backup URl to storageArrayIdentifier, later to be used in management server
+		if _, ok := storageArrayIdentifiers[*primaryURL]; ok {
+			storageArrayIdentifiers[*primaryURL] = append(storageArrayIdentifiers[*primaryURL], array.StorageArrayID)
+		} else {
+			storageArrayIdentifiers[*primaryURL] = []string{array.StorageArrayID}
+		}
+		if _, ok := storageArrayIdentifiers[*backupURL]; ok {
+			storageArrayIdentifiers[*backupURL] = append(storageArrayIdentifiers[*backupURL], array.StorageArrayID)
+		} else {
+			storageArrayIdentifiers[*backupURL] = []string{array.StorageArrayID}
+		}
+
+		// Reading proxy credentials for the array
+		if len(array.ProxyCredentialSecrets) > 0 {
+			proxy.managedArrays[array.StorageArrayID].ProxyCredentialSecrets = make(map[string]ProxyCredentialSecret)
+			for _, secret := range array.ProxyCredentialSecrets {
+				proxyCredentials, err := k8sUtils.GetCredentialsFromSecretName(secret)
+				if err != nil {
+					return err
+				}
+				proxyCredentialSecret := &ProxyCredentialSecret{
+					Credentials:      *proxyCredentials,
+					CredentialSecret: secret,
+				}
+				proxy.managedArrays[array.StorageArrayID].ProxyCredentialSecrets[secret] = *proxyCredentialSecret
+				proxy.updateProxyCredentials(*proxyCredentials, array.StorageArrayID)
+			}
+		}
+	}
+	for _, managementServer := range config.ManagementServerConfig {
+		var arrayCredentials common.Credentials
+		if managementServer.ArrayCredentialSecret != "" {
+			credentials, err := k8sUtils.GetCredentialsFromSecretName(managementServer.ArrayCredentialSecret)
+			if err != nil {
+				return err
+			}
+			arrayCredentials = *credentials
+		}
+		mgmtURL, err := url.Parse(managementServer.URL)
+		if err != nil {
+			return err
+		}
+		var certFile string
+		if managementServer.CertSecret != "" {
+			certFile, err = k8sUtils.GetCertFileFromSecretName(managementServer.CertSecret)
+			if err != nil {
+				return err
+			}
+		}
+		proxy.managementServers[*mgmtURL] = &ManagementServer{
+			URL:                       *mgmtURL,
+			StorageArrayIdentifiers:   storageArrayIdentifiers[*mgmtURL],
+			SkipCertificateValidation: managementServer.SkipCertificateValidation,
+			CertFile:                  certFile,
+			CertSecret:                managementServer.CertSecret,
+			Credentials:               arrayCredentials,
+			CredentialSecret:          managementServer.ArrayCredentialSecret,
+			Limits:                    managementServer.Limits,
+		}
+	}
+	proxyConfig.ProxyConfig = &proxy
+
+	if proxyConfig.ProxyConfig == nil {
 		return fmt.Errorf("no configuration provided for the proxy")
 	}
 	return nil
