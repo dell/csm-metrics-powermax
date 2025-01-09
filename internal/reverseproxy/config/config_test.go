@@ -80,14 +80,18 @@ func newProxyConfig(configMap *ProxyConfigMap, utils k8sutils.UtilsInterface) (*
 	return NewProxyConfig(configMap, utils)
 }
 
-func getStandAloneProxyConfig(t *testing.T) (*ProxyConfig, error) {
+func getReverseProxyConfig(t *testing.T) (*ProxyConfig, error) {
 	k8sUtils := k8smock.Init()
 	configMap, err := readConfig()
 	if err != nil {
 		t.Errorf("Failed to read config. (%s)", err.Error())
 		return nil, err
 	}
-	for _, storageArray := range configMap.StandAloneConfig.StorageArrayConfig {
+	config := configMap.StandAloneConfig
+	if config == nil {
+		config = configMap.Config
+	}
+	for _, storageArray := range config.StorageArrayConfig {
 		for _, secretName := range storageArray.ProxyCredentialSecrets {
 			_, err := k8sUtils.CreateNewCredentialSecret(secretName)
 			if err != nil {
@@ -96,7 +100,7 @@ func getStandAloneProxyConfig(t *testing.T) (*ProxyConfig, error) {
 			}
 		}
 	}
-	for _, managementServer := range configMap.StandAloneConfig.ManagementServerConfig {
+	for _, managementServer := range config.ManagementServerConfig {
 		_, err := k8sUtils.CreateNewCredentialSecret(managementServer.ArrayCredentialSecret)
 		if err != nil {
 			t.Errorf("Failed to create server credential secret. (%s)", err.Error())
@@ -108,16 +112,16 @@ func getStandAloneProxyConfig(t *testing.T) (*ProxyConfig, error) {
 			return nil, err
 		}
 	}
-	config, err := NewProxyConfig(configMap, k8sUtils)
+	proxyConfig, err := NewProxyConfig(configMap, k8sUtils)
 	if err != nil {
-		t.Errorf("Failed to create new standalone proxy config. (%s)", err.Error())
+		t.Errorf("Failed to create new proxy config. (%s)", err.Error())
 		return nil, err
 	}
-	return config, nil
+	return proxyConfig, nil
 }
 
-func TestNewStandAloneProxyConfig(t *testing.T) {
-	config, err := getStandAloneProxyConfig(t)
+func TestNewProxyConfig(t *testing.T) {
+	config, err := getReverseProxyConfig(t)
 	if err != nil {
 		return
 	}
@@ -127,8 +131,8 @@ func TestNewStandAloneProxyConfig(t *testing.T) {
 	}
 }
 
-func TestStandAloneProxyConfig_GetStorageArray(t *testing.T) {
-	config, err := getStandAloneProxyConfig(t)
+func TestProxyConfig_GetStorageArray(t *testing.T) {
+	config, err := getReverseProxyConfig(t)
 	if err != nil {
 		return
 	}
@@ -137,7 +141,7 @@ func TestStandAloneProxyConfig_GetStorageArray(t *testing.T) {
 }
 
 func TestGetManagedArraysAndServers(t *testing.T) {
-	config, err := getStandAloneProxyConfig(t)
+	config, err := getReverseProxyConfig(t)
 	if err != nil {
 		return
 	}
@@ -149,7 +153,7 @@ func TestGetManagedArraysAndServers(t *testing.T) {
 }
 
 func TestGetManagementServers(t *testing.T) {
-	config, err := getStandAloneProxyConfig(t)
+	config, err := getReverseProxyConfig(t)
 	if err != nil {
 		return
 	}

@@ -93,14 +93,14 @@ type ProxyConfigMap struct {
 	Config           *Config `yaml:"config,omitempty" mapstructure:"config"`
 }
 
-// StandAloneProxyConfig - represents Stand Alone Proxy Config (formed using StandAloneConfig)
-type StandAloneProxyConfig struct {
+// ReverseProxyConfig - represents reverse proxy config
+type ReverseProxyConfig struct {
 	managedArrays     map[string]*StorageArray
 	managementServers map[url.URL]*ManagementServer
 	proxyCredentials  map[string]*ProxyUser
 }
 
-func (proxy *StandAloneProxyConfig) updateProxyCredentials(creds common.Credentials, storageArrayIdentifier string) {
+func (proxy *ReverseProxyConfig) updateProxyCredentials(creds common.Credentials, storageArrayIdentifier string) {
 	if proxyUser, ok := proxy.proxyCredentials[creds.UserName]; ok {
 		if subtle.ConstantTimeCompare([]byte(creds.Password), []byte(proxyUser.ProxyCredential.Password)) == 1 {
 			// Credentials already exist in map
@@ -116,8 +116,8 @@ func (proxy *StandAloneProxyConfig) updateProxyCredentials(creds common.Credenti
 	}
 }
 
-// GetManagementServers - Returns the list of management servers present in StandAloneProxyConfig
-func (proxy *StandAloneProxyConfig) GetManagementServers() []ManagementServer {
+// GetManagementServers - Returns the list of management servers present in ReverseProxyConfig
+func (proxy *ReverseProxyConfig) GetManagementServers() []ManagementServer {
 	mgmtServers := make([]ManagementServer, 0)
 	for _, v := range proxy.managementServers {
 		mgmtServers = append(mgmtServers, *v)
@@ -126,7 +126,7 @@ func (proxy *StandAloneProxyConfig) GetManagementServers() []ManagementServer {
 }
 
 // GetManagedArraysAndServers returns a list of arrays with their corresponding management servers
-func (proxy *StandAloneProxyConfig) GetManagedArraysAndServers() map[string]StorageArrayServer {
+func (proxy *ReverseProxyConfig) GetManagedArraysAndServers() map[string]StorageArrayServer {
 	arrayServers := make(map[string]StorageArrayServer)
 	for _, server := range proxy.managementServers {
 		for _, arrayID := range server.StorageArrayIdentifiers {
@@ -150,7 +150,7 @@ func (proxy *StandAloneProxyConfig) GetManagedArraysAndServers() map[string]Stor
 }
 
 // GetStorageArray - Returns a list of storage array given a storage array id
-func (proxy *StandAloneProxyConfig) GetStorageArray(storageArrayID string) []StorageArray {
+func (proxy *ReverseProxyConfig) GetStorageArray(storageArrayID string) []StorageArray {
 	storageArrays := make([]StorageArray, 0)
 	if storageArrayID != "" {
 		if storageArray, ok := proxy.managedArrays[storageArrayID]; ok {
@@ -167,7 +167,7 @@ func (proxy *StandAloneProxyConfig) GetStorageArray(storageArrayID string) []Sto
 // ProxyConfig - represents the configuration of Proxy (formed using ProxyConfigMap)
 type ProxyConfig struct {
 	Port        string
-	ProxyConfig *StandAloneProxyConfig
+	ProxyConfig *ReverseProxyConfig
 }
 
 // ProxyUser - used for storing a proxy user and list of associated storage array identifiers
@@ -188,7 +188,7 @@ func (proxyConfig *ProxyConfig) ParseConfig(proxyConfigMap ProxyConfigMap, k8sUt
 	if config == nil {
 		return fmt.Errorf("unable to parse config")
 	}
-	var proxy StandAloneProxyConfig
+	var proxy ReverseProxyConfig
 	proxy.managedArrays = make(map[string]*StorageArray)
 	proxy.managementServers = make(map[url.URL]*ManagementServer)
 	proxy.proxyCredentials = make(map[string]*ProxyUser)
