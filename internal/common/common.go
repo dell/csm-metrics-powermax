@@ -157,7 +157,7 @@ func GetPowerMaxArrays(ctx context.Context, k8sUtils k8sutils.UtilsInterface, fi
 				array.Endpoint,
 				ApplicationName,
 				true,
-				false)
+				false, "")
 			if err != nil {
 				logger.WithError(err).Errorf("cannot connect to PowerMax array %s, %s", arrayID, array.Endpoint)
 				continue
