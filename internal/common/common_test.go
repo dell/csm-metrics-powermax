@@ -26,9 +26,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/dell/csi-powermax/csireverseproxy/v2/pkg/k8smock"
+	"github.com/dell/csi-powermax/csireverseproxy/v2/pkg/k8sutils"
 	"github.com/dell/csm-metrics-powermax/internal/common"
-	"github.com/dell/csm-metrics-powermax/internal/k8sutils"
-	"github.com/dell/csm-metrics-powermax/internal/reverseproxy/k8smock"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 

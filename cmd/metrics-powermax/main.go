@@ -24,7 +24,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dell/csm-metrics-powermax/internal/k8sutils"
+	"github.com/dell/csi-powermax/csireverseproxy/v2/pkg/k8sutils"
 	"github.com/dell/csm-metrics-powermax/internal/service/metric"
 	"github.com/dell/csm-metrics-powermax/internal/service/types"
 	corev1 "k8s.io/api/core/v1"
@@ -49,6 +49,7 @@ const (
 	defaultConfigFile   = "/etc/config/karavi-metrics-powermax.yaml"
 	// defaultSecret                 = "/powermax-config/default-secret"
 	defaultReverseProxyConfigFile = "/etc/reverseproxy/config.yaml"
+	defaultSecretConfigFile       = "/etc/powermax/config"
 )
 
 var (
@@ -69,7 +70,11 @@ func main() {
 	}
 
 	configFileListener := viper.New()
-	configFileListener.SetConfigFile(defaultReverseProxyConfigFile)
+	if os.Getenv("REVPROXY_USE_SECRET") == "true" {
+		configFileListener.SetConfigFile(defaultSecretConfigFile)
+	} else {
+		configFileListener.SetConfigFile(defaultReverseProxyConfigFile)
+	}
 
 	leaderElectorGetter := &k8s.LeaderElector{
 		API: &k8s.LeaderElector{},

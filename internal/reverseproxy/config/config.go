@@ -16,7 +16,7 @@
 
 package config
 
-import (
+/*import (
 	"crypto/subtle"
 	"fmt"
 	"net/url"
@@ -321,3 +321,4 @@ func ReadConfig(configFile string) (*ProxyConfigMap, error) {
 	}
 	return &configMap, nil
 }
+*/
