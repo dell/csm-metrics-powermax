@@ -2,7 +2,7 @@ module github.com/dell/csm-metrics-powermax
 
 go 1.23.0
 
-toolchain go1.23.4
+toolchain go1.23.5
 
 require (
 	github.com/dell/gopowermax/v2 v2.9.0
