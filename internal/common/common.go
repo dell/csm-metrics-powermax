@@ -202,6 +202,7 @@ func GetPowerMaxArrays(ctx context.Context, k8sUtils k8sutils.UtilsInterface, fi
 		powermaxArrays = getPowerMaxArraysFromSecret(proxyConfig)
 	} else {
 		logger.Infof("Reading config from the ConfigMap")
+		logger.Infof("Config File: %s \nConfig Directory: %s", filepath.Base(filePath), filepath.Dir(filePath))
 		proxyConfigMap, err := config.ReadConfig(filepath.Base(filePath), filepath.Dir(filePath), viper.New())
 		if err != nil {
 			logger.WithError(err).Errorf("fail to read ProxyConfig from %s", filePath)

@@ -17,7 +17,7 @@
 package common
 
 // Credentials represent a pair of username and password
-type Credentials struct {
+/*type Credentials struct {
 	UserName string `json:"username"`
 	Password string `json:"password"`
 }
@@ -30,3 +30,4 @@ type Limits struct {
 	MaxOutStandingRead  int `yaml:"maxOutStandingRead,omitempty"`
 	MaxOutStandingWrite int `yaml:"maxOutStandingWrite,omitempty"`
 }
+*/

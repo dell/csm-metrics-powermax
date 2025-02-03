@@ -24,7 +24,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dell/csm-metrics-powermax/internal/reverseproxy/common"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -71,7 +70,7 @@ func TestGetCredentialFromSecret(t *testing.T) {
 	tests := []struct {
 		name    string
 		secret  *corev1.Secret
-		want    *common.Credentials
+		want    *Credentials
 		wantErr error
 	}{
 		{
@@ -85,7 +84,7 @@ func TestGetCredentialFromSecret(t *testing.T) {
 					"password": []byte("test-password"),
 				},
 			},
-			want: &common.Credentials{
+			want: &Credentials{
 				UserName: "test-username",
 				Password: "test-password",
 			},

@@ -16,7 +16,7 @@
 
 package utils
 
-import (
+/*import (
 	"errors"
 	"os"
 	"path"
@@ -112,3 +112,4 @@ func removeFile(filePath string) error {
 	}
 	return nil
 }
+*/

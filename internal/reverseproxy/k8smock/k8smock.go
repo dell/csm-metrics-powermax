@@ -16,7 +16,7 @@
 
 package k8smock
 
-import (
+/*import (
 	"context"
 	"fmt"
 	"os"
@@ -201,3 +201,4 @@ func (mockUtils *MockUtils) CreateNewCredentialSecret(secretName string) (*corev
 	}
 	return secret, nil
 }
+*/

@@ -24,8 +24,6 @@ import (
 	"strconv"
 	"time"
 
-	common "github.com/dell/csm-metrics-powermax/internal/reverseproxy/common"
-
 	log "github.com/sirupsen/logrus"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -38,12 +36,18 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
+// Credentials represent a pair of username and password
+type Credentials struct {
+	UserName string `json:"username"`
+	Password string `json:"password"`
+}
+
 // UtilsInterface - interface which provides helper methods related to k8s
 type UtilsInterface interface {
 	GetCertFileFromSecret(*corev1.Secret) (string, error)
 	GetCertFileFromSecretName(string) (string, error)
-	GetCredentialsFromSecret(*corev1.Secret) (*common.Credentials, error)
-	GetCredentialsFromSecretName(string) (*common.Credentials, error)
+	GetCredentialsFromSecret(*corev1.Secret) (*Credentials, error)
+	GetCredentialsFromSecretName(string) (*Credentials, error)
 	StartInformer(func(UtilsInterface, *corev1.Secret)) error
 	StopInformer()
 }
@@ -182,12 +186,12 @@ func (utils *K8sUtils) GetCertFileFromSecretName(secretName string) (string, err
 	return utils.getCertFileFromSecret(certSecret)
 }
 
-func (utils *K8sUtils) getCredentialFromSecret(secret *corev1.Secret) (*common.Credentials, error) {
+func (utils *K8sUtils) getCredentialFromSecret(secret *corev1.Secret) (*Credentials, error) {
 	if secret == nil {
 		return nil, fmt.Errorf("secret can't be nil")
 	}
 	if _, ok := secret.Data["username"]; ok {
-		return &common.Credentials{
+		return &Credentials{
 			UserName: string(secret.Data["username"]),
 			Password: string(secret.Data["password"]),
 		}, nil
@@ -196,7 +200,7 @@ func (utils *K8sUtils) getCredentialFromSecret(secret *corev1.Secret) (*common.C
 }
 
 // GetCredentialsFromSecretName - Given a secret name, reads the secret and returns credentials
-func (utils *K8sUtils) GetCredentialsFromSecretName(secretName string) (*common.Credentials, error) {
+func (utils *K8sUtils) GetCredentialsFromSecretName(secretName string) (*Credentials, error) {
 	secret, err := k8sUtils.KubernetesClient.GetSecret(k8sUtils.Namespace, secretName)
 	if err != nil {
 		return nil, err
@@ -205,7 +209,7 @@ func (utils *K8sUtils) GetCredentialsFromSecretName(secretName string) (*common.
 }
 
 // GetCredentialsFromSecret - Given a secret object, returns credentials
-func (utils *K8sUtils) GetCredentialsFromSecret(secret *corev1.Secret) (*common.Credentials, error) {
+func (utils *K8sUtils) GetCredentialsFromSecret(secret *corev1.Secret) (*Credentials, error) {
 	return utils.getCredentialFromSecret(secret)
 }
 
