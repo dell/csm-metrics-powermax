@@ -33,9 +33,7 @@ jobs:
         run: go mod download
       - name: Build csm-metrics-powermax Docker Image
         run: |
-          chmod +x ./scripts/build_ubi_micro.sh
-          make build-base-image
-          podman build -t docker.io/csm-metrics-powermax -f ./Dockerfile --build-arg GOIMAGE=golang:latest --build-arg BASEIMAGE="localhost/mpmx-ubimicro"
+          podman build -t docker.io/csm-metrics-powermax -f ./Dockerfile --build-arg GOIMAGE=golang:latest --build-arg BASEIMAGE="quay.io/dell/container-storage-modules/csm-base-image:nightly"
           podman save docker.io/library/csm-metrics-powermax -o /tmp/csm-metrics-powermax.tar
           docker load -i /tmp/csm-metrics-powermax.tar
       - name: Run Trivy action
