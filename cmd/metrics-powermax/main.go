@@ -197,7 +197,8 @@ func updatePowerMaxArrays(ctx context.Context, powerMaxSvc *service.PowerMaxServ
 func updateCollectorAddress(config *entrypoint.Config, exporter *otlexporters.OtlCollectorExporter) {
 	collectorAddress := viper.GetString("COLLECTOR_ADDR")
 	if collectorAddress == "" {
-		logger.Fatal("COLLECTOR_ADDR is required")
+		logger.Error("COLLECTOR_ADDR is required")
+		return
 	}
 	config.CollectorAddress = collectorAddress
 	exporter.CollectorAddr = collectorAddress
@@ -207,7 +208,8 @@ func updateCollectorAddress(config *entrypoint.Config, exporter *otlexporters.Ot
 func updateProvisionerNames(volumeFinder *k8s.VolumeFinder, storageClassFinder *k8s.StorageClassFinder) {
 	provisionerNamesValue := viper.GetString("PROVISIONER_NAMES")
 	if provisionerNamesValue == "" {
-		logger.Fatal("PROVISIONER_NAMES is required")
+		logger.Error("PROVISIONER_NAMES is required")
+		return
 	}
 	provisionerNames := strings.Split(provisionerNamesValue, ",")
 	volumeFinder.DriverNames = provisionerNames
@@ -243,7 +245,8 @@ func updateTickIntervals(config *entrypoint.Config) {
 	if capacityPollFrequencySeconds != "" {
 		numSeconds, err := strconv.Atoi(capacityPollFrequencySeconds)
 		if err != nil {
-			logger.WithError(err).Fatal("POWERMAX_CAPACITY_POLL_FREQUENCY was not set to a valid number")
+			logger.WithError(err).Error("POWERMAX_CAPACITY_POLL_FREQUENCY was not set to a valid number")
+			numSeconds = int(defaultTickInterval.Seconds())
 		}
 		capacityTickInterval = time.Duration(numSeconds) * time.Second
 	}
@@ -255,7 +258,8 @@ func updateTickIntervals(config *entrypoint.Config) {
 	if performancePollFrequencySeconds != "" {
 		numSeconds, err := strconv.Atoi(performancePollFrequencySeconds)
 		if err != nil {
-			logger.WithError(err).Fatal("POWERMAX_PERFORMANCE_POLL_FREQUENCY was not set to a valid number")
+			logger.WithError(err).Error("POWERMAX_PERFORMANCE_POLL_FREQUENCY was not set to a valid number")
+			numSeconds = int(defaultTickInterval.Seconds())
 		}
 		performanceTickInterval = time.Duration(numSeconds) * time.Second
 	}
@@ -267,12 +271,13 @@ func updateMaxConnections(powerMaxSvc *service.PowerMaxService) {
 	maxPowerMaxConcurrentRequests := service.DefaultMaxPowerMaxConnections
 	maxPowerMaxConcurrentRequestsVar := viper.GetString("POWERMAX_MAX_CONCURRENT_QUERIES")
 	if maxPowerMaxConcurrentRequestsVar != "" {
-		maxPowermaxConcurrentRequests, err := strconv.Atoi(maxPowerMaxConcurrentRequestsVar)
+		convertedMaxPowerMaxConcurrentRequests, err := strconv.Atoi(maxPowerMaxConcurrentRequestsVar)
 		if err != nil {
-			logger.WithError(err).Fatal("POWERMAX_MAX_CONCURRENT_QUERIES was not set to a valid number")
-		}
-		if maxPowermaxConcurrentRequests <= 0 {
-			logger.WithError(err).Fatal("POWERMAX_MAX_CONCURRENT_QUERIES value was invalid (<= 0)")
+			logger.WithError(err).Error("POWERMAX_MAX_CONCURRENT_QUERIES was not set to a valid number")
+		} else if convertedMaxPowerMaxConcurrentRequests <= 0 {
+			logger.WithError(err).Error("POWERMAX_MAX_CONCURRENT_QUERIES value was invalid (<= 0)")
+		} else {
+			maxPowerMaxConcurrentRequests = convertedMaxPowerMaxConcurrentRequests
 		}
 	}
 	powerMaxSvc.MaxPowerMaxConnections = maxPowerMaxConcurrentRequests
