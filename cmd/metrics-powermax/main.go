@@ -49,7 +49,7 @@ const (
 	defaultConfigFile   = "/etc/config/karavi-metrics-powermax.yaml"
 	// defaultSecret                 = "/powermax-config/default-secret"
 	defaultReverseProxyConfigFile = "/etc/reverseproxy/config.yaml"
-	defaultSecretConfigFile       = "/etc/powermax/config"
+	defaultSecretConfigFile       = "/etc/powermax/config" // #nosec G101
 )
 
 var (

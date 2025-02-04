@@ -19,10 +19,11 @@ package common
 import (
 	"context"
 	"errors"
-	"github.com/spf13/viper"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/spf13/viper"
 
 	"github.com/dell/csi-powermax/csireverseproxy/v2/pkg/config"
 	"github.com/dell/csi-powermax/csireverseproxy/v2/pkg/k8sutils"
