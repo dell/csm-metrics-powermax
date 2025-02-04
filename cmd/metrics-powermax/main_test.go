@@ -109,7 +109,6 @@ func TestUpdateProvisionerNames(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
 			logger = logrus.New()
 
 			viper.Set("PROVISIONER_NAMES", tt.provisionerNamesValue)
@@ -163,7 +162,6 @@ func TestUpdateCollectorAddress(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
 			logger = logrus.New()
 
 			config := &entrypoint.Config{}
@@ -226,7 +224,6 @@ func TestUpdateTickIntervals(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
 			logger = logrus.New()
 
 			config := &entrypoint.Config{}
@@ -272,7 +269,6 @@ func TestUpdateMaxConnections(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
 			logger = logrus.New()
 
 			viper.Set("POWERMAX_MAX_CONCURRENT_QUERIES", tt.maxConnections)

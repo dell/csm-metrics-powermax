@@ -142,7 +142,11 @@ func main() {
 
 	ctx = context.Background()
 
-	common.InitK8sUtils(logger, updatePowerMaxArraysOnSecretChanged, true)
+	_, err = common.InitK8sUtils(logger, updatePowerMaxArraysOnSecretChanged, true)
+	if err != nil {
+		logger.WithError(err).Fatal("cannot initialize k8sUtils")
+	}
+
 	updatePowerMaxConnection(ctx, powerMaxSvc, storageClassFinder, volumeFinder)
 	updateCollectorAddress(config, exporter)
 	updateMetricsEnabled(config)
