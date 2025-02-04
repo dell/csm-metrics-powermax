@@ -24,6 +24,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dell/csi-powermax/csireverseproxy/v2/pkg/common"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -70,7 +71,7 @@ func TestGetCredentialFromSecret(t *testing.T) {
 	tests := []struct {
 		name    string
 		secret  *corev1.Secret
-		want    *Credentials
+		want    *common.Credentials
 		wantErr error
 	}{
 		{
@@ -84,7 +85,7 @@ func TestGetCredentialFromSecret(t *testing.T) {
 					"password": []byte("test-password"),
 				},
 			},
-			want: &Credentials{
+			want: &common.Credentials{
 				UserName: "test-username",
 				Password: "test-password",
 			},
