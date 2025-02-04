@@ -64,9 +64,6 @@ func Test_Run(t *testing.T) {
 	fmt.Println(serverIP)
 	fmt.Println(serverPort)
 
-	// mockUtils := k8smock.Init()
-	// mockUtils.CreateNewCredentialSecret("powermax-creds")
-
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			logger := logrus.New()
