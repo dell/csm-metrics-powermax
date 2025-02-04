@@ -31,6 +31,7 @@ import (
 	"github.com/dell/csm-metrics-powermax/internal/common"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/gorilla/mux"
 )
@@ -141,7 +142,11 @@ func Test_GetK8sUtils(t *testing.T) {
 }
 
 func Test_InitK8sUtils(t *testing.T) {
-	assert.Nil(t, common.InitK8sUtils(logrus.New(), nil))
+	createTempKubeconfig("./fake-kubeconfig")
+	os.Setenv("X_CSI_KUBECONFIG_PATH", "./fake-kubeconfig")
+	callback := func(_ k8sutils.UtilsInterface, _ *corev1.Secret) {}
+	_, err := common.InitK8sUtils(logrus.New(), callback, false)
+	assert.Nil(t, err)
 }
 
 // getHandler returns an http.Handler that
@@ -172,4 +177,22 @@ func getUnauthorizedRouter() http.Handler {
 		w.Write([]byte("<html><head><title>Error</title></head><body>Unauthorized</body></html>"))
 	})
 	return router
+}
+
+func createTempKubeconfig(filepath string) {
+	kubeconfig := `clusters:
+- cluster:
+    server: https://some.hostname.or.ip:6443
+  name: fake-cluster
+contexts:
+- context:
+    cluster: fake-cluster
+    user: admin
+  name: admin
+current-context: admin
+preferences: {}
+users:
+- name: admin`
+
+	os.WriteFile(filepath, []byte(kubeconfig), 0o600)
 }

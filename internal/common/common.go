@@ -152,9 +152,9 @@ func getManagementServer(url string, managementServers []config.ManagementServer
 }
 
 // InitK8sUtils initialize k8sutils instance with a callback method on secret change.
-func InitK8sUtils(logger *logrus.Logger, callback func(k8sutils.UtilsInterface, *corev1.Secret)) *k8sutils.K8sUtils {
+func InitK8sUtils(logger *logrus.Logger, callback func(k8sutils.UtilsInterface, *corev1.Secret), inCluster bool) (*k8sutils.K8sUtils, error) {
 	if k8sUtils != nil {
-		return k8sUtils
+		return k8sUtils, nil
 	}
 
 	powerMaxNamespace := os.Getenv("POWERMAX_METRICS_NAMESPACE")
@@ -163,15 +163,17 @@ func InitK8sUtils(logger *logrus.Logger, callback func(k8sutils.UtilsInterface, 
 	}
 
 	var err error
-	k8sUtils, err = k8sutils.Init(powerMaxNamespace, defaultUnisphereCertDir, true, time.Second*30)
+	k8sUtils, err = k8sutils.Init(powerMaxNamespace, defaultUnisphereCertDir, inCluster, time.Second*30)
 	if err != nil {
 		logger.WithError(err).Errorf("cannot initialize k8sUtils")
+		return nil, err
 	}
 	err = k8sUtils.StartInformer(callback)
 	if err != nil {
 		logger.WithError(err).Errorf("cannot start informer")
+		return nil, err
 	}
-	return k8sUtils
+	return k8sUtils, nil
 }
 
 // GetPowerMaxArrays parses reverseproxy config file, initializes valid pmax and composes map of arrays for ease of access.
