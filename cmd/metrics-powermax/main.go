@@ -56,6 +56,7 @@ var (
 	logger      *logrus.Logger
 	powerMaxSvc *service.PowerMaxService
 	ctx         context.Context
+	cPath       string
 )
 
 func main() {
@@ -70,10 +71,15 @@ func main() {
 	}
 
 	configFileListener := viper.New()
-	if os.Getenv("REVPROXY_USE_SECRET") == "true" {
+	configFileListener.SetConfigType("yaml")
+	if os.Getenv("X_CSI_REVPROXY_USE_SECRET") == "true" {
+		logger.Infof("We will be using the SECRET as the config file")
 		configFileListener.SetConfigFile(defaultSecretConfigFile)
+		cPath = defaultSecretConfigFile
 	} else {
+		logger.Infof("We will be using the CONFIGMAP as the config file")
 		configFileListener.SetConfigFile(defaultReverseProxyConfigFile)
+		cPath = defaultReverseProxyConfigFile
 	}
 
 	leaderElectorGetter := &k8s.LeaderElector{
@@ -174,7 +180,7 @@ func updatePowerMaxConnection(ctx context.Context, powerMaxSvc *service.PowerMax
 }
 
 func updatePowerMaxArrays(ctx context.Context, powerMaxSvc *service.PowerMaxService) {
-	arrays, err := common.GetPowerMaxArrays(ctx, common.GetK8sUtils(), defaultReverseProxyConfigFile, logger)
+	arrays, err := common.GetPowerMaxArrays(ctx, common.GetK8sUtils(), cPath, logger)
 	if err != nil {
 		logger.WithError(err).Fatal("initialize powermax arrays in controller service")
 	}

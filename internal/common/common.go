@@ -187,7 +187,7 @@ func GetPowerMaxArrays(ctx context.Context, k8sUtils k8sutils.UtilsInterface, fi
 		proxyConfig    *config.ProxyConfig
 		powermaxArrays map[string][]types.PowerMaxArray
 	)
-	if os.Getenv("REVPROXY_USE_SECRET") == "true" {
+	if os.Getenv("X_CSI_REVPROXY_USE_SECRET") == "true" {
 		logger.Infof("Reading config from the Secret")
 		proxyConfigMap, err := config.ReadConfigFromSecret(viper.New())
 		if err != nil {
