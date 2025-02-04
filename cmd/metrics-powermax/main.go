@@ -142,7 +142,7 @@ func main() {
 
 	ctx = context.Background()
 
-	common.InitK8sUtils(logger, updatePowerMaxArraysOnSecretChanged)
+	common.InitK8sUtils(logger, updatePowerMaxArraysOnSecretChanged, true)
 	updatePowerMaxConnection(ctx, powerMaxSvc, storageClassFinder, volumeFinder)
 	updateCollectorAddress(config, exporter)
 	updateMetricsEnabled(config)
