@@ -230,6 +230,7 @@ func TestGetCertFileFromSecretName(t *testing.T) {
 			}
 			k8sUtils = client
 			defer func() { k8sUtils = nil }()
+			k8sUtils.CertDirectory = "."
 
 			fileName, err := client.GetCertFileFromSecretName(tt.secretName)
 			if err != nil {

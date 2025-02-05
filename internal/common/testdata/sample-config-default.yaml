@@ -4,17 +4,12 @@ logFormat: text
 config:
   storageArrays:
     - storageArrayId: "00012345678"
-      primaryURL: https://[serverip]:[serverport]
-      backupURL: https://[serverip]:[serverport]
-      proxyCredentialSecrets:
-        - powermax-creds
-    - storageArrayId: "00012345678"
-      primaryURL: https://[serverip]:[serverport]
-      backupURL: https://[serverip]:[serverport]
+      primaryURL: [REPLACE_ENDPOINT]
+      backupURL: [REPLACE_ENDPOINT]
       proxyCredentialSecrets:
         - powermax-creds
   managementServers:
-    - url: https://[serverip]:[serverport]
+    - url: [REPLACE_ENDPOINT]
       arrayCredentialSecret: powermax-creds
       skipCertificateValidation: true
       certSecret:
