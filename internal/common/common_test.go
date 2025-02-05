@@ -183,7 +183,6 @@ func TestGetPowerMaxArrays(t *testing.T) {
 				setEnv(revcommon.EnvSecretFilePath, tc.filePath)
 			}
 			powerMaxArrays, err := common.GetPowerMaxArrays(ctx, tc.k8sUtils, tc.filePath, tc.logger)
-
 			if err != nil {
 				if !strings.Contains(err.Error(), tc.expectedError.Error()) {
 					t.Errorf("Expected error: %v, but got: %v", tc.expectedError, err)
