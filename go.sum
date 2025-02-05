@@ -14,6 +14,8 @@ github.com/dell/csi-powermax/csireverseproxy/v2 v2.0.0-20250203170837-6caf439027
 github.com/dell/csi-powermax/csireverseproxy/v2 v2.0.0-20250203170837-6caf4390279f/go.mod h1:Fbc7ar0LQqnrk06Fcfy1I3TsFcMDVb3PzZ7lSvSDHTc=
 github.com/dell/csi-powermax/csireverseproxy/v2 v2.0.0-20250204133935-32e43365f455 h1:0AbCIc2hLQdO7ONN/MLigZDLp6FrqxgJtdNd3aQDmSM=
 github.com/dell/csi-powermax/csireverseproxy/v2 v2.0.0-20250204133935-32e43365f455/go.mod h1:/CiiUQkoQ0jkhhJv5ocdKdE71Tqfb7xHEk28r4E/ScU=
+github.com/dell/csi-powermax/csireverseproxy/v2 v2.0.0-20250204145534-f9981c2caccd h1:aRhBk5CQbcGIYzm57FGEyt800MnhSCS7MWi/at975Y0=
+github.com/dell/csi-powermax/csireverseproxy/v2 v2.0.0-20250204145534-f9981c2caccd/go.mod h1:/CiiUQkoQ0jkhhJv5ocdKdE71Tqfb7xHEk28r4E/ScU=
 github.com/dell/gopowermax/v2 v2.9.0 h1:hF8AI6+et/Rq4jbQQ/u8P64W/3dx/51i0shfGtF6R7o=
 github.com/dell/gopowermax/v2 v2.9.0/go.mod h1:snOhGKDyMPO4rVUNwEMH2fOwwMNyPP8DtBtafIs8WCs=
 github.com/emicklei/go-restful/v3 v3.12.1 h1:PJMDIM/ak7btuL8Ex0iYET9hxM3CI2sjZtzpL63nKAU=
@@ -81,6 +83,8 @@ github.com/kr/pretty v0.3.1 h1:flRD4NNwYAUpkphVc1HcthR4KEIFJ65n8Mw5qdRn3LE=
 github.com/kr/pretty v0.3.1/go.mod h1:hoEshYVHaxMs3cyo3Yncou5ZscifuDolrwPKZanG3xk=
 github.com/kr/text v0.2.0 h1:5Nx0Ya0ZqY2ygV366QzturHI13Jq95ApcVaJBhpS+AY=
 github.com/kr/text v0.2.0/go.mod h1:eLer722TekiGuMkidMxC/pM04lWEeraHUUmBw8l2grE=
+github.com/kubernetes-csi/csi-lib-utils v0.20.0 h1:JTvHRJugn+cByMnIU4nCnqPqOOUhuPzhlLqRvenwjDA=
+github.com/kubernetes-csi/csi-lib-utils v0.20.0/go.mod h1:3b/HFVURW11oxV/gUAKyhhkvFpxXO/zRdvh1wdEfCZY=
 github.com/magiconair/properties v1.8.9 h1:nWcCbLq1N2v/cpNsy5WvQ37Fb+YElfq20WJ/a8RkpQM=
 github.com/magiconair/properties v1.8.9/go.mod h1:Dhd985XPs7jluiymwWYZ0G4Z61jb3vdS329zhj2hYo0=
 github.com/mailru/easyjson v0.9.0 h1:PrnmzHw7262yW8sTBwxi1PdJA3Iw/EKBa8psRf7d9a4=
