@@ -53,13 +53,19 @@ const (
 )
 
 var (
-	logger      *logrus.Logger
-	powerMaxSvc *service.PowerMaxService
-	ctx         context.Context
-	cPath       string
+	logger *logrus.Logger
+	cPath  string
 )
 
 func main() {
+	ctx := context.Background()
+	config, exporter, powerMaxSvc := configure(ctx)
+	if err := entrypoint.Run(ctx, config, exporter, powerMaxSvc); err != nil {
+		logger.WithError(err).Fatal("running service")
+	}
+}
+
+func configure(ctx context.Context) (*entrypoint.Config, otlexporters.Otlexporter, *service.PowerMaxService) {
 	logger = logrus.New()
 
 	viper.SetConfigFile(defaultConfigFile)
@@ -131,7 +137,7 @@ func main() {
 
 	exporter := &otlexporters.OtlCollectorExporter{}
 
-	powerMaxSvc = &service.PowerMaxService{
+	powerMaxSvc := &service.PowerMaxService{
 		MetricsRecorder: &metric.MetricsRecorderWrapper{
 			Meter: otel.Meter("powermax"),
 		},
@@ -140,41 +146,52 @@ func main() {
 		StorageClassFinder: storageClassFinder,
 	}
 
-	ctx = context.Background()
+	sa := &ServiceAccessor{
+		powerMaxSvc: powerMaxSvc,
+	}
 
-	_, err = common.InitK8sUtils(logger, updatePowerMaxArraysOnSecretChanged, true)
+	_, err = InitK8sUtils(logger, sa, true)
 	if err != nil {
 		logger.WithError(err).Fatal("cannot initialize k8sUtils")
 	}
 
-	updatePowerMaxConnection(ctx, powerMaxSvc, storageClassFinder, volumeFinder)
-	updateCollectorAddress(config, exporter)
-	updateMetricsEnabled(config)
-	updateTickIntervals(config)
-	updateMaxConnections(powerMaxSvc)
+	onChangeUpdate(ctx, config, exporter, powerMaxSvc, storageClassFinder, volumeFinder)
 
 	viper.WatchConfig()
 	viper.OnConfigChange(func(_ fsnotify.Event) {
 		updateLoggingSettings(logger)
-		updateCollectorAddress(config, exporter)
-		updatePowerMaxConnection(ctx, powerMaxSvc, storageClassFinder, volumeFinder)
-		updateMetricsEnabled(config)
-		updateTickIntervals(config)
-		updateMaxConnections(powerMaxSvc)
 	})
 
 	configFileListener.WatchConfig()
 	configFileListener.OnConfigChange(func(_ fsnotify.Event) {
-		updatePowerMaxConnection(ctx, powerMaxSvc, storageClassFinder, volumeFinder)
+		onChangeUpdate(ctx, config, exporter, powerMaxSvc, storageClassFinder, volumeFinder)
 	})
 
-	if err := entrypoint.Run(ctx, config, exporter, powerMaxSvc); err != nil {
-		logger.WithError(err).Fatal("running service")
-	}
+	return config, exporter, powerMaxSvc
 }
 
-func updatePowerMaxArraysOnSecretChanged(k8sutils.UtilsInterface, *corev1.Secret) {
-	updatePowerMaxArrays(ctx, powerMaxSvc)
+func onChangeUpdate(ctx context.Context, config *entrypoint.Config, exporter *otlexporters.OtlCollectorExporter, powerMaxSvc *service.PowerMaxService, storageClassFinder *k8s.StorageClassFinder, volumeFinder *k8s.VolumeFinder) {
+	updatePowerMaxConnection(ctx, powerMaxSvc, storageClassFinder, volumeFinder)
+	updateMetricsEnabled(config)
+	updateCollectorAddress(config, exporter)
+	updateTickIntervals(config)
+	updateMaxConnections(powerMaxSvc)
+}
+
+var InitK8sUtils = func(logger *logrus.Logger, sa ServiceAccessorInterface, inCluster bool) (*k8sutils.K8sUtils, error) {
+	return common.InitK8sUtils(logger, sa.UpdatePowerMaxArraysOnSecretChanged, true)
+}
+
+type ServiceAccessor struct {
+	powerMaxSvc *service.PowerMaxService
+}
+
+type ServiceAccessorInterface interface {
+	UpdatePowerMaxArraysOnSecretChanged(k8sutils.UtilsInterface, *corev1.Secret)
+}
+
+func (sa *ServiceAccessor) UpdatePowerMaxArraysOnSecretChanged(k8sutils.UtilsInterface, *corev1.Secret) {
+	updatePowerMaxArrays(context.Background(), sa.powerMaxSvc)
 }
 
 // updatePowerMaxConnection iterator all PowerMax arrays and validate connection. Inject valid pmax instances to powerMaxSvc
@@ -184,9 +201,10 @@ func updatePowerMaxConnection(ctx context.Context, powerMaxSvc *service.PowerMax
 }
 
 func updatePowerMaxArrays(ctx context.Context, powerMaxSvc *service.PowerMaxService) {
-	arrays, err := common.GetPowerMaxArrays(ctx, common.GetK8sUtils(), cPath, logger)
+	arrays, err := GetPowerMaxArrays(ctx, common.GetK8sUtils(), cPath, logger)
 	if err != nil {
-		logger.WithError(err).Fatal("initialize powermax arrays in controller service")
+		logger.WithError(err).Error("initialize powermax arrays in controller service")
+		return
 	}
 
 	powerMaxClients := make(map[string][]types.PowerMaxArray)
@@ -196,6 +214,10 @@ func updatePowerMaxArrays(ctx context.Context, powerMaxSvc *service.PowerMaxServ
 		logger.WithField("arrayID", arrayID).Debug("setting powermax client")
 	}
 	powerMaxSvc.PowerMaxClients = powerMaxClients
+}
+
+var GetPowerMaxArrays = func(ctx context.Context, k8sUtils k8sutils.UtilsInterface, filePath string, logger *logrus.Logger) (map[string][]types.PowerMaxArray, error) {
+	return common.GetPowerMaxArrays(ctx, common.GetK8sUtils(), cPath, logger)
 }
 
 func updateCollectorAddress(config *entrypoint.Config, exporter *otlexporters.OtlCollectorExporter) {

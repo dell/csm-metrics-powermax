@@ -17,18 +17,274 @@
 package main
 
 import (
+	"context"
+	"errors"
+	"os"
 	"testing"
 	"time"
 
+	"github.com/dell/csi-powermax/csireverseproxy/v2/pkg/k8sutils"
 	"github.com/dell/csm-metrics-powermax/internal/entrypoint"
 	"github.com/dell/csm-metrics-powermax/internal/k8s"
 	"github.com/dell/csm-metrics-powermax/internal/service"
+	"github.com/dell/csm-metrics-powermax/internal/service/types"
 	otlexporters "github.com/dell/csm-metrics-powermax/opentelemetry/exporters"
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 )
+
+type ServiceAccessorMock struct {
+	service.PowerMaxService
+}
+
+func (sam *ServiceAccessorMock) UpdatePowerMaxArraysOnSecretChanged(k8sutils.UtilsInterface, *corev1.Secret) {
+
+}
+
+func TestConfigure(t *testing.T) {
+	testCases := []struct {
+		name                   string
+		arrays                 map[string][]types.PowerMaxArray
+		useSecret              bool
+		expectedArray          map[string][]types.PowerMaxArray
+		expectedCollectorAddr  string
+		expectedMaxConnections int
+	}{
+		{
+			name:      "Test with arrays with elements and Secret",
+			useSecret: true,
+			arrays: map[string][]types.PowerMaxArray{
+				"array1": {
+					{
+						StorageArrayID: "array1",
+						Endpoint:       "endpoint1",
+						Username:       "username1",
+						Password:       "password1",
+						Insecure:       true,
+						IsPrimary:      true,
+						IsActive:       true,
+					},
+				},
+				"array2": {
+					{
+						StorageArrayID: "array2",
+						Endpoint:       "endpoint2",
+						Username:       "username2",
+						Password:       "password2",
+						Insecure:       true,
+						IsPrimary:      true,
+						IsActive:       true,
+					},
+				},
+			},
+			expectedArray: map[string][]types.PowerMaxArray{
+				"array1": {
+					{
+						StorageArrayID: "array1",
+						Endpoint:       "endpoint1",
+						Username:       "username1",
+						Password:       "password1",
+						Insecure:       true,
+						IsPrimary:      true,
+						IsActive:       true,
+					},
+				},
+				"array2": {
+					{
+						StorageArrayID: "array2",
+						Endpoint:       "endpoint2",
+						Username:       "username2",
+						Password:       "password2",
+						Insecure:       true,
+						IsPrimary:      true,
+						IsActive:       true,
+					},
+				},
+			},
+			expectedCollectorAddr:  "localhost:55678",
+			expectedMaxConnections: service.DefaultMaxPowerMaxConnections,
+		},
+		{
+			name:      "Test with arrays with elements and ConfigMap",
+			useSecret: false,
+			arrays: map[string][]types.PowerMaxArray{
+				"array1": {
+					{
+						StorageArrayID: "array1",
+						Endpoint:       "endpoint1",
+						Username:       "username1",
+						Password:       "password1",
+						Insecure:       true,
+						IsPrimary:      true,
+						IsActive:       true,
+					},
+				},
+				"array2": {
+					{
+						StorageArrayID: "array2",
+						Endpoint:       "endpoint2",
+						Username:       "username2",
+						Password:       "password2",
+						Insecure:       true,
+						IsPrimary:      true,
+						IsActive:       true,
+					},
+				},
+			},
+			expectedArray: map[string][]types.PowerMaxArray{
+				"array1": {
+					{
+						StorageArrayID: "array1",
+						Endpoint:       "endpoint1",
+						Username:       "username1",
+						Password:       "password1",
+						Insecure:       true,
+						IsPrimary:      true,
+						IsActive:       true,
+					},
+				},
+				"array2": {
+					{
+						StorageArrayID: "array2",
+						Endpoint:       "endpoint2",
+						Username:       "username2",
+						Password:       "password2",
+						Insecure:       true,
+						IsPrimary:      true,
+						IsActive:       true,
+					},
+				},
+			},
+			expectedCollectorAddr:  "localhost:55678",
+			expectedMaxConnections: service.DefaultMaxPowerMaxConnections,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+
+			GetPowerMaxArrays = func(ctx context.Context, k8sutils k8sutils.UtilsInterface, filePath string, logger *logrus.Logger) (map[string][]types.PowerMaxArray, error) {
+				return tc.arrays, nil
+			}
+
+			InitK8sUtils = func(_ *logrus.Logger, _ ServiceAccessorInterface, _ bool) (*k8sutils.K8sUtils, error) {
+				return nil, nil
+			}
+
+			if tc.useSecret {
+				os.Setenv("X_CSI_REVPROXY_USE_SECRET", "true")
+			} else {
+				os.Setenv("X_CSI_REVPROXY_USE_SECRET", "false")
+			}
+
+			os.Setenv("TLS_ENABLED", "true")
+
+			_, _, powerMaxSvc := configure(ctx)
+
+			assert.Equal(t, tc.expectedArray, powerMaxSvc.PowerMaxClients)
+		})
+	}
+}
+
+func TestUpdatePowerMaxArrays(t *testing.T) {
+	testCases := []struct {
+		name                   string
+		arrays                 map[string][]types.PowerMaxArray
+		getPowerMaxArraysError error
+		expectedArray          map[string][]types.PowerMaxArray
+	}{
+		{
+			name: "Test with empty arrays",
+			arrays: map[string][]types.PowerMaxArray{
+				"array1": {},
+				"array2": {},
+			},
+			expectedArray: map[string][]types.PowerMaxArray{
+				"array1": nil,
+				"array2": nil,
+			},
+		},
+		{
+			name: "Test with arrays with elements",
+			arrays: map[string][]types.PowerMaxArray{
+				"array1": {
+					{
+						StorageArrayID: "array1",
+						Endpoint:       "endpoint1",
+						Username:       "username1",
+						Password:       "password1",
+						Insecure:       true,
+						IsPrimary:      true,
+						IsActive:       true,
+					},
+				},
+				"array2": {
+					{
+						StorageArrayID: "array2",
+						Endpoint:       "endpoint2",
+						Username:       "username2",
+						Password:       "password2",
+						Insecure:       true,
+						IsPrimary:      true,
+						IsActive:       true,
+					},
+				},
+			},
+			expectedArray: map[string][]types.PowerMaxArray{
+				"array1": {
+					{
+						StorageArrayID: "array1",
+						Endpoint:       "endpoint1",
+						Username:       "username1",
+						Password:       "password1",
+						Insecure:       true,
+						IsPrimary:      true,
+						IsActive:       true,
+					},
+				},
+				"array2": {
+					{
+						StorageArrayID: "array2",
+						Endpoint:       "endpoint2",
+						Username:       "username2",
+						Password:       "password2",
+						Insecure:       true,
+						IsPrimary:      true,
+						IsActive:       true,
+					},
+				},
+			},
+		},
+		{
+			name:                   "Test with error from call to GetPowerMaxArrays",
+			getPowerMaxArraysError: errors.New("some error"),
+			expectedArray:          map[string][]types.PowerMaxArray{},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			logger = logrus.New()
+			ctx := context.Background()
+
+			powerMaxSvc := &service.PowerMaxService{
+				PowerMaxClients: make(map[string][]types.PowerMaxArray),
+			}
+
+			GetPowerMaxArrays = func(ctx context.Context, k8sutils k8sutils.UtilsInterface, filePath string, logger *logrus.Logger) (map[string][]types.PowerMaxArray, error) {
+				return tc.arrays, tc.getPowerMaxArraysError
+			}
+
+			updatePowerMaxArrays(ctx, powerMaxSvc)
+
+			assert.Equal(t, tc.expectedArray, powerMaxSvc.PowerMaxClients)
+		})
+	}
+}
 
 func TestUpdateMetricsEnabled(t *testing.T) {
 	tests := []struct {
