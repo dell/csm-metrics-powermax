@@ -167,7 +167,7 @@ func TestConfigure(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
 
-			GetPowerMaxArrays = func(ctx context.Context, k8sutils k8sutils.UtilsInterface, filePath string, logger *logrus.Logger) (map[string][]types.PowerMaxArray, error) {
+			GetPowerMaxArrays = func(_ context.Context, _ k8sutils.UtilsInterface, _ string, _ *logrus.Logger) (map[string][]types.PowerMaxArray, error) {
 				return tc.arrays, nil
 			}
 
@@ -275,7 +275,7 @@ func TestUpdatePowerMaxArrays(t *testing.T) {
 				PowerMaxClients: make(map[string][]types.PowerMaxArray),
 			}
 
-			GetPowerMaxArrays = func(ctx context.Context, k8sutils k8sutils.UtilsInterface, filePath string, logger *logrus.Logger) (map[string][]types.PowerMaxArray, error) {
+			GetPowerMaxArrays = func(_ context.Context, _ k8sutils.UtilsInterface, _ string, _ *logrus.Logger) (map[string][]types.PowerMaxArray, error) {
 				return tc.arrays, tc.getPowerMaxArraysError
 			}
 

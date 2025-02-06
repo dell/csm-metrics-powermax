@@ -178,7 +178,7 @@ func onChangeUpdate(ctx context.Context, config *entrypoint.Config, exporter *ot
 	updateMaxConnections(powerMaxSvc)
 }
 
-var InitK8sUtils = func(logger *logrus.Logger, sa ServiceAccessorInterface, inCluster bool) (*k8sutils.K8sUtils, error) {
+var InitK8sUtils = func(logger *logrus.Logger, sa ServiceAccessorInterface, _ bool) (*k8sutils.K8sUtils, error) {
 	return common.InitK8sUtils(logger, sa.UpdatePowerMaxArraysOnSecretChanged, true)
 }
 
@@ -216,7 +216,7 @@ func updatePowerMaxArrays(ctx context.Context, powerMaxSvc *service.PowerMaxServ
 	powerMaxSvc.PowerMaxClients = powerMaxClients
 }
 
-var GetPowerMaxArrays = func(ctx context.Context, k8sUtils k8sutils.UtilsInterface, filePath string, logger *logrus.Logger) (map[string][]types.PowerMaxArray, error) {
+var GetPowerMaxArrays = func(ctx context.Context, _ k8sutils.UtilsInterface, _ string, logger *logrus.Logger) (map[string][]types.PowerMaxArray, error) {
 	return common.GetPowerMaxArrays(ctx, common.GetK8sUtils(), cPath, logger)
 }
 
