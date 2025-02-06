@@ -41,7 +41,6 @@ type ServiceAccessorMock struct {
 }
 
 func (sam *ServiceAccessorMock) UpdatePowerMaxArraysOnSecretChanged(k8sutils.UtilsInterface, *corev1.Secret) {
-
 }
 
 func TestConfigure(t *testing.T) {
