@@ -79,8 +79,7 @@ func Test_GetK8sUtils(t *testing.T) {
 }
 
 func Test_InitK8sUtils(t *testing.T) {
-	createTempKubeconfig("./fake-kubeconfig")
-	os.Setenv("X_CSI_KUBECONFIG_PATH", "./fake-kubeconfig")
+	os.Setenv("X_CSI_KUBECONFIG_PATH", "../k8s/testdata/")
 	callback := func(_ k8sutils.UtilsInterface, _ *corev1.Secret) {}
 	_, err := common.InitK8sUtils(logrus.New(), callback, false)
 	assert.Nil(t, err)
@@ -242,7 +241,10 @@ preferences: {}
 users:
 - name: admin`
 
-	os.WriteFile(filepath, []byte(kubeconfig), 0o600)
+	err := os.WriteFile(filepath, []byte(kubeconfig), 0o600)
+	if err != nil {
+		return
+	}
 }
 
 func setEnv(key, value string) error {
