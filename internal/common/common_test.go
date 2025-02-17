@@ -18,7 +18,7 @@ package common_test
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -26,72 +26,17 @@ import (
 	"strings"
 	"testing"
 
+	revcommon "github.com/dell/csi-powermax/csireverseproxy/v2/pkg/common"
+	"github.com/dell/csi-powermax/csireverseproxy/v2/pkg/k8smock"
+	"github.com/dell/csi-powermax/csireverseproxy/v2/pkg/k8sutils"
 	"github.com/dell/csm-metrics-powermax/internal/common"
-	"github.com/dell/csm-metrics-powermax/internal/k8sutils"
-	"github.com/dell/csm-metrics-powermax/internal/reverseproxy/k8smock"
+	"github.com/dell/csm-metrics-powermax/internal/service/types"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/gorilla/mux"
 )
-
-func Test_Run(t *testing.T) {
-	mockUtils := k8smock.Init()
-	mockUtils.CreateNewCredentialSecret("powermax-creds")
-
-	tests := map[string]func(t *testing.T) (filePath string, k8sUtils k8sutils.UtilsInterface, expectError bool){
-		"success with default params": func(*testing.T) (string, k8sutils.UtilsInterface, bool) {
-			return "testdata/sample-config-default.yaml", mockUtils, false
-		},
-		"nil k8sUtils": func(*testing.T) (string, k8sutils.UtilsInterface, bool) {
-			return "testdata/sample-config-default.yaml", nil, true
-		},
-		"file format": func(*testing.T) (string, k8sutils.UtilsInterface, bool) {
-			return "testdata/invalid-format.yaml", mockUtils, true
-		},
-		"connection failed": func(*testing.T) (string, k8sutils.UtilsInterface, bool) {
-			return "testdata/connection-failed.yaml", mockUtils, true
-		},
-	}
-
-	handler := getHandler(getRouter())
-	server := httptest.NewTLSServer(handler)
-	defer server.Close()
-	urls := strings.Split(strings.TrimPrefix(server.URL, "https://"), ":")
-	serverIP := urls[0]
-	serverPort := urls[1]
-
-	fmt.Println(serverIP)
-	fmt.Println(serverPort)
-
-	// mockUtils := k8smock.Init()
-	// mockUtils.CreateNewCredentialSecret("powermax-creds")
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			logger := logrus.New()
-			logger.Info(test(t))
-			filePath, k8sUtils, expectError := test(t)
-
-			fileContentBytes, _ := os.ReadFile(filePath)
-
-			newContent := strings.ReplaceAll(string(fileContentBytes), "[serverip]", serverIP)
-			newContent = strings.ReplaceAll(newContent, "[serverport]", serverPort)
-			os.WriteFile(filePath, []byte(newContent), 0o600)
-
-			clusters, err := common.GetPowerMaxArrays(context.Background(), k8sUtils, filePath, logger)
-
-			if expectError {
-				assert.Nil(t, clusters)
-				assert.NotNil(t, err)
-			} else {
-				assert.NotNil(t, clusters)
-				assert.Nil(t, err)
-			}
-			os.WriteFile(filePath, fileContentBytes, 0o600)
-		})
-	}
-}
 
 func Test_Run_Unauthorized(t *testing.T) {
 	mockUtils := k8smock.Init()
@@ -106,12 +51,6 @@ func Test_Run_Unauthorized(t *testing.T) {
 	handler := getHandler(getUnauthorizedRouter())
 	server := httptest.NewTLSServer(handler)
 	defer server.Close()
-	urls := strings.Split(strings.TrimPrefix(server.URL, "https://"), ":")
-	serverIP := urls[0]
-	serverPort := urls[1]
-
-	fmt.Println(serverIP)
-	fmt.Println(serverPort)
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -119,11 +58,7 @@ func Test_Run_Unauthorized(t *testing.T) {
 			logger.Info(test(t))
 			filePath, k8sUtils, expectError := test(t)
 
-			fileContentBytes, _ := os.ReadFile(filePath)
-
-			newContent := strings.ReplaceAll(string(fileContentBytes), "[serverip]", serverIP)
-			newContent = strings.ReplaceAll(newContent, "[serverport]", serverPort)
-			os.WriteFile(filePath, []byte(newContent), 0o600)
+			original := replaceEnpoints(filePath, server.URL)
 
 			clusters, err := common.GetPowerMaxArrays(context.Background(), k8sUtils, filePath, logger)
 
@@ -134,7 +69,7 @@ func Test_Run_Unauthorized(t *testing.T) {
 				assert.NotNil(t, clusters)
 				assert.Nil(t, err)
 			}
-			os.WriteFile(filePath, fileContentBytes, 0o600)
+			os.WriteFile(filePath, original, 0o600)
 		})
 	}
 }
@@ -144,7 +79,122 @@ func Test_GetK8sUtils(t *testing.T) {
 }
 
 func Test_InitK8sUtils(t *testing.T) {
-	assert.Nil(t, common.InitK8sUtils(logrus.New(), nil))
+	os.Setenv("HOME", "")
+	os.Setenv("X_CSI_KUBECONFIG_PATH", "../k8s/testdata/")
+	callback := func(_ k8sutils.UtilsInterface, _ *corev1.Secret) {}
+	_, err := common.InitK8sUtils(logrus.New(), callback, false)
+	assert.Nil(t, err)
+}
+
+func TestGetPowerMaxArrays(t *testing.T) {
+	server := createServer()
+	defer server.Close()
+
+	mockUtils := k8smock.Init()
+	mockUtils.CreateNewCredentialSecret("powermax-creds")
+
+	testCases := []struct {
+		name                   string
+		k8sUtils               k8sutils.UtilsInterface
+		filePath               string
+		logger                 *logrus.Logger
+		expectedPowerMaxArrays map[string][]types.PowerMaxArray
+		useSecret              bool
+		expectedError          error
+	}{
+		{
+			name:     "Success: with secret file",
+			k8sUtils: &k8sutils.K8sUtils{},
+			filePath: "./testdata/secret-config.yaml",
+			logger:   logrus.New(),
+			expectedPowerMaxArrays: map[string][]types.PowerMaxArray{
+				"000000000001": {{StorageArrayID: "000000000001", Endpoint: server.URL}, {StorageArrayID: "000000000001", Endpoint: server.URL}},
+				"000000000002": {{StorageArrayID: "000000000002", Endpoint: server.URL}, {StorageArrayID: "000000000002", Endpoint: server.URL}},
+			},
+			useSecret:     true,
+			expectedError: nil,
+		},
+		{
+			name:                   "Failed: unable to unmarshal secret file",
+			k8sUtils:               &k8sutils.K8sUtils{},
+			filePath:               "./testdata/invalid-format.yaml",
+			logger:                 logrus.New(),
+			expectedPowerMaxArrays: nil,
+			useSecret:              true,
+			expectedError:          errors.New("cannot unmarshal !!str `invalid...` into map[string]interface {}"),
+		},
+		{
+			name:                   "Failed: invalid secret file",
+			k8sUtils:               &k8sutils.K8sUtils{},
+			filePath:               "./testdata/invalid-secret-config.yaml",
+			logger:                 logrus.New(),
+			expectedPowerMaxArrays: nil,
+			useSecret:              true,
+			expectedError:          errors.New("primary endpoint not configured"),
+		},
+
+		{
+			name:     "Success: with config map",
+			k8sUtils: mockUtils,
+			filePath: "./testdata/sample-config-default.yaml",
+			logger:   logrus.New(),
+			expectedPowerMaxArrays: map[string][]types.PowerMaxArray{
+				"00012345678": {{StorageArrayID: "00012345678", Endpoint: server.URL}, {StorageArrayID: "00012345678", Endpoint: server.URL}},
+			},
+			useSecret:     false,
+			expectedError: nil,
+		},
+		{
+			name:                   "Failed: nil k8sUtils",
+			k8sUtils:               nil,
+			filePath:               "./testdata/sample-config-default.yaml",
+			logger:                 logrus.New(),
+			expectedPowerMaxArrays: nil,
+			useSecret:              false,
+			expectedError:          errors.New("k8sUtils is nil"),
+		},
+		{
+			name:                   "Failed: configMap cannot unmarshall",
+			k8sUtils:               mockUtils,
+			filePath:               "./testdata/invalid-format.yaml",
+			logger:                 logrus.New(),
+			expectedPowerMaxArrays: nil,
+			useSecret:              false,
+			expectedError:          errors.New("cannot unmarshal !!str `invalid...` into map[string]interface {}"),
+		},
+		{
+			name:                   "Failed: configMap connection failed",
+			k8sUtils:               mockUtils,
+			filePath:               "./testdata/connection-failed.yaml",
+			logger:                 logrus.New(),
+			expectedPowerMaxArrays: nil,
+			useSecret:              false,
+			expectedError:          errors.New("not present among management URL addresses"),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			original := replaceEnpoints(tc.filePath, server.URL)
+
+			ctx := context.Background()
+			setReverseProxyUseSecret(tc.useSecret)
+			if tc.useSecret {
+				setEnv(revcommon.EnvSecretFilePath, tc.filePath)
+			}
+			powerMaxArrays, err := common.GetPowerMaxArrays(ctx, tc.k8sUtils, tc.filePath, tc.logger)
+			if err != nil {
+				if !strings.Contains(err.Error(), tc.expectedError.Error()) {
+					t.Errorf("Expected error: %v, but got: %v", tc.expectedError, err)
+				}
+			}
+
+			if len(powerMaxArrays) != len(tc.expectedPowerMaxArrays) {
+				t.Errorf("Expected powerMaxArrays: %v, but got: %v", tc.expectedPowerMaxArrays, powerMaxArrays)
+			}
+			os.WriteFile(tc.filePath, original, 0o600)
+		})
+	}
 }
 
 // getHandler returns an http.Handler that
@@ -175,4 +225,52 @@ func getUnauthorizedRouter() http.Handler {
 		w.Write([]byte("<html><head><title>Error</title></head><body>Unauthorized</body></html>"))
 	})
 	return router
+}
+
+func createTempKubeconfig(filepath string) {
+	kubeconfig := `clusters:
+- cluster:
+    server: https://some.hostname.or.ip:6443
+  name: fake-cluster
+contexts:
+- context:
+    cluster: fake-cluster
+    user: admin
+  name: admin
+current-context: admin
+preferences: {}
+users:
+- name: admin`
+
+	err := os.WriteFile(filepath, []byte(kubeconfig), 0o600)
+	if err != nil {
+		return
+	}
+}
+
+func setEnv(key, value string) error {
+	err := os.Setenv(key, value)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func setReverseProxyUseSecret(value bool) error {
+	if value {
+		return setEnv(revcommon.EnvReverseProxyUseSecret, "true")
+	}
+	return setEnv(revcommon.EnvReverseProxyUseSecret, "false")
+}
+
+func createServer() *httptest.Server {
+	handler := getHandler(getRouter())
+	return httptest.NewTLSServer(handler)
+}
+
+func replaceEnpoints(configFile, endpoint string) []byte {
+	fileContentBytes, _ := os.ReadFile(configFile)
+	newContent := strings.ReplaceAll(string(fileContentBytes), "[REPLACE_ENDPOINT]", endpoint)
+	os.WriteFile(configFile, []byte(newContent), 0o600)
+	return fileContentBytes
 }
