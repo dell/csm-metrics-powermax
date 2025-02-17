@@ -79,6 +79,7 @@ func Test_GetK8sUtils(t *testing.T) {
 }
 
 func Test_InitK8sUtils(t *testing.T) {
+	os.Setenv("HOME", "")
 	os.Setenv("X_CSI_KUBECONFIG_PATH", "../k8s/testdata/")
 	callback := func(_ k8sutils.UtilsInterface, _ *corev1.Secret) {}
 	_, err := common.InitK8sUtils(logrus.New(), callback, false)
