@@ -1,8 +1,6 @@
 module github.com/dell/csm-metrics-powermax
 
-go 1.23.1
-
-toolchain go1.23.5
+go 1.24
 
 require (
 	github.com/dell/csi-powermax/csireverseproxy/v2 v2.0.0-20250305212219-6d3b4f2ae606
