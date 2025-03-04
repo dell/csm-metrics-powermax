@@ -163,16 +163,13 @@ func InitK8sUtils(logger *logrus.Logger, callback func(k8sutils.UtilsInterface, 
 	}
 
 	var err error
-	k8sUtils, err = k8sutils.Init(powerMaxNamespace, defaultUnisphereCertDir, inCluster, time.Second*30)
+	k8sUtils, err = k8sutils.Init(powerMaxNamespace, defaultUnisphereCertDir, inCluster, time.Second*30, &k8sutils.KubernetesClient{})
 	if err != nil {
 		logger.WithError(err).Errorf("cannot initialize k8sUtils")
 		return nil, err
 	}
-	err = k8sUtils.StartInformer(callback)
-	if err != nil {
-		logger.WithError(err).Errorf("cannot start informer")
-		return nil, err
-	}
+
+	k8sUtils.StartInformer(callback)
 	return k8sUtils, nil
 }
 
