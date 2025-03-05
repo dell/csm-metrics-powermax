@@ -5,7 +5,7 @@ go 1.23.1
 toolchain go1.23.5
 
 require (
-	github.com/dell/csi-powermax/csireverseproxy/v2 v2.0.0-20250304202807-d6bc79548296
+	github.com/dell/csi-powermax/csireverseproxy/v2 v2.0.0-20250305212219-6d3b4f2ae606
 	github.com/dell/gopowermax/v2 v2.9.0
 	github.com/fsnotify/fsnotify v1.8.0
 	github.com/golang/mock v1.6.0
