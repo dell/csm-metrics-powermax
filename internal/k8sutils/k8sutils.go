@@ -24,11 +24,10 @@ import (
 	"strconv"
 	"time"
 
-	common "github.com/dell/csm-metrics-powermax/internal/reverseproxy/common"
-
 	log "github.com/sirupsen/logrus"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"github.com/dell/csi-powermax/csireverseproxy/v2/pkg/common"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"

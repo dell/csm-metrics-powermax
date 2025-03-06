@@ -20,10 +20,13 @@ import (
 	"context"
 	"errors"
 	"os"
+	"path/filepath"
 	"time"
 
-	"github.com/dell/csm-metrics-powermax/internal/k8sutils"
-	"github.com/dell/csm-metrics-powermax/internal/reverseproxy/config"
+	"github.com/spf13/viper"
+
+	"github.com/dell/csi-powermax/csireverseproxy/v2/pkg/config"
+	"github.com/dell/csi-powermax/csireverseproxy/v2/pkg/k8sutils"
 	"github.com/dell/csm-metrics-powermax/internal/service/types"
 	pmax "github.com/dell/gopowermax/v2"
 	"github.com/sirupsen/logrus"
@@ -51,7 +54,7 @@ func GetK8sUtils() *k8sutils.K8sUtils {
 
 func getPowerMaxArrays(proxyConfig *config.ProxyConfig) map[string][]types.PowerMaxArray {
 	arrayMap := make(map[string][]types.PowerMaxArray)
-	for _, storageArray := range proxyConfig.ProxyConfig.GetStorageArray("") {
+	for _, storageArray := range proxyConfig.GetStorageArray("") {
 		var arrayList []types.PowerMaxArray
 		if _, ok := arrayMap[storageArray.StorageArrayIdentifier]; ok {
 			arrayList = arrayMap[storageArray.StorageArrayIdentifier]
@@ -60,9 +63,9 @@ func getPowerMaxArrays(proxyConfig *config.ProxyConfig) map[string][]types.Power
 		var primaryArray types.PowerMaxArray
 		primaryArray.StorageArrayID = storageArray.StorageArrayIdentifier
 		primaryArray.IsPrimary = true
-		primaryArray.Endpoint = storageArray.PrimaryURL.String()
+		primaryArray.Endpoint = storageArray.PrimaryEndpoint.String()
 
-		managementServers := proxyConfig.ProxyConfig.GetManagementServers()
+		managementServers := proxyConfig.GetManagementServers()
 		managementServer := getManagementServer(primaryArray.Endpoint, managementServers)
 
 		if managementServer != nil {
@@ -73,11 +76,11 @@ func getPowerMaxArrays(proxyConfig *config.ProxyConfig) map[string][]types.Power
 
 		arrayList = append(arrayList, primaryArray)
 
-		if storageArray.SecondaryURL.Host != "" {
+		if storageArray.SecondaryEndpoint.Host != "" {
 			var backupArray types.PowerMaxArray
 			backupArray.StorageArrayID = storageArray.StorageArrayIdentifier
 			backupArray.IsPrimary = false
-			backupArray.Endpoint = storageArray.SecondaryURL.String()
+			backupArray.Endpoint = storageArray.SecondaryEndpoint.String()
 			managementServer := getManagementServer(backupArray.Endpoint, managementServers)
 
 			if managementServer != nil {
@@ -94,9 +97,54 @@ func getPowerMaxArrays(proxyConfig *config.ProxyConfig) map[string][]types.Power
 	return arrayMap
 }
 
+func getPowerMaxArraysFromSecret(proxyConfig *config.ProxyConfig) map[string][]types.PowerMaxArray {
+	arrayMap := make(map[string][]types.PowerMaxArray)
+	for _, storageArray := range proxyConfig.GetStorageArray("") {
+		var arrayList []types.PowerMaxArray
+		if _, ok := arrayMap[storageArray.StorageArrayIdentifier]; ok {
+			arrayList = arrayMap[storageArray.StorageArrayIdentifier]
+		}
+
+		var primaryArray types.PowerMaxArray
+		primaryArray.StorageArrayID = storageArray.StorageArrayIdentifier
+		primaryArray.IsPrimary = true
+		primaryArray.Endpoint = storageArray.PrimaryEndpoint.String()
+
+		managementServers := proxyConfig.GetManagementServers()
+		managementServer := getManagementServer(primaryArray.Endpoint, managementServers)
+
+		if managementServer != nil {
+			primaryArray.Insecure = managementServer.SkipCertificateValidation
+			primaryArray.Username = managementServer.Username
+			primaryArray.Password = managementServer.Password
+		}
+
+		arrayList = append(arrayList, primaryArray)
+
+		if storageArray.SecondaryEndpoint.Host != "" {
+			var backupArray types.PowerMaxArray
+			backupArray.StorageArrayID = storageArray.StorageArrayIdentifier
+			backupArray.IsPrimary = false
+			backupArray.Endpoint = storageArray.SecondaryEndpoint.String()
+			managementServer := getManagementServer(backupArray.Endpoint, managementServers)
+
+			if managementServer != nil {
+				backupArray.Insecure = managementServer.SkipCertificateValidation
+				backupArray.Username = managementServer.Username
+				backupArray.Password = managementServer.Password
+			}
+			arrayList = append(arrayList, backupArray)
+		}
+
+		arrayMap[storageArray.StorageArrayIdentifier] = arrayList
+	}
+
+	return arrayMap
+}
+
 func getManagementServer(url string, managementServers []config.ManagementServer) *config.ManagementServer {
 	for _, server := range managementServers {
-		if url == server.URL.String() {
+		if url == server.Endpoint.String() {
 			return &server
 		}
 	}
@@ -104,9 +152,9 @@ func getManagementServer(url string, managementServers []config.ManagementServer
 }
 
 // InitK8sUtils initialize k8sutils instance with a callback method on secret change.
-func InitK8sUtils(logger *logrus.Logger, callback func(k8sutils.UtilsInterface, *corev1.Secret)) *k8sutils.K8sUtils {
+func InitK8sUtils(logger *logrus.Logger, callback func(k8sutils.UtilsInterface, *corev1.Secret), inCluster bool) (*k8sutils.K8sUtils, error) {
 	if k8sUtils != nil {
-		return k8sUtils
+		return k8sUtils, nil
 	}
 
 	powerMaxNamespace := os.Getenv("POWERMAX_METRICS_NAMESPACE")
@@ -115,15 +163,14 @@ func InitK8sUtils(logger *logrus.Logger, callback func(k8sutils.UtilsInterface, 
 	}
 
 	var err error
-	k8sUtils, err = k8sutils.Init(powerMaxNamespace, defaultUnisphereCertDir, true, time.Second*30)
+	k8sUtils, err = k8sutils.Init(powerMaxNamespace, defaultUnisphereCertDir, inCluster, time.Second*30, &k8sutils.KubernetesClient{})
 	if err != nil {
 		logger.WithError(err).Errorf("cannot initialize k8sUtils")
+		return nil, err
 	}
-	err = k8sUtils.StartInformer(callback)
-	if err != nil {
-		logger.WithError(err).Errorf("cannot start informer")
-	}
-	return k8sUtils
+
+	k8sUtils.StartInformer(callback)
+	return k8sUtils, nil
 }
 
 // GetPowerMaxArrays parses reverseproxy config file, initializes valid pmax and composes map of arrays for ease of access.
@@ -135,20 +182,42 @@ func GetPowerMaxArrays(ctx context.Context, k8sUtils k8sutils.UtilsInterface, fi
 		return nil, err
 	}
 
-	proxyConfigMap, err := config.ReadConfig(filePath)
-	if err != nil {
-		logger.WithError(err).Errorf("fail to read ProxyConfig from %s", filePath)
-		return nil, err
-	}
+	var (
+		proxyConfig    *config.ProxyConfig
+		powermaxArrays map[string][]types.PowerMaxArray
+	)
+	if os.Getenv("X_CSI_REVPROXY_USE_SECRET") == "true" {
+		logger.Infof("Reading the config from Secret")
+		proxyConfigMap, err := config.ReadConfigFromSecret(viper.New())
+		if err != nil {
+			logger.WithError(err).Errorf("fail to read ProxyConfig from %s", filePath)
+			return nil, err
+		}
 
-	proxyConfig, err := config.NewProxyConfig(proxyConfigMap, k8sUtils)
-	if err != nil {
-		logger.WithError(err).Errorf("cannot create new ProxyConfig")
-		return nil, err
+		proxyConfig, err = config.NewProxyConfigFromSecret(proxyConfigMap, k8sUtils)
+		if err != nil {
+			logger.WithError(err).Errorf("cannot create new ProxyConfig")
+			return nil, err
+		}
+		powermaxArrays = getPowerMaxArraysFromSecret(proxyConfig)
+	} else {
+		logger.Infof("Reading the config from ConfigMap: %s", filePath)
+		proxyConfigMap, err := config.ReadConfig(filepath.Base(filePath), filepath.Dir(filePath), viper.New())
+		if err != nil {
+			logger.WithError(err).Errorf("fail to read ProxyConfig from %s", filePath)
+			return nil, err
+		}
+
+		proxyConfig, err = config.NewProxyConfig(proxyConfigMap, k8sUtils)
+		if err != nil {
+			logger.WithError(err).Errorf("cannot create new ProxyConfig")
+			return nil, err
+		}
+		powermaxArrays = getPowerMaxArrays(proxyConfig)
 	}
 
 	arrayMap := make(map[string][]types.PowerMaxArray)
-	for arrayID, arrayList := range getPowerMaxArrays(proxyConfig) {
+	for arrayID, arrayList := range powermaxArrays {
 		for _, array := range arrayList {
 			logger.Infof("validating PowerMax connection for %s, %s", arrayID, array.Endpoint)
 			// currently bypass Unisphere cert. Will use array.Insecure after all obs modules respect array cert
