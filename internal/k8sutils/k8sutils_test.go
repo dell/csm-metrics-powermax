@@ -24,7 +24,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dell/csm-metrics-powermax/internal/reverseproxy/common"
+	"github.com/dell/csi-powermax/csireverseproxy/v2/pkg/common"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -230,6 +230,7 @@ func TestGetCertFileFromSecretName(t *testing.T) {
 			}
 			k8sUtils = client
 			defer func() { k8sUtils = nil }()
+			k8sUtils.CertDirectory = "."
 
 			fileName, err := client.GetCertFileFromSecretName(tt.secretName)
 			if err != nil {
