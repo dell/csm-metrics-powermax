@@ -33,7 +33,7 @@ For documentation, please visit [Container Storage Modules documentation](https:
 - [Branching Strategy](https://github.com/dell/csm/blob/main/docs/BRANCHING.md)
 - [List of Adopters](https://github.com/dell/csm/blob/main/ADOPTERS.md)
 - [Maintainers](https://github.com/dell/csm/blob/main/docs/MAINTAINERS.md)
-- [Support](https://github.com/dell/csm/blob/main/docs/SUPPORT.md)
+- [Dell support](https://www.dell.com/support/incidents-online/en-us/contactus/product/container-storage-modules)
 - [Security](https://github.com/dell/csm/blob/main/docs/SECURITY.md)
 - [About](#about)
 
