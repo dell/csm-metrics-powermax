@@ -20,7 +20,7 @@ import (
 	"testing"
 
 	"github.com/dell/csm-metrics-powermax/internal/service/metric"
-	"github.com/dell/csm-metrics-powermax/internal/service/types"
+	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes"
 	otlexporters "github.com/dell/csm-metrics-powermax/opentelemetry/exporters"
 	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
@@ -30,8 +30,8 @@ import (
 )
 
 func Test_RecordNumericMetrics(t *testing.T) {
-	tests := map[string]func(t *testing.T) (*metric.MetricsRecorderWrapper, types.VolumeCapacityMetricsRecord, []attribute.KeyValue, *gomock.Controller, *otlexporters.OtlCollectorExporter, error){
-		"success": func(*testing.T) (*metric.MetricsRecorderWrapper, types.VolumeCapacityMetricsRecord, []attribute.KeyValue, *gomock.Controller, *otlexporters.OtlCollectorExporter, error) {
+	tests := map[string]func(t *testing.T) (*metric.MetricsRecorderWrapper, metrictypes.VolumeCapacityMetricsRecord, []attribute.KeyValue, *gomock.Controller, *otlexporters.OtlCollectorExporter, error){
+		"success": func(*testing.T) (*metric.MetricsRecorderWrapper, metrictypes.VolumeCapacityMetricsRecord, []attribute.KeyValue, *gomock.Controller, *otlexporters.OtlCollectorExporter, error) {
 			exporter := &otlexporters.OtlCollectorExporter{}
 			err := exporter.InitExporter()
 			if err != nil {
@@ -44,7 +44,7 @@ func Test_RecordNumericMetrics(t *testing.T) {
 				Meter: otMeter,
 			}
 
-			metrics := types.VolumeCapacityMetricsRecord{
+			metrics := metrictypes.VolumeCapacityMetricsRecord{
 				Total:       10,
 				Used:        5,
 				UsedPercent: 50,
@@ -67,8 +67,8 @@ func Test_RecordNumericMetrics(t *testing.T) {
 }
 
 func Test_RecordVolPerfMetrics(t *testing.T) {
-	tests := map[string]func(t *testing.T) (*metric.MetricsRecorderWrapper, types.VolumePerfMetricsRecord, *gomock.Controller, *otlexporters.OtlCollectorExporter, error){
-		"success": func(*testing.T) (*metric.MetricsRecorderWrapper, types.VolumePerfMetricsRecord, *gomock.Controller, *otlexporters.OtlCollectorExporter, error) {
+	tests := map[string]func(t *testing.T) (*metric.MetricsRecorderWrapper, metrictypes.VolumePerfMetricsRecord, *gomock.Controller, *otlexporters.OtlCollectorExporter, error){
+		"success": func(*testing.T) (*metric.MetricsRecorderWrapper, metrictypes.VolumePerfMetricsRecord, *gomock.Controller, *otlexporters.OtlCollectorExporter, error) {
 			exporter := &otlexporters.OtlCollectorExporter{}
 			err := exporter.InitExporter()
 			if err != nil {
@@ -81,7 +81,7 @@ func Test_RecordVolPerfMetrics(t *testing.T) {
 				Meter: otMeter,
 			}
 
-			metrics := types.VolumePerfMetricsRecord{
+			metrics := metrictypes.VolumePerfMetricsRecord{
 				ArrayID:                   uuid.NewString(),
 				VolumeID:                  uuid.NewString(),
 				Driver:                    "powermax",
@@ -104,8 +104,8 @@ func Test_RecordVolPerfMetrics(t *testing.T) {
 }
 
 func Test_RecordStorageGroupPerfMetrics(t *testing.T) {
-	tests := map[string]func(t *testing.T) (*metric.MetricsRecorderWrapper, types.StorageGroupPerfMetricsRecord, *gomock.Controller, *otlexporters.OtlCollectorExporter, error){
-		"success": func(*testing.T) (*metric.MetricsRecorderWrapper, types.StorageGroupPerfMetricsRecord, *gomock.Controller, *otlexporters.OtlCollectorExporter, error) {
+	tests := map[string]func(t *testing.T) (*metric.MetricsRecorderWrapper, metrictypes.StorageGroupPerfMetricsRecord, *gomock.Controller, *otlexporters.OtlCollectorExporter, error){
+		"success": func(*testing.T) (*metric.MetricsRecorderWrapper, metrictypes.StorageGroupPerfMetricsRecord, *gomock.Controller, *otlexporters.OtlCollectorExporter, error) {
 			exporter := &otlexporters.OtlCollectorExporter{}
 			err := exporter.InitExporter()
 			if err != nil {
@@ -118,7 +118,7 @@ func Test_RecordStorageGroupPerfMetrics(t *testing.T) {
 				Meter: otMeter,
 			}
 
-			metrics := types.StorageGroupPerfMetricsRecord{
+			metrics := metrictypes.StorageGroupPerfMetricsRecord{
 				ArrayID:        uuid.NewString(),
 				StorageGroupID: uuid.NewString(),
 			}

@@ -26,11 +26,11 @@ import (
 
 	"github.com/dell/csi-powermax/csireverseproxy/v2/pkg/k8sutils"
 	"github.com/dell/csm-metrics-powermax/internal/service/metric"
-	"github.com/dell/csm-metrics-powermax/internal/service/types"
+	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes"
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/dell/csm-metrics-powermax/internal/common"
 	"github.com/dell/csm-metrics-powermax/internal/entrypoint"
+	"github.com/dell/csm-metrics-powermax/internal/k8spmax"
 
 	"github.com/dell/csm-metrics-powermax/internal/k8s"
 	"github.com/dell/csm-metrics-powermax/internal/service"
@@ -179,7 +179,7 @@ func onChangeUpdate(ctx context.Context, config *entrypoint.Config, exporter *ot
 }
 
 var InitK8sUtils = func(logger *logrus.Logger, sa ServiceAccessorInterface, _ bool) (*k8sutils.K8sUtils, error) {
-	return common.InitK8sUtils(logger, sa.UpdatePowerMaxArraysOnSecretChanged, true)
+	return k8spmax.InitK8sUtils(logger, sa.UpdatePowerMaxArraysOnSecretChanged, true)
 }
 
 type ServiceAccessor struct {
@@ -201,13 +201,13 @@ func updatePowerMaxConnection(ctx context.Context, powerMaxSvc *service.PowerMax
 }
 
 func updatePowerMaxArrays(ctx context.Context, powerMaxSvc *service.PowerMaxService) {
-	arrays, err := GetPowerMaxArrays(ctx, common.GetK8sUtils(), cPath, logger)
+	arrays, err := GetPowerMaxArrays(ctx, k8spmax.GetK8sUtils(), cPath, logger)
 	if err != nil {
 		logger.WithError(err).Error("initialize powermax arrays in controller service")
 		return
 	}
 
-	powerMaxClients := make(map[string][]types.PowerMaxArray)
+	powerMaxClients := make(map[string][]metrictypes.PowerMaxArray)
 
 	for arrayID, powerMaxArrays := range arrays {
 		powerMaxClients[arrayID] = append(powerMaxClients[arrayID], powerMaxArrays...)
@@ -216,8 +216,8 @@ func updatePowerMaxArrays(ctx context.Context, powerMaxSvc *service.PowerMaxServ
 	powerMaxSvc.PowerMaxClients = powerMaxClients
 }
 
-var GetPowerMaxArrays = func(ctx context.Context, _ k8sutils.UtilsInterface, _ string, logger *logrus.Logger) (map[string][]types.PowerMaxArray, error) {
-	return common.GetPowerMaxArrays(ctx, common.GetK8sUtils(), cPath, logger)
+var GetPowerMaxArrays = func(ctx context.Context, _ k8sutils.UtilsInterface, _ string, logger *logrus.Logger) (map[string][]metrictypes.PowerMaxArray, error) {
+	return k8spmax.GetPowerMaxArrays(ctx, k8spmax.GetK8sUtils(), cPath, logger)
 }
 
 func updateCollectorAddress(config *entrypoint.Config, exporter *otlexporters.OtlCollectorExporter) {

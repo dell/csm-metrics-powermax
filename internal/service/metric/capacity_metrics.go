@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/dell/csm-metrics-powermax/internal/k8s"
-	"github.com/dell/csm-metrics-powermax/internal/service/types"
+	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -37,7 +37,7 @@ type CapacityMetrics struct {
 var capacityMetricsInstance *CapacityMetrics
 
 // CreateCapacityMetricsInstance return a singleton instance of CapacityMetrics.
-func CreateCapacityMetricsInstance(service types.Service) *CapacityMetrics {
+func CreateCapacityMetricsInstance(service metrictypes.Service) *CapacityMetrics {
 	if capacityMetricsInstance == nil {
 		lock.Lock()
 		defer lock.Unlock()
@@ -66,11 +66,11 @@ func (m *CapacityMetrics) Collect(ctx context.Context) error {
 	return nil
 }
 
-func (m *CapacityMetrics) gatherCapacityMetrics(ctx context.Context, pvs []k8s.VolumeInfo) <-chan *types.VolumeCapacityMetricsRecord {
+func (m *CapacityMetrics) gatherCapacityMetrics(ctx context.Context, pvs []k8s.VolumeInfo) <-chan *metrictypes.VolumeCapacityMetricsRecord {
 	start := time.Now()
 	defer m.TimeSince(start, "gatherCapacityMetrics")
 
-	ch := make(chan *types.VolumeCapacityMetricsRecord)
+	ch := make(chan *metrictypes.VolumeCapacityMetricsRecord)
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, m.MaxPowerMaxConnections)
 
@@ -110,7 +110,7 @@ func (m *CapacityMetrics) gatherCapacityMetrics(ctx context.Context, pvs []k8s.V
 					return
 				}
 
-				metric := &types.VolumeCapacityMetricsRecord{
+				metric := &metrictypes.VolumeCapacityMetricsRecord{
 					ArrayID:                   arrayID,
 					VolumeID:                  volumeID,
 					StorageGroupID:            volume.StorageGroup,
@@ -133,7 +133,7 @@ func (m *CapacityMetrics) gatherCapacityMetrics(ctx context.Context, pvs []k8s.V
 		if !exported {
 			// If no volumes metrics were exported, we need to export an "empty" metric to update the OT Collector
 			// so that stale entries are removed
-			ch <- &types.VolumeCapacityMetricsRecord{
+			ch <- &metrictypes.VolumeCapacityMetricsRecord{
 				ArrayID:                   "",
 				VolumeID:                  "",
 				StorageGroupID:            "",
@@ -156,7 +156,7 @@ func (m *CapacityMetrics) gatherCapacityMetrics(ctx context.Context, pvs []k8s.V
 	return ch
 }
 
-func (m *CapacityMetrics) pushCapacityMetrics(_ context.Context, volumeCapacityMetrics <-chan *types.VolumeCapacityMetricsRecord) <-chan string {
+func (m *CapacityMetrics) pushCapacityMetrics(_ context.Context, volumeCapacityMetrics <-chan *metrictypes.VolumeCapacityMetricsRecord) <-chan string {
 	start := time.Now()
 	defer m.TimeSince(start, "pushCapacityMetrics")
 	var wg sync.WaitGroup
@@ -164,11 +164,11 @@ func (m *CapacityMetrics) pushCapacityMetrics(_ context.Context, volumeCapacityM
 	ch := make(chan string)
 	go func() {
 		// Sum based on array id for total capacity metrics for array and storage class
-		arrayIDMap := make(map[string]types.VolumeCapacityMetricsRecord)
-		storageClassMap := make(map[string]types.VolumeCapacityMetricsRecord)
-		storageGroupMap := make(map[string]types.VolumeCapacityMetricsRecord)
-		srpMap := make(map[string]types.VolumeCapacityMetricsRecord)
-		volumeIDMap := make(map[string]types.VolumeCapacityMetricsRecord)
+		arrayIDMap := make(map[string]metrictypes.VolumeCapacityMetricsRecord)
+		storageClassMap := make(map[string]metrictypes.VolumeCapacityMetricsRecord)
+		storageGroupMap := make(map[string]metrictypes.VolumeCapacityMetricsRecord)
+		srpMap := make(map[string]metrictypes.VolumeCapacityMetricsRecord)
+		volumeIDMap := make(map[string]metrictypes.VolumeCapacityMetricsRecord)
 
 		for metric := range volumeCapacityMetrics {
 			// for array id cumulative
@@ -186,7 +186,7 @@ func (m *CapacityMetrics) pushCapacityMetrics(_ context.Context, volumeCapacityM
 		// for volume
 		for _, metric := range volumeIDMap {
 			wg.Add(1)
-			go func(metric types.VolumeCapacityMetricsRecord) {
+			go func(metric metrictypes.VolumeCapacityMetricsRecord) {
 				defer wg.Done()
 
 				labels := []attribute.KeyValue{
@@ -216,7 +216,7 @@ func (m *CapacityMetrics) pushCapacityMetrics(_ context.Context, volumeCapacityM
 		// for storage group
 		for _, metric := range storageGroupMap {
 			wg.Add(1)
-			go func(metric types.VolumeCapacityMetricsRecord) {
+			go func(metric metrictypes.VolumeCapacityMetricsRecord) {
 				defer wg.Done()
 
 				labels := []attribute.KeyValue{
@@ -240,7 +240,7 @@ func (m *CapacityMetrics) pushCapacityMetrics(_ context.Context, volumeCapacityM
 		// for srp
 		for _, metric := range srpMap {
 			wg.Add(1)
-			go func(metric types.VolumeCapacityMetricsRecord) {
+			go func(metric metrictypes.VolumeCapacityMetricsRecord) {
 				defer wg.Done()
 
 				labels := []attribute.KeyValue{
@@ -263,7 +263,7 @@ func (m *CapacityMetrics) pushCapacityMetrics(_ context.Context, volumeCapacityM
 		// for array id
 		for _, metric := range arrayIDMap {
 			wg.Add(1)
-			go func(metric types.VolumeCapacityMetricsRecord) {
+			go func(metric metrictypes.VolumeCapacityMetricsRecord) {
 				defer wg.Done()
 
 				labels := []attribute.KeyValue{
@@ -285,7 +285,7 @@ func (m *CapacityMetrics) pushCapacityMetrics(_ context.Context, volumeCapacityM
 		// for storage class
 		for _, metric := range storageClassMap {
 			wg.Add(1)
-			go func(metric types.VolumeCapacityMetricsRecord) {
+			go func(metric metrictypes.VolumeCapacityMetricsRecord) {
 				defer wg.Done()
 
 				labels := []attribute.KeyValue{
@@ -312,7 +312,7 @@ func (m *CapacityMetrics) pushCapacityMetrics(_ context.Context, volumeCapacityM
 	return ch
 }
 
-func cumulate(key string, cacheMap map[string]types.VolumeCapacityMetricsRecord, metric *types.VolumeCapacityMetricsRecord) {
+func cumulate(key string, cacheMap map[string]metrictypes.VolumeCapacityMetricsRecord, metric *metrictypes.VolumeCapacityMetricsRecord) {
 	if volMetrics, ok := cacheMap[key]; !ok {
 		cacheMap[key] = *metric
 	} else {

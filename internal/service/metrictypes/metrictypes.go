@@ -14,7 +14,7 @@
  limitations under the License.
 */
 
-package types
+package metrictypes
 
 import (
 	"context"
@@ -32,7 +32,7 @@ import (
 
 // PowerMaxClient contains operations for accessing the PowerMax API
 //
-//go:generate mockgen -destination=mocks/powermax_client_mocks.go -package=mocks github.com/dell/csm-metrics-powermax/internal/service/types PowerMaxClient
+//go:generate mockgen -destination=mocks/powermax_client_mocks.go -package=mocks github.com/dell/csm-metrics-powermax/internal/service/metrictypes PowerMaxClient
 type PowerMaxClient interface {
 	Authenticate(ctx context.Context, configConnect *pmax.ConfigConnect) error
 	GetStorageGroup(ctx context.Context, symID string, storageGroupID string) (*types.StorageGroup, error)
@@ -47,21 +47,21 @@ type PowerMaxClient interface {
 
 // VolumeFinder is used to find volume information in kubernetes
 //
-//go:generate mockgen -destination=mocks/volume_finder_mocks.go -package=mocks github.com/dell/csm-metrics-powermax/internal/service/types VolumeFinder
+//go:generate mockgen -destination=mocks/volume_finder_mocks.go -package=mocks github.com/dell/csm-metrics-powermax/internal/service/metrictypes VolumeFinder
 type VolumeFinder interface {
 	GetPersistentVolumes(context.Context) ([]k8s.VolumeInfo, error)
 }
 
 // StorageClassFinder is used to find storage classes in kubernetes
 //
-//go:generate mockgen -destination=mocks/storage_class_finder_mocks.go -package=mocks github.com/dell/csm-metrics-powermax/internal/service/types StorageClassFinder
+//go:generate mockgen -destination=mocks/storage_class_finder_mocks.go -package=mocks github.com/dell/csm-metrics-powermax/internal/service/metrictypes StorageClassFinder
 type StorageClassFinder interface {
 	GetStorageClasses(context.Context) ([]v1.StorageClass, error)
 }
 
 // LeaderElector will elect a leader
 //
-//go:generate mockgen -destination=mocks/leader_elector_mocks.go -package=mocks github.com/dell/csm-metrics-powermax/internal/service/types LeaderElector
+//go:generate mockgen -destination=mocks/leader_elector_mocks.go -package=mocks github.com/dell/csm-metrics-powermax/internal/service/metrictypes LeaderElector
 type LeaderElector interface {
 	InitLeaderElection(string, string) error
 	IsLeader() bool
@@ -76,7 +76,7 @@ type NumericMetric struct {
 
 // Service aggregate necessary info and define export metrics methods
 //
-//go:generate mockgen -destination=mocks/service_mocks.go -package=mocks github.com/dell/csm-metrics-powermax/internal/service/types Service
+//go:generate mockgen -destination=mocks/service_mocks.go -package=mocks github.com/dell/csm-metrics-powermax/internal/service/metrictypes Service
 type Service interface {
 	GetLogger() *logrus.Logger
 	GetPowerMaxClients() map[string][]PowerMaxArray
@@ -96,7 +96,7 @@ type MeterCreator interface {
 
 // MetricsRecorder supports recording storage resources metrics
 //
-//go:generate mockgen -destination=mocks/types_mocks.go -package=mocks github.com/dell/csm-metrics-powermax/internal/service/types MetricsRecorder,MeterCreator
+//go:generate mockgen -destination=mocks/types_mocks.go -package=mocks github.com/dell/csm-metrics-powermax/internal/service/metrictypes MetricsRecorder,MeterCreator
 type MetricsRecorder interface {
 	RecordNumericMetrics(prefix string, labels []attribute.KeyValue, metric VolumeCapacityMetricsRecord) error
 	RecordVolPerfMetrics(prefix string, metric VolumePerfMetricsRecord) error

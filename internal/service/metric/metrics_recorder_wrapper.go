@@ -20,10 +20,10 @@ import (
 	"context"
 	"sync"
 
-	"github.com/dell/csm-metrics-powermax/utils"
+	"github.com/dell/csm-metrics-powermax/utilsconverter"
 	otelmetric "go.opentelemetry.io/otel/metric"
 
-	"github.com/dell/csm-metrics-powermax/internal/service/types"
+	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -47,7 +47,7 @@ const (
 )
 
 // RecordNumericMetrics record metrics using Otel's InstrumentProvider
-func (mrw *MetricsRecorderWrapper) RecordNumericMetrics(prefix string, labels []attribute.KeyValue, metric types.VolumeCapacityMetricsRecord) error {
+func (mrw *MetricsRecorderWrapper) RecordNumericMetrics(prefix string, labels []attribute.KeyValue, metric metrictypes.VolumeCapacityMetricsRecord) error {
 	totalCapacity, err := mrw.Meter.Float64ObservableUpDownCounter(prefix + TotalCapacityGigabytes)
 	if err != nil {
 		return err
@@ -86,7 +86,7 @@ func (mrw *MetricsRecorderWrapper) RecordNumericMetrics(prefix string, labels []
 	return nil
 }
 
-func (mrw *MetricsRecorderWrapper) RecordVolPerfMetrics(prefix string, metric types.VolumePerfMetricsRecord) error {
+func (mrw *MetricsRecorderWrapper) RecordVolPerfMetrics(prefix string, metric metrictypes.VolumePerfMetricsRecord) error {
 	labels := []attribute.KeyValue{
 		attribute.String("VolumeID", metric.VolumeID),
 		attribute.String("ArrayID", metric.ArrayID),
@@ -156,7 +156,7 @@ func (mrw *MetricsRecorderWrapper) RecordVolPerfMetrics(prefix string, metric ty
 	return nil
 }
 
-func (mrw *MetricsRecorderWrapper) RecordStorageGroupPerfMetrics(prefix string, metric types.StorageGroupPerfMetricsRecord) error {
+func (mrw *MetricsRecorderWrapper) RecordStorageGroupPerfMetrics(prefix string, metric metrictypes.StorageGroupPerfMetricsRecord) error {
 	labels := []attribute.KeyValue{
 		attribute.String("ArrayID", metric.ArrayID),
 		attribute.String("StorageGroupID", metric.StorageGroupID),
@@ -206,7 +206,7 @@ func (mrw *MetricsRecorderWrapper) RecordStorageGroupPerfMetrics(prefix string, 
 		observer.ObserveFloat64(writeLatency, metric.WriteResponseTime, otelmetric.WithAttributes(labels...))
 		observer.ObserveFloat64(readIOPS, metric.HostReads, otelmetric.WithAttributes(labels...))
 		observer.ObserveFloat64(writeIOPS, metric.HostWrites, otelmetric.WithAttributes(labels...))
-		observer.ObserveFloat64(averageIOSize, utils.UnitsConvert(metric.AvgIOSize, utils.KB, utils.MB), otelmetric.WithAttributes(labels...))
+		observer.ObserveFloat64(averageIOSize, utilsconverter.UnitsConvert(metric.AvgIOSize, utilsconverter.KB, utilsconverter.MB), otelmetric.WithAttributes(labels...))
 		go func() {
 			done <- struct{}{}
 		}()

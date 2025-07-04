@@ -22,7 +22,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dell/csm-metrics-powermax/internal/service/types"
+	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes"
 	"github.com/sirupsen/logrus"
 )
 
@@ -37,14 +37,14 @@ type MetricsCollector interface {
 type BaseMetrics struct {
 	Collector              MetricsCollector
 	Logger                 *logrus.Logger
-	VolumeFinder           types.VolumeFinder
-	PowerMaxClients        map[string][]types.PowerMaxArray
-	MetricsRecorder        types.MetricsRecorder
+	VolumeFinder           metrictypes.VolumeFinder
+	PowerMaxClients        map[string][]metrictypes.PowerMaxArray
+	MetricsRecorder        metrictypes.MetricsRecorder
 	MaxPowerMaxConnections int
 }
 
 // NewBaseMetrics return BaseMetrics instance.
-func NewBaseMetrics(service types.Service) *BaseMetrics {
+func NewBaseMetrics(service metrictypes.Service) *BaseMetrics {
 	return &BaseMetrics{
 		Logger:                 service.GetLogger(),
 		VolumeFinder:           service.GetVolumeFinder(),
@@ -65,7 +65,7 @@ func (m *BaseMetrics) TimeSince(start time.Time, fName string) {
 }
 
 // GetPowerMaxClient return the first live PowerMaxClient based on the given arrayID
-func (m *BaseMetrics) GetPowerMaxClient(arrayID string) (types.PowerMaxClient, error) {
+func (m *BaseMetrics) GetPowerMaxClient(arrayID string) (metrictypes.PowerMaxClient, error) {
 	if m.PowerMaxClients == nil {
 		return nil, fmt.Errorf("PowerMaxClients is empty")
 	}

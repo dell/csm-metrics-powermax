@@ -28,8 +28,8 @@ import (
 	"github.com/dell/csm-metrics-powermax/internal/k8s"
 	"github.com/dell/csm-metrics-powermax/internal/service"
 	"github.com/dell/csm-metrics-powermax/internal/service/metric"
-	"github.com/dell/csm-metrics-powermax/internal/service/types"
-	"github.com/dell/csm-metrics-powermax/internal/service/types/mocks"
+	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes"
+	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes/mocks"
 	v100 "github.com/dell/gopowermax/v2/types/v100"
 	"github.com/golang/mock/gomock"
 	"github.com/sirupsen/logrus"
@@ -62,8 +62,8 @@ func Test_ExportMetrics(t *testing.T) {
 			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(&volume00833, nil).Times(1)
 			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(&volume00834, nil).Times(1)
 
-			clients := make(map[string][]types.PowerMaxArray)
-			array := types.PowerMaxArray{
+			clients := make(map[string][]metrictypes.PowerMaxArray)
+			array := metrictypes.PowerMaxArray{
 				Client:   c,
 				IsActive: true,
 			}
@@ -86,8 +86,8 @@ func Test_ExportMetrics(t *testing.T) {
 			metrics := mocks.NewMockMetricsRecorder(ctrl)
 			volFinder := mocks.NewMockVolumeFinder(ctrl)
 			c := mocks.NewMockPowerMaxClient(ctrl)
-			clients := make(map[string][]types.PowerMaxArray)
-			array := types.PowerMaxArray{
+			clients := make(map[string][]metrictypes.PowerMaxArray)
+			array := metrictypes.PowerMaxArray{
 				Client:   c,
 				IsActive: true,
 			}
@@ -115,8 +115,8 @@ func Test_ExportMetrics(t *testing.T) {
 			c := mocks.NewMockPowerMaxClient(ctrl)
 			// Not active so no calls to GetVolumeByID
 
-			clients := make(map[string][]types.PowerMaxArray)
-			array := types.PowerMaxArray{
+			clients := make(map[string][]metrictypes.PowerMaxArray)
+			array := metrictypes.PowerMaxArray{
 				Client:   c,
 				IsActive: false,
 			}
@@ -141,8 +141,8 @@ func Test_ExportMetrics(t *testing.T) {
 			volFinder := mocks.NewMockVolumeFinder(ctrl)
 
 			c := mocks.NewMockPowerMaxClient(ctrl)
-			clients := make(map[string][]types.PowerMaxArray)
-			array := types.PowerMaxArray{
+			clients := make(map[string][]metrictypes.PowerMaxArray)
+			array := metrictypes.PowerMaxArray{
 				Client:   c,
 				IsActive: true,
 			}
@@ -165,8 +165,8 @@ func Test_ExportMetrics(t *testing.T) {
 			metrics := mocks.NewMockMetricsRecorder(ctrl)
 
 			c := mocks.NewMockPowerMaxClient(ctrl)
-			clients := make(map[string][]types.PowerMaxArray)
-			array := types.PowerMaxArray{
+			clients := make(map[string][]metrictypes.PowerMaxArray)
+			array := metrictypes.PowerMaxArray{
 				Client:   c,
 				IsActive: true,
 			}
@@ -189,8 +189,8 @@ func Test_ExportMetrics(t *testing.T) {
 			metrics := mocks.NewMockMetricsRecorder(ctrl)
 
 			c := mocks.NewMockPowerMaxClient(ctrl)
-			clients := make(map[string][]types.PowerMaxArray)
-			array := types.PowerMaxArray{
+			clients := make(map[string][]metrictypes.PowerMaxArray)
+			array := metrictypes.PowerMaxArray{
 				Client:   c,
 				IsActive: true,
 			}

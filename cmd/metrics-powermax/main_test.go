@@ -27,7 +27,7 @@ import (
 	"github.com/dell/csm-metrics-powermax/internal/entrypoint"
 	"github.com/dell/csm-metrics-powermax/internal/k8s"
 	"github.com/dell/csm-metrics-powermax/internal/service"
-	"github.com/dell/csm-metrics-powermax/internal/service/types"
+	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes"
 	otlexporters "github.com/dell/csm-metrics-powermax/opentelemetry/exporters"
 	corev1 "k8s.io/api/core/v1"
 
@@ -46,16 +46,16 @@ func (sam *ServiceAccessorMock) UpdatePowerMaxArraysOnSecretChanged(k8sutils.Uti
 func TestConfigure(t *testing.T) {
 	testCases := []struct {
 		name                   string
-		arrays                 map[string][]types.PowerMaxArray
+		arrays                 map[string][]metrictypes.PowerMaxArray
 		useSecret              bool
-		expectedArray          map[string][]types.PowerMaxArray
+		expectedArray          map[string][]metrictypes.PowerMaxArray
 		expectedCollectorAddr  string
 		expectedMaxConnections int
 	}{
 		{
 			name:      "Test with arrays with elements and Secret",
 			useSecret: true,
-			arrays: map[string][]types.PowerMaxArray{
+			arrays: map[string][]metrictypes.PowerMaxArray{
 				"array1": {
 					{
 						StorageArrayID: "array1",
@@ -79,7 +79,7 @@ func TestConfigure(t *testing.T) {
 					},
 				},
 			},
-			expectedArray: map[string][]types.PowerMaxArray{
+			expectedArray: map[string][]metrictypes.PowerMaxArray{
 				"array1": {
 					{
 						StorageArrayID: "array1",
@@ -109,7 +109,7 @@ func TestConfigure(t *testing.T) {
 		{
 			name:      "Test with arrays with elements and ConfigMap",
 			useSecret: false,
-			arrays: map[string][]types.PowerMaxArray{
+			arrays: map[string][]metrictypes.PowerMaxArray{
 				"array1": {
 					{
 						StorageArrayID: "array1",
@@ -133,7 +133,7 @@ func TestConfigure(t *testing.T) {
 					},
 				},
 			},
-			expectedArray: map[string][]types.PowerMaxArray{
+			expectedArray: map[string][]metrictypes.PowerMaxArray{
 				"array1": {
 					{
 						StorageArrayID: "array1",
@@ -166,7 +166,7 @@ func TestConfigure(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
 
-			GetPowerMaxArrays = func(_ context.Context, _ k8sutils.UtilsInterface, _ string, _ *logrus.Logger) (map[string][]types.PowerMaxArray, error) {
+			GetPowerMaxArrays = func(_ context.Context, _ k8sutils.UtilsInterface, _ string, _ *logrus.Logger) (map[string][]metrictypes.PowerMaxArray, error) {
 				return tc.arrays, nil
 			}
 
@@ -192,24 +192,24 @@ func TestConfigure(t *testing.T) {
 func TestUpdatePowerMaxArrays(t *testing.T) {
 	testCases := []struct {
 		name                   string
-		arrays                 map[string][]types.PowerMaxArray
+		arrays                 map[string][]metrictypes.PowerMaxArray
 		getPowerMaxArraysError error
-		expectedArray          map[string][]types.PowerMaxArray
+		expectedArray          map[string][]metrictypes.PowerMaxArray
 	}{
 		{
 			name: "Test with empty arrays",
-			arrays: map[string][]types.PowerMaxArray{
+			arrays: map[string][]metrictypes.PowerMaxArray{
 				"array1": {},
 				"array2": {},
 			},
-			expectedArray: map[string][]types.PowerMaxArray{
+			expectedArray: map[string][]metrictypes.PowerMaxArray{
 				"array1": nil,
 				"array2": nil,
 			},
 		},
 		{
 			name: "Test with arrays with elements",
-			arrays: map[string][]types.PowerMaxArray{
+			arrays: map[string][]metrictypes.PowerMaxArray{
 				"array1": {
 					{
 						StorageArrayID: "array1",
@@ -233,7 +233,7 @@ func TestUpdatePowerMaxArrays(t *testing.T) {
 					},
 				},
 			},
-			expectedArray: map[string][]types.PowerMaxArray{
+			expectedArray: map[string][]metrictypes.PowerMaxArray{
 				"array1": {
 					{
 						StorageArrayID: "array1",
@@ -261,7 +261,7 @@ func TestUpdatePowerMaxArrays(t *testing.T) {
 		{
 			name:                   "Test with error from call to GetPowerMaxArrays",
 			getPowerMaxArraysError: errors.New("some error"),
-			expectedArray:          map[string][]types.PowerMaxArray{},
+			expectedArray:          map[string][]metrictypes.PowerMaxArray{},
 		},
 	}
 
@@ -271,10 +271,10 @@ func TestUpdatePowerMaxArrays(t *testing.T) {
 			ctx := context.Background()
 
 			powerMaxSvc := &service.PowerMaxService{
-				PowerMaxClients: make(map[string][]types.PowerMaxArray),
+				PowerMaxClients: make(map[string][]metrictypes.PowerMaxArray),
 			}
 
-			GetPowerMaxArrays = func(_ context.Context, _ k8sutils.UtilsInterface, _ string, _ *logrus.Logger) (map[string][]types.PowerMaxArray, error) {
+			GetPowerMaxArrays = func(_ context.Context, _ k8sutils.UtilsInterface, _ string, _ *logrus.Logger) (map[string][]metrictypes.PowerMaxArray, error) {
 				return tc.arrays, tc.getPowerMaxArraysError
 			}
 
