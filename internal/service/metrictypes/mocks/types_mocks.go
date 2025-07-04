@@ -7,7 +7,7 @@ package mocks
 import (
 	reflect "reflect"
 
-	types "github.com/dell/csm-metrics-powermax/internal/service/types"
+	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes"
 	gomock "github.com/golang/mock/gomock"
 	attribute "go.opentelemetry.io/otel/attribute"
 	metric "go.opentelemetry.io/otel/metric"
@@ -37,7 +37,7 @@ func (m *MockMetricsRecorder) EXPECT() *MockMetricsRecorderMockRecorder {
 }
 
 // RecordNumericMetrics mocks base method.
-func (m *MockMetricsRecorder) RecordNumericMetrics(arg0 string, arg1 []attribute.KeyValue, arg2 types.VolumeCapacityMetricsRecord) error {
+func (m *MockMetricsRecorder) RecordNumericMetrics(arg0 string, arg1 []attribute.KeyValue, arg2 metrictypes.VolumeCapacityMetricsRecord) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RecordNumericMetrics", arg0, arg1, arg2)
 	ret0, _ := ret[0].(error)
@@ -51,7 +51,7 @@ func (mr *MockMetricsRecorderMockRecorder) RecordNumericMetrics(arg0, arg1, arg2
 }
 
 // RecordStorageGroupPerfMetrics mocks base method.
-func (m *MockMetricsRecorder) RecordStorageGroupPerfMetrics(arg0 string, arg1 types.StorageGroupPerfMetricsRecord) error {
+func (m *MockMetricsRecorder) RecordStorageGroupPerfMetrics(arg0 string, arg1 metrictypes.StorageGroupPerfMetricsRecord) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RecordStorageGroupPerfMetrics", arg0, arg1)
 	ret0, _ := ret[0].(error)
@@ -65,7 +65,7 @@ func (mr *MockMetricsRecorderMockRecorder) RecordStorageGroupPerfMetrics(arg0, a
 }
 
 // RecordVolPerfMetrics mocks base method.
-func (m *MockMetricsRecorder) RecordVolPerfMetrics(arg0 string, arg1 types.VolumePerfMetricsRecord) error {
+func (m *MockMetricsRecorder) RecordVolPerfMetrics(arg0 string, arg1 metrictypes.VolumePerfMetricsRecord) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RecordVolPerfMetrics", arg0, arg1)
 	ret0, _ := ret[0].(error)

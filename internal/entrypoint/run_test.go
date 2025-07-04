@@ -22,8 +22,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dell/csm-metrics-powermax/internal/service/types"
-	mocks "github.com/dell/csm-metrics-powermax/internal/service/types/mocks"
+	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes"
+	mocks "github.com/dell/csm-metrics-powermax/internal/service/metrictypes/mocks"
 	exportermocks "github.com/dell/csm-metrics-powermax/opentelemetry/exporters/mocks"
 
 	"github.com/sirupsen/logrus"
@@ -34,8 +34,8 @@ import (
 )
 
 func Test_Run(t *testing.T) {
-	tests := map[string]func(t *testing.T) (expectError bool, config *entrypoint.Config, exporter otlexporters.Otlexporter, pScaleSvc types.Service, prevConfigValidationFunc func(*entrypoint.Config) error, ctrl *gomock.Controller, validatingConfig bool){
-		"success": func(*testing.T) (bool, *entrypoint.Config, otlexporters.Otlexporter, types.Service, func(*entrypoint.Config) error, *gomock.Controller, bool) {
+	tests := map[string]func(t *testing.T) (expectError bool, config *entrypoint.Config, exporter otlexporters.Otlexporter, pScaleSvc metrictypes.Service, prevConfigValidationFunc func(*entrypoint.Config) error, ctrl *gomock.Controller, validatingConfig bool){
+		"success": func(*testing.T) (bool, *entrypoint.Config, otlexporters.Otlexporter, metrictypes.Service, func(*entrypoint.Config) error, *gomock.Controller, bool) {
 			ctrl := gomock.NewController(t)
 
 			leaderElector := mocks.NewMockLeaderElector(ctrl)
@@ -58,10 +58,10 @@ func Test_Run(t *testing.T) {
 
 			return false, config, e, svc, prevConfigValidationFunc, ctrl, false
 		},
-		"error with invalid performance ticker interval": func(*testing.T) (bool, *entrypoint.Config, otlexporters.Otlexporter, types.Service, func(*entrypoint.Config) error, *gomock.Controller, bool) {
+		"error with invalid performance ticker interval": func(*testing.T) (bool, *entrypoint.Config, otlexporters.Otlexporter, metrictypes.Service, func(*entrypoint.Config) error, *gomock.Controller, bool) {
 			ctrl := gomock.NewController(t)
 			leaderElector := mocks.NewMockLeaderElector(ctrl)
-			clients := make(map[string]types.PowerMaxClient)
+			clients := make(map[string]metrictypes.PowerMaxClient)
 			clients["test"] = mocks.NewMockPowerMaxClient(ctrl)
 			config := &entrypoint.Config{
 				CapacityMetricsEnabled:    true,
@@ -76,10 +76,10 @@ func Test_Run(t *testing.T) {
 
 			return true, config, e, svc, prevConfigValidationFunc, ctrl, true
 		},
-		"error with invalid capacity ticker interval": func(*testing.T) (bool, *entrypoint.Config, otlexporters.Otlexporter, types.Service, func(*entrypoint.Config) error, *gomock.Controller, bool) {
+		"error with invalid capacity ticker interval": func(*testing.T) (bool, *entrypoint.Config, otlexporters.Otlexporter, metrictypes.Service, func(*entrypoint.Config) error, *gomock.Controller, bool) {
 			ctrl := gomock.NewController(t)
 			leaderElector := mocks.NewMockLeaderElector(ctrl)
-			clients := make(map[string]types.PowerMaxClient)
+			clients := make(map[string]metrictypes.PowerMaxClient)
 			clients["test"] = mocks.NewMockPowerMaxClient(ctrl)
 			config := &entrypoint.Config{
 				CapacityMetricsEnabled:    true,
@@ -94,12 +94,12 @@ func Test_Run(t *testing.T) {
 
 			return true, config, e, svc, prevConfigValidationFunc, ctrl, true
 		},
-		"success with capacity false enable ": func(*testing.T) (bool, *entrypoint.Config, otlexporters.Otlexporter, types.Service, func(*entrypoint.Config) error, *gomock.Controller, bool) {
+		"success with capacity false enable ": func(*testing.T) (bool, *entrypoint.Config, otlexporters.Otlexporter, metrictypes.Service, func(*entrypoint.Config) error, *gomock.Controller, bool) {
 			ctrl := gomock.NewController(t)
 			leaderElector := mocks.NewMockLeaderElector(ctrl)
 			leaderElector.EXPECT().InitLeaderElection(gomock.Any(), gomock.Any()).Times(1).Return(nil)
 			leaderElector.EXPECT().IsLeader().AnyTimes().Return(true)
-			clients := make(map[string]types.PowerMaxClient)
+			clients := make(map[string]metrictypes.PowerMaxClient)
 			clients["test"] = mocks.NewMockPowerMaxClient(ctrl)
 			config := &entrypoint.Config{
 				CapacityMetricsEnabled:    false,
@@ -121,12 +121,12 @@ func Test_Run(t *testing.T) {
 
 			return false, config, e, svc, prevConfigValidationFunc, ctrl, true
 		},
-		"success with performance false enable ": func(*testing.T) (bool, *entrypoint.Config, otlexporters.Otlexporter, types.Service, func(*entrypoint.Config) error, *gomock.Controller, bool) {
+		"success with performance false enable ": func(*testing.T) (bool, *entrypoint.Config, otlexporters.Otlexporter, metrictypes.Service, func(*entrypoint.Config) error, *gomock.Controller, bool) {
 			ctrl := gomock.NewController(t)
 			leaderElector := mocks.NewMockLeaderElector(ctrl)
 			leaderElector.EXPECT().InitLeaderElection(gomock.Any(), gomock.Any()).Times(1).Return(nil)
 			leaderElector.EXPECT().IsLeader().AnyTimes().Return(true)
-			clients := make(map[string]types.PowerMaxClient)
+			clients := make(map[string]metrictypes.PowerMaxClient)
 			clients["test"] = mocks.NewMockPowerMaxClient(ctrl)
 			config := &entrypoint.Config{
 				CapacityMetricsEnabled:    true,
@@ -147,7 +147,7 @@ func Test_Run(t *testing.T) {
 			svc.EXPECT().ExportPerformanceMetrics(gomock.Any()).AnyTimes()
 			return false, config, e, svc, prevConfigValidationFunc, ctrl, true
 		},
-		"error nil config": func(*testing.T) (bool, *entrypoint.Config, otlexporters.Otlexporter, types.Service, func(*entrypoint.Config) error, *gomock.Controller, bool) {
+		"error nil config": func(*testing.T) (bool, *entrypoint.Config, otlexporters.Otlexporter, metrictypes.Service, func(*entrypoint.Config) error, *gomock.Controller, bool) {
 			ctrl := gomock.NewController(t)
 			e := exportermocks.NewMockOtlexporter(ctrl)
 
@@ -156,7 +156,7 @@ func Test_Run(t *testing.T) {
 
 			return true, nil, e, svc, prevConfigValidationFunc, ctrl, true
 		},
-		"error initializing exporter": func(*testing.T) (bool, *entrypoint.Config, otlexporters.Otlexporter, types.Service, func(*entrypoint.Config) error, *gomock.Controller, bool) {
+		"error initializing exporter": func(*testing.T) (bool, *entrypoint.Config, otlexporters.Otlexporter, metrictypes.Service, func(*entrypoint.Config) error, *gomock.Controller, bool) {
 			ctrl := gomock.NewController(t)
 
 			leaderElector := mocks.NewMockLeaderElector(ctrl)
@@ -178,7 +178,7 @@ func Test_Run(t *testing.T) {
 
 			return true, config, e, svc, prevConfigValidationFunc, ctrl, false
 		},
-		"success even if leader is false": func(*testing.T) (bool, *entrypoint.Config, otlexporters.Otlexporter, types.Service, func(*entrypoint.Config) error, *gomock.Controller, bool) {
+		"success even if leader is false": func(*testing.T) (bool, *entrypoint.Config, otlexporters.Otlexporter, metrictypes.Service, func(*entrypoint.Config) error, *gomock.Controller, bool) {
 			ctrl := gomock.NewController(t)
 
 			leaderElector := mocks.NewMockLeaderElector(ctrl)
@@ -199,7 +199,7 @@ func Test_Run(t *testing.T) {
 
 			return false, config, e, svc, prevConfigValidationFunc, ctrl, false
 		},
-		"success using TLS": func(*testing.T) (bool, *entrypoint.Config, otlexporters.Otlexporter, types.Service, func(*entrypoint.Config) error, *gomock.Controller, bool) {
+		"success using TLS": func(*testing.T) (bool, *entrypoint.Config, otlexporters.Otlexporter, metrictypes.Service, func(*entrypoint.Config) error, *gomock.Controller, bool) {
 			ctrl := gomock.NewController(t)
 
 			leaderElector := mocks.NewMockLeaderElector(ctrl)
@@ -223,7 +223,7 @@ func Test_Run(t *testing.T) {
 
 			return false, config, e, svc, prevConfigValidationFunc, ctrl, false
 		},
-		"error reading certificate": func(*testing.T) (bool, *entrypoint.Config, otlexporters.Otlexporter, types.Service, func(*entrypoint.Config) error, *gomock.Controller, bool) {
+		"error reading certificate": func(*testing.T) (bool, *entrypoint.Config, otlexporters.Otlexporter, metrictypes.Service, func(*entrypoint.Config) error, *gomock.Controller, bool) {
 			ctrl := gomock.NewController(t)
 
 			leaderElector := mocks.NewMockLeaderElector(ctrl)
@@ -245,7 +245,7 @@ func Test_Run(t *testing.T) {
 
 			return true, config, e, svc, prevConfigValidationFunc, ctrl, false
 		},
-		"success with LivenessProbeTick": func(*testing.T) (bool, *entrypoint.Config, otlexporters.Otlexporter, types.Service, func(*entrypoint.Config) error, *gomock.Controller, bool) {
+		"success with LivenessProbeTick": func(*testing.T) (bool, *entrypoint.Config, otlexporters.Otlexporter, metrictypes.Service, func(*entrypoint.Config) error, *gomock.Controller, bool) {
 			ctrl := gomock.NewController(t)
 			leaderElector := mocks.NewMockLeaderElector(ctrl)
 			leaderElector.EXPECT().InitLeaderElection(gomock.Any(), gomock.Any()).Times(1).Return(nil)
@@ -269,8 +269,8 @@ func Test_Run(t *testing.T) {
 			c := mocks.NewMockPowerMaxClient(ctrl)
 			c.EXPECT().Authenticate(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
 
-			clients := make(map[string][]types.PowerMaxArray)
-			array := types.PowerMaxArray{
+			clients := make(map[string][]metrictypes.PowerMaxArray)
+			array := metrictypes.PowerMaxArray{
 				Client: c,
 			}
 
@@ -281,7 +281,7 @@ func Test_Run(t *testing.T) {
 
 			return false, config, e, svc, prevConfigValidationFunc, ctrl, true
 		},
-		"success with LivenessProbeTick unauthenticated": func(*testing.T) (bool, *entrypoint.Config, otlexporters.Otlexporter, types.Service, func(*entrypoint.Config) error, *gomock.Controller, bool) {
+		"success with LivenessProbeTick unauthenticated": func(*testing.T) (bool, *entrypoint.Config, otlexporters.Otlexporter, metrictypes.Service, func(*entrypoint.Config) error, *gomock.Controller, bool) {
 			ctrl := gomock.NewController(t)
 			leaderElector := mocks.NewMockLeaderElector(ctrl)
 			leaderElector.EXPECT().InitLeaderElection(gomock.Any(), gomock.Any()).Times(1).Return(nil)
@@ -305,8 +305,8 @@ func Test_Run(t *testing.T) {
 			c := mocks.NewMockPowerMaxClient(ctrl)
 			c.EXPECT().Authenticate(gomock.Any(), gomock.Any()).AnyTimes().Return(fmt.Errorf("unauthenticated"))
 
-			clients := make(map[string][]types.PowerMaxArray)
-			array := types.PowerMaxArray{
+			clients := make(map[string][]metrictypes.PowerMaxArray)
+			array := metrictypes.PowerMaxArray{
 				Client: c,
 			}
 

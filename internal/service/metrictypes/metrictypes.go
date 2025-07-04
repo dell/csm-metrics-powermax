@@ -14,7 +14,7 @@
  limitations under the License.
 */
 
-package types
+package metrictypes
 
 import (
 	"context"
@@ -32,7 +32,7 @@ import (
 
 // PowerMaxClient contains operations for accessing the PowerMax API
 //
-//go:generate mockgen -destination=mocks/powermax_client_mocks.go -package=mocks github.com/dell/csm-metrics-powermax/internal/service/types PowerMaxClient
+//go:generate mockgen -destination=mocks/powermax_client_mocks.go -package=mocks github.com/dell/csm-metrics-powermax/internal/service/metrictypes PowerMaxClient
 type PowerMaxClient interface {
 	Authenticate(ctx context.Context, configConnect *pmax.ConfigConnect) error
 	GetStorageGroup(ctx context.Context, symID string, storageGroupID string) (*types.StorageGroup, error)

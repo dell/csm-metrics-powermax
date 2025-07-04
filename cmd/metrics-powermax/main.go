@@ -26,7 +26,7 @@ import (
 
 	"github.com/dell/csi-powermax/csireverseproxy/v2/pkg/k8sutils"
 	"github.com/dell/csm-metrics-powermax/internal/service/metric"
-	"github.com/dell/csm-metrics-powermax/internal/service/types"
+	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/dell/csm-metrics-powermax/internal/entrypoint"
@@ -207,7 +207,7 @@ func updatePowerMaxArrays(ctx context.Context, powerMaxSvc *service.PowerMaxServ
 		return
 	}
 
-	powerMaxClients := make(map[string][]types.PowerMaxArray)
+	powerMaxClients := make(map[string][]metrictypes.PowerMaxArray)
 
 	for arrayID, powerMaxArrays := range arrays {
 		powerMaxClients[arrayID] = append(powerMaxClients[arrayID], powerMaxArrays...)
@@ -216,7 +216,7 @@ func updatePowerMaxArrays(ctx context.Context, powerMaxSvc *service.PowerMaxServ
 	powerMaxSvc.PowerMaxClients = powerMaxClients
 }
 
-var GetPowerMaxArrays = func(ctx context.Context, _ k8sutils.UtilsInterface, _ string, logger *logrus.Logger) (map[string][]types.PowerMaxArray, error) {
+var GetPowerMaxArrays = func(ctx context.Context, _ k8sutils.UtilsInterface, _ string, logger *logrus.Logger) (map[string][]metrictypes.PowerMaxArray, error) {
 	return k8spmax.GetPowerMaxArrays(ctx, k8spmax.GetK8sUtils(), cPath, logger)
 }
 

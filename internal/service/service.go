@@ -20,7 +20,7 @@ import (
 	"context"
 
 	"github.com/dell/csm-metrics-powermax/internal/service/metric"
-	"github.com/dell/csm-metrics-powermax/internal/service/types"
+	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes"
 	"github.com/sirupsen/logrus"
 )
 
@@ -31,12 +31,12 @@ const (
 
 // PowerMaxService contains configuration stuff and represents the service for getting metrics data for a PowerMax system
 type PowerMaxService struct {
-	MetricsRecorder        types.MetricsRecorder
+	MetricsRecorder        metrictypes.MetricsRecorder
 	MaxPowerMaxConnections int
 	Logger                 *logrus.Logger
-	PowerMaxClients        map[string][]types.PowerMaxArray
-	VolumeFinder           types.VolumeFinder
-	StorageClassFinder     types.StorageClassFinder
+	PowerMaxClients        map[string][]metrictypes.PowerMaxArray
+	VolumeFinder           metrictypes.VolumeFinder
+	StorageClassFinder     metrictypes.StorageClassFinder
 }
 
 // GetLogger return logger
@@ -45,12 +45,12 @@ func (s *PowerMaxService) GetLogger() *logrus.Logger {
 }
 
 // GetPowerMaxClients return PowerMaxClients
-func (s *PowerMaxService) GetPowerMaxClients() map[string][]types.PowerMaxArray {
+func (s *PowerMaxService) GetPowerMaxClients() map[string][]metrictypes.PowerMaxArray {
 	return s.PowerMaxClients
 }
 
 // GetMetricsRecorder return MetricsRecorder
-func (s *PowerMaxService) GetMetricsRecorder() types.MetricsRecorder {
+func (s *PowerMaxService) GetMetricsRecorder() metrictypes.MetricsRecorder {
 	return s.MetricsRecorder
 }
 
@@ -60,7 +60,7 @@ func (s *PowerMaxService) GetMaxPowerMaxConnections() int {
 }
 
 // GetVolumeFinder return VolumeFinder
-func (s *PowerMaxService) GetVolumeFinder() types.VolumeFinder {
+func (s *PowerMaxService) GetVolumeFinder() metrictypes.VolumeFinder {
 	return s.VolumeFinder
 }
 

@@ -30,7 +30,7 @@ import (
 	"github.com/dell/csi-powermax/csireverseproxy/v2/pkg/k8smock"
 	"github.com/dell/csi-powermax/csireverseproxy/v2/pkg/k8sutils"
 	"github.com/dell/csm-metrics-powermax/internal/k8spmax"
-	"github.com/dell/csm-metrics-powermax/internal/service/types"
+	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -98,7 +98,7 @@ func TestGetPowerMaxArrays(t *testing.T) {
 		k8sUtils               k8sutils.UtilsInterface
 		filePath               string
 		logger                 *logrus.Logger
-		expectedPowerMaxArrays map[string][]types.PowerMaxArray
+		expectedPowerMaxArrays map[string][]metrictypes.PowerMaxArray
 		useSecret              bool
 		expectedError          error
 	}{
@@ -107,7 +107,7 @@ func TestGetPowerMaxArrays(t *testing.T) {
 			k8sUtils: &k8sutils.K8sUtils{},
 			filePath: "./testdata/secret-config.yaml",
 			logger:   logrus.New(),
-			expectedPowerMaxArrays: map[string][]types.PowerMaxArray{
+			expectedPowerMaxArrays: map[string][]metrictypes.PowerMaxArray{
 				"000000000001": {{StorageArrayID: "000000000001", Endpoint: server.URL}, {StorageArrayID: "000000000001", Endpoint: server.URL}},
 				"000000000002": {{StorageArrayID: "000000000002", Endpoint: server.URL}, {StorageArrayID: "000000000002", Endpoint: server.URL}},
 			},
@@ -138,7 +138,7 @@ func TestGetPowerMaxArrays(t *testing.T) {
 			k8sUtils: mockUtils,
 			filePath: "./testdata/sample-config-default.yaml",
 			logger:   logrus.New(),
-			expectedPowerMaxArrays: map[string][]types.PowerMaxArray{
+			expectedPowerMaxArrays: map[string][]metrictypes.PowerMaxArray{
 				"00012345678": {{StorageArrayID: "00012345678", Endpoint: server.URL}, {StorageArrayID: "00012345678", Endpoint: server.URL}},
 			},
 			useSecret:     false,

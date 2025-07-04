@@ -20,7 +20,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/dell/csm-metrics-powermax/utils"
+	"github.com/dell/csm-metrics-powermax/utilsconverter"
 	otelmetric "go.opentelemetry.io/otel/metric"
 
 	"github.com/dell/csm-metrics-powermax/internal/service/types"
@@ -206,7 +206,7 @@ func (mrw *MetricsRecorderWrapper) RecordStorageGroupPerfMetrics(prefix string, 
 		observer.ObserveFloat64(writeLatency, metric.WriteResponseTime, otelmetric.WithAttributes(labels...))
 		observer.ObserveFloat64(readIOPS, metric.HostReads, otelmetric.WithAttributes(labels...))
 		observer.ObserveFloat64(writeIOPS, metric.HostWrites, otelmetric.WithAttributes(labels...))
-		observer.ObserveFloat64(averageIOSize, utils.UnitsConvert(metric.AvgIOSize, utils.KB, utils.MB), otelmetric.WithAttributes(labels...))
+		observer.ObserveFloat64(averageIOSize, utilsconverter.UnitsConvert(metric.AvgIOSize, utilsconverter.KB, utilsconverter.MB), otelmetric.WithAttributes(labels...))
 		go func() {
 			done <- struct{}{}
 		}()
