@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2022-2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+ Copyright (c) 2022-2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  limitations under the License.
 */
 
-package common_test
+package k8spmax_test
 
 import (
 	"context"
@@ -29,7 +29,7 @@ import (
 	revcommon "github.com/dell/csi-powermax/csireverseproxy/v2/pkg/common"
 	"github.com/dell/csi-powermax/csireverseproxy/v2/pkg/k8smock"
 	"github.com/dell/csi-powermax/csireverseproxy/v2/pkg/k8sutils"
-	"github.com/dell/csm-metrics-powermax/internal/common"
+	"github.com/dell/csm-metrics-powermax/internal/k8spmax"
 	"github.com/dell/csm-metrics-powermax/internal/service/types"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -60,7 +60,7 @@ func Test_Run_Unauthorized(t *testing.T) {
 
 			original := replaceEnpoints(filePath, server.URL)
 
-			clusters, err := common.GetPowerMaxArrays(context.Background(), k8sUtils, filePath, logger)
+			clusters, err := k8spmax.GetPowerMaxArrays(context.Background(), k8sUtils, filePath, logger)
 
 			if expectError {
 				assert.Nil(t, clusters)
@@ -75,14 +75,14 @@ func Test_Run_Unauthorized(t *testing.T) {
 }
 
 func Test_GetK8sUtils(t *testing.T) {
-	assert.Nil(t, common.GetK8sUtils())
+	assert.Nil(t, k8spmax.GetK8sUtils())
 }
 
 func Test_InitK8sUtils(t *testing.T) {
 	os.Setenv("HOME", "")
 	os.Setenv("X_CSI_KUBECONFIG_PATH", "../k8s/testdata/")
 	callback := func(_ k8sutils.UtilsInterface, _ *corev1.Secret) {}
-	_, err := common.InitK8sUtils(logrus.New(), callback, false)
+	_, err := k8spmax.InitK8sUtils(logrus.New(), callback, false)
 	assert.Nil(t, err)
 }
 
@@ -182,7 +182,7 @@ func TestGetPowerMaxArrays(t *testing.T) {
 			if tc.useSecret {
 				setEnv(revcommon.EnvSecretFilePath, tc.filePath)
 			}
-			powerMaxArrays, err := common.GetPowerMaxArrays(ctx, tc.k8sUtils, tc.filePath, tc.logger)
+			powerMaxArrays, err := k8spmax.GetPowerMaxArrays(ctx, tc.k8sUtils, tc.filePath, tc.logger)
 			if err != nil {
 				if !strings.Contains(err.Error(), tc.expectedError.Error()) {
 					t.Errorf("Expected error: %v, but got: %v", tc.expectedError, err)
@@ -225,27 +225,6 @@ func getUnauthorizedRouter() http.Handler {
 		w.Write([]byte("<html><head><title>Error</title></head><body>Unauthorized</body></html>"))
 	})
 	return router
-}
-
-func createTempKubeconfig(filepath string) {
-	kubeconfig := `clusters:
-- cluster:
-    server: https://some.hostname.or.ip:6443
-  name: fake-cluster
-contexts:
-- context:
-    cluster: fake-cluster
-    user: admin
-  name: admin
-current-context: admin
-preferences: {}
-users:
-- name: admin`
-
-	err := os.WriteFile(filepath, []byte(kubeconfig), 0o600)
-	if err != nil {
-		return
-	}
 }
 
 func setEnv(key, value string) error {

@@ -23,7 +23,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/dell/csm-metrics-powermax/internal/common"
+	"github.com/dell/csm-metrics-powermax/internal/k8spmax"
 
 	"github.com/dell/csm-metrics-powermax/internal/service/types"
 
@@ -171,7 +171,7 @@ func Run(ctx context.Context, config *Config, exporter otlexporters.Otlexporter,
 func validatePowerMaxArrays(ctx context.Context, powerMaxSvc types.Service) {
 	for arrayID, powerMaxArrays := range powerMaxSvc.GetPowerMaxClients() {
 		for _, array := range powerMaxArrays {
-			err := common.Authenticate(ctx, array.Client, array)
+			err := k8spmax.Authenticate(ctx, array.Client, array)
 			if err != nil {
 				array.IsActive = false
 				powerMaxSvc.GetLogger().WithError(err).Errorf("authentication failed to PowerMax array %s, %s", arrayID, array.Endpoint)
