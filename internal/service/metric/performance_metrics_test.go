@@ -27,8 +27,8 @@ import (
 	"github.com/dell/csm-metrics-powermax/internal/k8s"
 	"github.com/dell/csm-metrics-powermax/internal/service"
 	"github.com/dell/csm-metrics-powermax/internal/service/metric"
-	"github.com/dell/csm-metrics-powermax/internal/service/types"
-	"github.com/dell/csm-metrics-powermax/internal/service/types/mocks"
+	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes"
+	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes/mocks"
 	v100 "github.com/dell/gopowermax/v2/types/v100"
 	"github.com/golang/mock/gomock"
 	"github.com/sirupsen/logrus"
@@ -100,8 +100,8 @@ func TestPerformanceMetrics_Collect(t *testing.T) {
 			c.EXPECT().GetStorageGroupMetrics(gomock.Any(), gomock.Any(), gomock.Any(),
 				gomock.Any(), gomock.Any(), gomock.Any()).Return(&storageGroupPerfMetricsResult, nil).Times(1)
 
-			clients := make(map[string][]types.PowerMaxArray)
-			array := types.PowerMaxArray{
+			clients := make(map[string][]metrictypes.PowerMaxArray)
+			array := metrictypes.PowerMaxArray{
 				Client:   c,
 				IsActive: true,
 			}
@@ -126,7 +126,7 @@ func TestPerformanceMetrics_Collect(t *testing.T) {
 			err := errors.New("find no PVs, will do nothing")
 			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(nil, err).Times(1)
 
-			clients := make(map[string][]types.PowerMaxArray)
+			clients := make(map[string][]metrictypes.PowerMaxArray)
 
 			performanceMetric := metric.PerformanceMetrics{
 				BaseMetrics: &metric.BaseMetrics{
@@ -148,7 +148,7 @@ func TestPerformanceMetrics_Collect(t *testing.T) {
 			metrics.EXPECT().RecordVolPerfMetrics(gomock.Any(), gomock.Any()).Times(1)
 			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(nil, nil).Times(1)
 
-			clients := make(map[string][]types.PowerMaxArray)
+			clients := make(map[string][]metrictypes.PowerMaxArray)
 			performanceMetric := metric.PerformanceMetrics{
 				BaseMetrics: &metric.BaseMetrics{
 					VolumeFinder:           volFinder,
@@ -190,8 +190,8 @@ func TestPerformanceMetrics_Collect(t *testing.T) {
 			c.EXPECT().GetArrayPerfKeys(gomock.Any()).Return(nil, err).Times(1)
 			c.EXPECT().GetStorageGroupPerfKeys(gomock.Any(), gomock.Any()).Return(nil, err).Times(1)
 
-			clients := make(map[string][]types.PowerMaxArray)
-			array := types.PowerMaxArray{
+			clients := make(map[string][]metrictypes.PowerMaxArray)
+			array := metrictypes.PowerMaxArray{
 				Client:   c,
 				IsActive: true,
 			}
@@ -225,8 +225,8 @@ func TestPerformanceMetrics_Collect(t *testing.T) {
 			c.EXPECT().GetStorageGroupMetrics(gomock.Any(), gomock.Any(), gomock.Any(),
 				gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, err).Times(1)
 
-			clients := make(map[string][]types.PowerMaxArray)
-			array := types.PowerMaxArray{
+			clients := make(map[string][]metrictypes.PowerMaxArray)
+			array := metrictypes.PowerMaxArray{
 				Client:   c,
 				IsActive: true,
 			}
@@ -262,8 +262,8 @@ func TestPerformanceMetrics_Collect(t *testing.T) {
 			c.EXPECT().GetStorageGroupMetrics(gomock.Any(), gomock.Any(), gomock.Any(),
 				gomock.Any(), gomock.Any(), gomock.Any()).Return(&storageGroupPerfMetricsResult, nil).Times(1)
 
-			clients := make(map[string][]types.PowerMaxArray)
-			array := types.PowerMaxArray{
+			clients := make(map[string][]metrictypes.PowerMaxArray)
+			array := metrictypes.PowerMaxArray{
 				Client:   c,
 				IsActive: true,
 			}

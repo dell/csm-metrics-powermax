@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2022-2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+ Copyright (c) 2022-2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  limitations under the License.
 */
 
-package common
+package k8spmax
 
 import (
 	"context"
@@ -27,7 +27,7 @@ import (
 
 	"github.com/dell/csi-powermax/csireverseproxy/v2/pkg/config"
 	"github.com/dell/csi-powermax/csireverseproxy/v2/pkg/k8sutils"
-	"github.com/dell/csm-metrics-powermax/internal/service/types"
+	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes"
 	pmax "github.com/dell/gopowermax/v2"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -52,15 +52,15 @@ func GetK8sUtils() *k8sutils.K8sUtils {
 	return k8sUtils
 }
 
-func getPowerMaxArrays(proxyConfig *config.ProxyConfig) map[string][]types.PowerMaxArray {
-	arrayMap := make(map[string][]types.PowerMaxArray)
+func getPowerMaxArrays(proxyConfig *config.ProxyConfig) map[string][]metrictypes.PowerMaxArray {
+	arrayMap := make(map[string][]metrictypes.PowerMaxArray)
 	for _, storageArray := range proxyConfig.GetStorageArray("") {
-		var arrayList []types.PowerMaxArray
+		var arrayList []metrictypes.PowerMaxArray
 		if _, ok := arrayMap[storageArray.StorageArrayIdentifier]; ok {
 			arrayList = arrayMap[storageArray.StorageArrayIdentifier]
 		}
 
-		var primaryArray types.PowerMaxArray
+		var primaryArray metrictypes.PowerMaxArray
 		primaryArray.StorageArrayID = storageArray.StorageArrayIdentifier
 		primaryArray.IsPrimary = true
 		primaryArray.Endpoint = storageArray.PrimaryEndpoint.String()
@@ -77,7 +77,7 @@ func getPowerMaxArrays(proxyConfig *config.ProxyConfig) map[string][]types.Power
 		arrayList = append(arrayList, primaryArray)
 
 		if storageArray.SecondaryEndpoint.Host != "" {
-			var backupArray types.PowerMaxArray
+			var backupArray metrictypes.PowerMaxArray
 			backupArray.StorageArrayID = storageArray.StorageArrayIdentifier
 			backupArray.IsPrimary = false
 			backupArray.Endpoint = storageArray.SecondaryEndpoint.String()
@@ -97,15 +97,15 @@ func getPowerMaxArrays(proxyConfig *config.ProxyConfig) map[string][]types.Power
 	return arrayMap
 }
 
-func getPowerMaxArraysFromSecret(proxyConfig *config.ProxyConfig) map[string][]types.PowerMaxArray {
-	arrayMap := make(map[string][]types.PowerMaxArray)
+func getPowerMaxArraysFromSecret(proxyConfig *config.ProxyConfig) map[string][]metrictypes.PowerMaxArray {
+	arrayMap := make(map[string][]metrictypes.PowerMaxArray)
 	for _, storageArray := range proxyConfig.GetStorageArray("") {
-		var arrayList []types.PowerMaxArray
+		var arrayList []metrictypes.PowerMaxArray
 		if _, ok := arrayMap[storageArray.StorageArrayIdentifier]; ok {
 			arrayList = arrayMap[storageArray.StorageArrayIdentifier]
 		}
 
-		var primaryArray types.PowerMaxArray
+		var primaryArray metrictypes.PowerMaxArray
 		primaryArray.StorageArrayID = storageArray.StorageArrayIdentifier
 		primaryArray.IsPrimary = true
 		primaryArray.Endpoint = storageArray.PrimaryEndpoint.String()
@@ -122,7 +122,7 @@ func getPowerMaxArraysFromSecret(proxyConfig *config.ProxyConfig) map[string][]t
 		arrayList = append(arrayList, primaryArray)
 
 		if storageArray.SecondaryEndpoint.Host != "" {
-			var backupArray types.PowerMaxArray
+			var backupArray metrictypes.PowerMaxArray
 			backupArray.StorageArrayID = storageArray.StorageArrayIdentifier
 			backupArray.IsPrimary = false
 			backupArray.Endpoint = storageArray.SecondaryEndpoint.String()
@@ -175,7 +175,7 @@ func InitK8sUtils(logger *logrus.Logger, callback func(k8sutils.UtilsInterface, 
 
 // GetPowerMaxArrays parses reverseproxy config file, initializes valid pmax and composes map of arrays for ease of access.
 // Note that if you want to monitor secret change, InitK8sUtils should be invoked first.
-func GetPowerMaxArrays(ctx context.Context, k8sUtils k8sutils.UtilsInterface, filePath string, logger *logrus.Logger) (map[string][]types.PowerMaxArray, error) {
+func GetPowerMaxArrays(ctx context.Context, k8sUtils k8sutils.UtilsInterface, filePath string, logger *logrus.Logger) (map[string][]metrictypes.PowerMaxArray, error) {
 	if k8sUtils == nil {
 		err := errors.New("k8sUtils is nil")
 		logger.WithError(err).Errorf("k8sUtils is not initialized")
@@ -184,7 +184,7 @@ func GetPowerMaxArrays(ctx context.Context, k8sUtils k8sutils.UtilsInterface, fi
 
 	var (
 		proxyConfig    *config.ProxyConfig
-		powermaxArrays map[string][]types.PowerMaxArray
+		powermaxArrays map[string][]metrictypes.PowerMaxArray
 	)
 	if os.Getenv("X_CSI_REVPROXY_USE_SECRET") == "true" {
 		logger.Infof("Reading the config from Secret")
@@ -216,7 +216,7 @@ func GetPowerMaxArrays(ctx context.Context, k8sUtils k8sutils.UtilsInterface, fi
 		powermaxArrays = getPowerMaxArrays(proxyConfig)
 	}
 
-	arrayMap := make(map[string][]types.PowerMaxArray)
+	arrayMap := make(map[string][]metrictypes.PowerMaxArray)
 	for arrayID, arrayList := range powermaxArrays {
 		for _, array := range arrayList {
 			logger.Infof("validating PowerMax connection for %s, %s", arrayID, array.Endpoint)
@@ -248,7 +248,7 @@ func GetPowerMaxArrays(ctx context.Context, k8sUtils k8sutils.UtilsInterface, fi
 }
 
 // Authenticate PowerMax array if credential is correct or connection is valid
-func Authenticate(ctx context.Context, client types.PowerMaxClient, array types.PowerMaxArray) error {
+func Authenticate(ctx context.Context, client metrictypes.PowerMaxClient, array metrictypes.PowerMaxArray) error {
 	return client.Authenticate(ctx, &pmax.ConfigConnect{
 		Endpoint: array.Endpoint,
 		Username: array.Username,

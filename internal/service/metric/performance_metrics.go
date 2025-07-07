@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/dell/csm-metrics-powermax/internal/k8s"
-	"github.com/dell/csm-metrics-powermax/internal/service/types"
+	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes"
 )
 
 // PerformanceMetrics performance metrics
@@ -35,7 +35,7 @@ type PerformanceMetrics struct {
 var performanceMetricsInstance *PerformanceMetrics
 
 // CreatePerformanceMetricsInstance return a singleton instance of PerformanceMetrics.
-func CreatePerformanceMetricsInstance(service types.Service) *PerformanceMetrics {
+func CreatePerformanceMetricsInstance(service metrictypes.Service) *PerformanceMetrics {
 	if performanceMetricsInstance == nil {
 		lock.Lock()
 		defer lock.Unlock()
@@ -108,11 +108,11 @@ func (m *PerformanceMetrics) Collect(ctx context.Context) error {
 	return nil
 }
 
-func (m *PerformanceMetrics) gatherVolumePerformanceMetrics(ctx context.Context, array2Sgs map[string]map[string]struct{}, id2Volume map[string]*k8s.VolumeInfo) <-chan *types.VolumePerfMetricsRecord {
+func (m *PerformanceMetrics) gatherVolumePerformanceMetrics(ctx context.Context, array2Sgs map[string]map[string]struct{}, id2Volume map[string]*k8s.VolumeInfo) <-chan *metrictypes.VolumePerfMetricsRecord {
 	start := time.Now()
 	defer m.TimeSince(start, "gatherVolumePerformanceMetrics")
 
-	ch := make(chan *types.VolumePerfMetricsRecord)
+	ch := make(chan *metrictypes.VolumePerfMetricsRecord)
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, m.MaxPowerMaxConnections)
 
@@ -180,7 +180,7 @@ func (m *PerformanceMetrics) gatherVolumePerformanceMetrics(ctx context.Context,
 							m.Logger.WithError(err).WithField("volumeID", volumeResult.VolumeID).Warn("volume result contains nothing")
 							continue
 						}
-						metric := &types.VolumePerfMetricsRecord{
+						metric := &metrictypes.VolumePerfMetricsRecord{
 							ArrayID:                   arrayID,
 							VolumeID:                  volumeResult.VolumeID,
 							StorageGroupID:            volume.StorageGroup,
@@ -205,7 +205,7 @@ func (m *PerformanceMetrics) gatherVolumePerformanceMetrics(ctx context.Context,
 		if !exported {
 			// If no volume metrics were exported, we need to export an "empty" metric to update the OT Collector
 			// so that stale entries are removed
-			ch <- &types.VolumePerfMetricsRecord{
+			ch <- &metrictypes.VolumePerfMetricsRecord{
 				ArrayID:                   "",
 				VolumeID:                  "",
 				StorageGroupID:            "",
@@ -229,7 +229,7 @@ func (m *PerformanceMetrics) gatherVolumePerformanceMetrics(ctx context.Context,
 	return ch
 }
 
-func (m *PerformanceMetrics) pushVolumePerformanceMetrics(_ context.Context, volumePerfMetrics <-chan *types.VolumePerfMetricsRecord) <-chan string {
+func (m *PerformanceMetrics) pushVolumePerformanceMetrics(_ context.Context, volumePerfMetrics <-chan *metrictypes.VolumePerfMetricsRecord) <-chan string {
 	start := time.Now()
 	defer m.TimeSince(start, "pushVolumePerformanceMetrics")
 	var wg sync.WaitGroup
@@ -239,7 +239,7 @@ func (m *PerformanceMetrics) pushVolumePerformanceMetrics(_ context.Context, vol
 		// for volume metrics
 		for metric := range volumePerfMetrics {
 			wg.Add(1)
-			go func(metric types.VolumePerfMetricsRecord) {
+			go func(metric metrictypes.VolumePerfMetricsRecord) {
 				defer wg.Done()
 
 				err := m.MetricsRecorder.RecordVolPerfMetrics("powermax_volume", metric)
@@ -259,11 +259,11 @@ func (m *PerformanceMetrics) pushVolumePerformanceMetrics(_ context.Context, vol
 	return ch
 }
 
-func (m *PerformanceMetrics) gatherStorageGroupPerformanceMetrics(ctx context.Context, array2Sgs map[string]map[string]struct{}) <-chan *types.StorageGroupPerfMetricsRecord {
+func (m *PerformanceMetrics) gatherStorageGroupPerformanceMetrics(ctx context.Context, array2Sgs map[string]map[string]struct{}) <-chan *metrictypes.StorageGroupPerfMetricsRecord {
 	start := time.Now()
 	defer m.TimeSince(start, "gatherStorageGroupPerformanceMetrics")
 
-	ch := make(chan *types.StorageGroupPerfMetricsRecord)
+	ch := make(chan *metrictypes.StorageGroupPerfMetricsRecord)
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, m.MaxPowerMaxConnections)
 
@@ -321,7 +321,7 @@ func (m *PerformanceMetrics) gatherStorageGroupPerformanceMetrics(ctx context.Co
 						continue
 					}
 					for _, sgResult := range sgMetrics.ResultList.Result {
-						metric := &types.StorageGroupPerfMetricsRecord{
+						metric := &metrictypes.StorageGroupPerfMetricsRecord{
 							ArrayID:           arrayID,
 							StorageGroupID:    storageGroupID,
 							HostMBReads:       sgResult.HostMBReads,
@@ -340,7 +340,7 @@ func (m *PerformanceMetrics) gatherStorageGroupPerformanceMetrics(ctx context.Co
 		if !exported {
 			// If no storage group metrics were exported, we need to export an "empty" metric to update the OT Collector
 			// so that stale entries are removed
-			ch <- &types.StorageGroupPerfMetricsRecord{
+			ch <- &metrictypes.StorageGroupPerfMetricsRecord{
 				ArrayID:           "",
 				StorageGroupID:    "",
 				HostMBReads:       0,
@@ -359,7 +359,7 @@ func (m *PerformanceMetrics) gatherStorageGroupPerformanceMetrics(ctx context.Co
 	return ch
 }
 
-func (m *PerformanceMetrics) pushStorageGroupPerformanceMetrics(_ context.Context, storageGroupPerfMetrics <-chan *types.StorageGroupPerfMetricsRecord) <-chan string {
+func (m *PerformanceMetrics) pushStorageGroupPerformanceMetrics(_ context.Context, storageGroupPerfMetrics <-chan *metrictypes.StorageGroupPerfMetricsRecord) <-chan string {
 	start := time.Now()
 	defer m.TimeSince(start, "pushStorageGroupPerformanceMetrics")
 	var wg sync.WaitGroup
@@ -369,7 +369,7 @@ func (m *PerformanceMetrics) pushStorageGroupPerformanceMetrics(_ context.Contex
 		// for storage group metrics
 		for metric := range storageGroupPerfMetrics {
 			wg.Add(1)
-			go func(metric types.StorageGroupPerfMetricsRecord) {
+			go func(metric metrictypes.StorageGroupPerfMetricsRecord) {
 				defer wg.Done()
 
 				err := m.MetricsRecorder.RecordStorageGroupPerfMetrics("powermax_storage_group", metric)

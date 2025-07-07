@@ -23,9 +23,9 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/dell/csm-metrics-powermax/internal/common"
+	"github.com/dell/csm-metrics-powermax/internal/k8spmax"
 
-	"github.com/dell/csm-metrics-powermax/internal/service/types"
+	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes"
 
 	otlexporters "github.com/dell/csm-metrics-powermax/opentelemetry/exporters"
 
@@ -52,7 +52,7 @@ var ConfigValidatorFunc = ValidateConfig
 
 // Config holds data that will be used by the service
 type Config struct {
-	LeaderElector             types.LeaderElector
+	LeaderElector             metrictypes.LeaderElector
 	CapacityTickInterval      time.Duration
 	PerformanceTickInterval   time.Duration
 	LivenessProbeTickInterval time.Duration
@@ -64,7 +64,7 @@ type Config struct {
 }
 
 // Run is the entry point for starting the service
-func Run(ctx context.Context, config *Config, exporter otlexporters.Otlexporter, powerMaxSvc types.Service) error {
+func Run(ctx context.Context, config *Config, exporter otlexporters.Otlexporter, powerMaxSvc metrictypes.Service) error {
 	err := ConfigValidatorFunc(config)
 	if err != nil {
 		return err
@@ -168,10 +168,10 @@ func Run(ctx context.Context, config *Config, exporter otlexporters.Otlexporter,
 	}
 }
 
-func validatePowerMaxArrays(ctx context.Context, powerMaxSvc types.Service) {
+func validatePowerMaxArrays(ctx context.Context, powerMaxSvc metrictypes.Service) {
 	for arrayID, powerMaxArrays := range powerMaxSvc.GetPowerMaxClients() {
 		for _, array := range powerMaxArrays {
-			err := common.Authenticate(ctx, array.Client, array)
+			err := k8spmax.Authenticate(ctx, array.Client, array)
 			if err != nil {
 				array.IsActive = false
 				powerMaxSvc.GetLogger().WithError(err).Errorf("authentication failed to PowerMax array %s, %s", arrayID, array.Endpoint)
