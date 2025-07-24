@@ -52,15 +52,17 @@ var ConfigValidatorFunc = ValidateConfig
 
 // Config holds data that will be used by the service
 type Config struct {
-	LeaderElector             metrictypes.LeaderElector
-	CapacityTickInterval      time.Duration
-	PerformanceTickInterval   time.Duration
-	LivenessProbeTickInterval time.Duration
-	CapacityMetricsEnabled    bool
-	PerformanceMetricsEnabled bool
-	CollectorAddress          string
-	CollectorCertPath         string
-	Logger                    *logrus.Logger
+	LeaderElector               metrictypes.LeaderElector
+	CapacityTickInterval        time.Duration
+	PerformanceTickInterval     time.Duration
+	TopologyMetricsTickInterval time.Duration
+	LivenessProbeTickInterval   time.Duration
+	CapacityMetricsEnabled      bool
+	PerformanceMetricsEnabled   bool
+	TopologyMetricsEnabled      bool
+	CollectorAddress            string
+	CollectorCertPath           string
+	Logger                      *logrus.Logger
 }
 
 // Run is the entry point for starting the service
@@ -113,6 +115,8 @@ func Run(ctx context.Context, config *Config, exporter otlexporters.Otlexporter,
 	capacityTicker := time.NewTicker(capacityTickInterval)
 	performanceTickInterval := config.PerformanceTickInterval
 	performanceTicker := time.NewTicker(performanceTickInterval)
+	topologyMetricsTickInterval := config.TopologyMetricsTickInterval
+	topologyMetricsTicker := time.NewTicker(topologyMetricsTickInterval)
 
 	livenessProbeTickInterval := config.LivenessProbeTickInterval
 	if livenessProbeTickInterval == 0 {
@@ -142,6 +146,16 @@ func Run(ctx context.Context, config *Config, exporter otlexporters.Otlexporter,
 				continue
 			}
 			powerMaxSvc.ExportPerformanceMetrics(ctx)
+		case <-topologyMetricsTicker.C:
+			if !config.LeaderElector.IsLeader() {
+				logger.Info("not leader pod to collect metrics")
+				continue
+			}
+			if !config.TopologyMetricsEnabled {
+				logger.Info("powermax topology metrics collection is disabled")
+				continue
+			}
+			powerMaxSvc.ExportTopologyMetrics(ctx)
 		case <-livenessProbeTick.C:
 			logger.Info("validate powermax connection")
 			validatePowerMaxArrays(ctx, powerMaxSvc)
@@ -164,6 +178,12 @@ func Run(ctx context.Context, config *Config, exporter otlexporters.Otlexporter,
 		if performanceTickInterval != config.PerformanceTickInterval {
 			performanceTickInterval = config.PerformanceTickInterval
 			performanceTicker = time.NewTicker(performanceTickInterval)
+		}
+
+		// check if tick interval config settings have changed for topology metrics
+		if topologyMetricsTickInterval != config.TopologyMetricsTickInterval {
+			topologyMetricsTickInterval = config.TopologyMetricsTickInterval
+			topologyMetricsTicker = time.NewTicker(topologyMetricsTickInterval)
 		}
 	}
 }
@@ -195,6 +215,10 @@ func ValidateConfig(config *Config) error {
 
 	if config.PerformanceTickInterval > MaximumTickInterval || config.PerformanceTickInterval < MinimumTickInterval {
 		return fmt.Errorf("performance metrics polling frequency not within allowed range of %v and %v", MinimumTickInterval.String(), MaximumTickInterval.String())
+	}
+
+	if config.TopologyMetricsTickInterval > MaximumTickInterval || config.TopologyMetricsTickInterval < MinimumTickInterval {
+		return fmt.Errorf("topology metrics polling frequency not within allowed range of %v and %v", MinimumTickInterval.String(), MaximumTickInterval.String())
 	}
 
 	return nil
