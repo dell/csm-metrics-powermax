@@ -73,3 +73,8 @@ func (s *PowerMaxService) ExportCapacityMetrics(ctx context.Context) {
 func (s *PowerMaxService) ExportPerformanceMetrics(ctx context.Context) {
 	metric.CreatePerformanceMetricsInstance(s).ExportMetrics(ctx)
 }
+
+// ExportTopologyMetrics collect topology metrics and export to Otel
+func (s *PowerMaxService) ExportTopologyMetrics(ctx context.Context) {
+	metric.CreateTopologyMetricsInstance(s).ExportMetrics(ctx)
+}

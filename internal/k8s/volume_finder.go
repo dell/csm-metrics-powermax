@@ -40,20 +40,22 @@ type VolumeFinder struct {
 
 // VolumeInfo contains information about mapping a Persistent Volume to the volume created on a storage system
 type VolumeInfo struct {
-	Namespace              string `json:"namespace"`
-	PersistentVolumeClaim  string `json:"persistent_volume_claim"`
-	PersistentVolumeStatus string `json:"volume_status"`
-	VolumeClaimName        string `json:"volume_claim_name"`
-	PersistentVolume       string `json:"persistent_volume"`
-	StorageClass           string `json:"storage_class"`
-	Driver                 string `json:"driver"`
-	ProvisionedSize        string `json:"provisioned_size"`
-	CreatedTime            string `json:"created_time"`
-	VolumeHandle           string `json:"volume_handle"`
-	SRP                    string `json:"srp"`
-	ServiceLevel           string `json:"service_level"`
-	StorageGroup           string `json:"storage_group"`
-	SymID                  string `json:"symid"`
+	Namespace               string `json:"namespace"`
+	PersistentVolumeClaim   string `json:"persistent_volume_claim"`
+	PersistentVolumeStatus  string `json:"volume_status"`
+	VolumeClaimName         string `json:"volume_claim_name"`
+	PersistentVolume        string `json:"persistent_volume"`
+	StorageClass            string `json:"storage_class"`
+	Driver                  string `json:"driver"`
+	ProvisionedSize         string `json:"provisioned_size"`
+	CreatedTime             string `json:"created_time"`
+	VolumeHandle            string `json:"volume_handle"`
+	SRP                     string `json:"srp"`
+	ServiceLevel            string `json:"service_level"`
+	StorageGroup            string `json:"storage_group"`
+	SymID                   string `json:"symid"`
+	StorageSystemVolumeName string `json:"storage_system_volume_name"`
+	Protocol                string `json:"protocol"`
 }
 
 // GetPersistentVolumes will return a list of persistent volume information
@@ -82,26 +84,28 @@ func (f VolumeFinder) GetPersistentVolumes(_ context.Context) ([]VolumeInfo, err
 			claim := volume.Spec.ClaimRef
 			status := volume.Status
 
-			srp, _ := volume.Spec.CSI.VolumeAttributes["SRP"]
-			serviceLevel, _ := volume.Spec.CSI.VolumeAttributes["ServiceLevel"]
-			storageGroup, _ := volume.Spec.CSI.VolumeAttributes["StorageGroup"]
-			symID, _ := volume.Spec.CSI.VolumeAttributes["powermax/SYMID"]
+			srp := volume.Spec.CSI.VolumeAttributes["SRP"]
+			serviceLevel := volume.Spec.CSI.VolumeAttributes["ServiceLevel"]
+			storageGroup := volume.Spec.CSI.VolumeAttributes["StorageGroup"]
+			symID := volume.Spec.CSI.VolumeAttributes["powermax/SYMID"]
 
 			info := VolumeInfo{
-				Namespace:              claim.Namespace,
-				PersistentVolumeClaim:  string(claim.UID),
-				VolumeClaimName:        claim.Name,
-				PersistentVolumeStatus: string(status.Phase),
-				PersistentVolume:       volume.Name,
-				StorageClass:           volume.Spec.StorageClassName,
-				Driver:                 volume.Spec.CSI.Driver,
-				ProvisionedSize:        capacity.String(),
-				CreatedTime:            volume.CreationTimestamp.String(),
-				VolumeHandle:           volume.Spec.CSI.VolumeHandle,
-				SRP:                    srp,
-				ServiceLevel:           serviceLevel,
-				StorageGroup:           storageGroup,
-				SymID:                  symID,
+				Namespace:               claim.Namespace,
+				PersistentVolumeClaim:   string(claim.UID),
+				VolumeClaimName:         claim.Name,
+				PersistentVolumeStatus:  string(status.Phase),
+				PersistentVolume:        volume.Name,
+				StorageClass:            volume.Spec.StorageClassName,
+				Driver:                  volume.Spec.CSI.Driver,
+				ProvisionedSize:         capacity.String(),
+				CreatedTime:             volume.CreationTimestamp.String(),
+				VolumeHandle:            volume.Spec.CSI.VolumeHandle,
+				SRP:                     srp,
+				ServiceLevel:            serviceLevel,
+				StorageGroup:            storageGroup,
+				SymID:                   symID,
+				StorageSystemVolumeName: volume.Name,
+				Protocol:                volume.Spec.CSI.VolumeAttributes["Protocol"],
 			}
 			volumeInfo = append(volumeInfo, info)
 		}
