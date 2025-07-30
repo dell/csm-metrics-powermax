@@ -3,7 +3,6 @@ package metric
 import (
 	"context"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -98,11 +97,11 @@ func (s *TopologyMetrics) gatherTopologyMetrics(volumes <-chan k8s.VolumeInfo) <
 
 				// volumeName=_=_=exportID=_=_=accessZone=_=_=clusterName
 				// VolumeHandle is of the format "volumeHandle: k8s-2217be0fe2=_=_=5=_=_=System=_=_=PIE-Isilon-X"
-				volumeProperties := strings.Split(volume.VolumeHandle, "=_=_=")
-				if len(volumeProperties) != ExpectedVolumeHandleProperties {
-					s.Logger.WithField("volume_handle", volume.VolumeHandle).Warn("unable to get VolumeID and ClusterID from volume handle")
-					return
-				}
+				/* 				volumeProperties := strings.Split(volume.VolumeHandle, "=_=_=")
+				   				if len(volumeProperties) != ExpectedVolumeHandleProperties {
+				   					s.Logger.WithField("volume_handle", volume.VolumeHandle).Warn("unable to get VolumeID and ClusterID from volume handle")
+				   					return
+				   				} */
 
 				topologyMeta := &metrictypes.TopologyMeta{
 					Namespace:               volume.Namespace,
