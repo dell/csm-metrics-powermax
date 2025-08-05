@@ -21,7 +21,7 @@ import (
 	"sync"
 
 	"github.com/dell/csm-metrics-powermax/utilsconverter"
-	otelmetric "go.opentelemetry.io/otel/metric"
+	otelMetric "go.opentelemetry.io/otel/metric"
 
 	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes"
 	"go.opentelemetry.io/otel/attribute"
@@ -29,8 +29,20 @@ import (
 
 // MetricsRecorderWrapper contains data used for pushing metrics data
 type MetricsRecorderWrapper struct {
-	Meter        otelmetric.Meter
-	QuotaMetrics sync.Map
+	Meter           otelMetric.Meter
+	Labels          sync.Map
+	QuotaMetrics    sync.Map
+	TopologyMetrics sync.Map
+}
+
+type (
+	loadMetricsFunc func(metaID string) (value any, ok bool)
+	initMetricsFunc func(prefix, metaID string, labels []attribute.KeyValue) any
+)
+
+// TopologyMetricsData contains topology metrics when PV is available on cluster
+type TopologyMetricsData struct {
+	PvAvailable otelMetric.Float64ObservableUpDownCounter
 }
 
 const (
@@ -65,10 +77,10 @@ func (mrw *MetricsRecorderWrapper) RecordNumericMetrics(prefix string, labels []
 
 	done := make(chan struct{})
 
-	reg, err := mrw.Meter.RegisterCallback(func(_ context.Context, observer otelmetric.Observer) error {
-		observer.ObserveFloat64(totalCapacity, metric.Total, otelmetric.WithAttributes(labels...))
-		observer.ObserveFloat64(usedCapacity, metric.Used, otelmetric.WithAttributes(labels...))
-		observer.ObserveFloat64(usedCapacityPercentage, metric.Used*100/metric.Total, otelmetric.WithAttributes(labels...))
+	reg, err := mrw.Meter.RegisterCallback(func(_ context.Context, observer otelMetric.Observer) error {
+		observer.ObserveFloat64(totalCapacity, metric.Total, otelMetric.WithAttributes(labels...))
+		observer.ObserveFloat64(usedCapacity, metric.Used, otelMetric.WithAttributes(labels...))
+		observer.ObserveFloat64(usedCapacityPercentage, metric.Used*100/metric.Total, otelMetric.WithAttributes(labels...))
 		go func() {
 			done <- struct{}{}
 		}()
@@ -129,13 +141,13 @@ func (mrw *MetricsRecorderWrapper) RecordVolPerfMetrics(prefix string, metric me
 	}
 
 	done := make(chan struct{})
-	reg, err := mrw.Meter.RegisterCallback(func(_ context.Context, observer otelmetric.Observer) error {
-		observer.ObserveFloat64(readBWMegabytes, metric.MBRead, otelmetric.WithAttributes(labels...))
-		observer.ObserveFloat64(writeBWMegabytes, metric.MBWritten, otelmetric.WithAttributes(labels...))
-		observer.ObserveFloat64(readLatency, metric.ReadResponseTime, otelmetric.WithAttributes(labels...))
-		observer.ObserveFloat64(writeLatency, metric.WriteResponseTime, otelmetric.WithAttributes(labels...))
-		observer.ObserveFloat64(readIOPS, metric.Reads, otelmetric.WithAttributes(labels...))
-		observer.ObserveFloat64(writeIOPS, metric.Writes, otelmetric.WithAttributes(labels...))
+	reg, err := mrw.Meter.RegisterCallback(func(_ context.Context, observer otelMetric.Observer) error {
+		observer.ObserveFloat64(readBWMegabytes, metric.MBRead, otelMetric.WithAttributes(labels...))
+		observer.ObserveFloat64(writeBWMegabytes, metric.MBWritten, otelMetric.WithAttributes(labels...))
+		observer.ObserveFloat64(readLatency, metric.ReadResponseTime, otelMetric.WithAttributes(labels...))
+		observer.ObserveFloat64(writeLatency, metric.WriteResponseTime, otelMetric.WithAttributes(labels...))
+		observer.ObserveFloat64(readIOPS, metric.Reads, otelMetric.WithAttributes(labels...))
+		observer.ObserveFloat64(writeIOPS, metric.Writes, otelMetric.WithAttributes(labels...))
 		go func() {
 			done <- struct{}{}
 		}()
@@ -199,14 +211,14 @@ func (mrw *MetricsRecorderWrapper) RecordStorageGroupPerfMetrics(prefix string, 
 	}
 
 	done := make(chan struct{})
-	reg, err := mrw.Meter.RegisterCallback(func(_ context.Context, observer otelmetric.Observer) error {
-		observer.ObserveFloat64(readBWMegabytes, metric.HostMBReads, otelmetric.WithAttributes(labels...))
-		observer.ObserveFloat64(writeBWMegabytes, metric.HostMBWritten, otelmetric.WithAttributes(labels...))
-		observer.ObserveFloat64(readLatency, metric.ReadResponseTime, otelmetric.WithAttributes(labels...))
-		observer.ObserveFloat64(writeLatency, metric.WriteResponseTime, otelmetric.WithAttributes(labels...))
-		observer.ObserveFloat64(readIOPS, metric.HostReads, otelmetric.WithAttributes(labels...))
-		observer.ObserveFloat64(writeIOPS, metric.HostWrites, otelmetric.WithAttributes(labels...))
-		observer.ObserveFloat64(averageIOSize, utilsconverter.UnitsConvert(metric.AvgIOSize, utilsconverter.KB, utilsconverter.MB), otelmetric.WithAttributes(labels...))
+	reg, err := mrw.Meter.RegisterCallback(func(_ context.Context, observer otelMetric.Observer) error {
+		observer.ObserveFloat64(readBWMegabytes, metric.HostMBReads, otelMetric.WithAttributes(labels...))
+		observer.ObserveFloat64(writeBWMegabytes, metric.HostMBWritten, otelMetric.WithAttributes(labels...))
+		observer.ObserveFloat64(readLatency, metric.ReadResponseTime, otelMetric.WithAttributes(labels...))
+		observer.ObserveFloat64(writeLatency, metric.WriteResponseTime, otelMetric.WithAttributes(labels...))
+		observer.ObserveFloat64(readIOPS, metric.HostReads, otelMetric.WithAttributes(labels...))
+		observer.ObserveFloat64(writeIOPS, metric.HostWrites, otelMetric.WithAttributes(labels...))
+		observer.ObserveFloat64(averageIOSize, utilsconverter.UnitsConvert(metric.AvgIOSize, utilsconverter.KB, utilsconverter.MB), otelMetric.WithAttributes(labels...))
 		go func() {
 			done <- struct{}{}
 		}()
@@ -225,4 +237,115 @@ func (mrw *MetricsRecorderWrapper) RecordStorageGroupPerfMetrics(prefix string, 
 	<-done
 	_ = reg.Unregister()
 	return nil
+}
+
+// RecordTopologyMetrics will publish topology data to Otel
+func (mrw *MetricsRecorderWrapper) RecordTopologyMetrics(_ context.Context, meta interface{}, metric *metrictypes.TopologyMetricsRecord) error {
+	var metaID string
+	var labels []attribute.KeyValue
+
+	switch v := meta.(type) {
+	case *metrictypes.TopologyMeta:
+		metaID = v.PersistentVolume
+		labels = []attribute.KeyValue{
+			attribute.String("PersistentVolumeClaim", v.PersistentVolumeClaim),
+			attribute.String("Driver", v.Driver),
+			attribute.String("PersistentVolume", v.PersistentVolume),
+			attribute.String("PersistentVolumeStatus", v.PersistentVolumeStatus),
+			attribute.String("StorageClass", v.StorageClass),
+			attribute.String("PlotWithMean", "No"),
+			attribute.String("StorageClass", v.StorageClass),
+			attribute.String("Namespace", v.Namespace),
+			attribute.String("ProvisionedSize", v.ProvisionedSize),
+			attribute.String("StorageSystemVolumeName", v.StorageSystemVolumeName),
+			attribute.String("StorageSystem", v.StorageSystem),
+			attribute.String("Protocol", v.Protocol),
+			attribute.String("CreatedTime", v.CreatedTime),
+		}
+	}
+
+	loadMetricsFunc := func(metaID string) (any, bool) {
+		return mrw.TopologyMetrics.Load(metaID)
+	}
+
+	initMetricsFunc := func(_, metaID string, labels []attribute.KeyValue) any {
+		return mrw.initTopologyMetrics(metaID, labels)
+	}
+
+	metricsMapValue := updateLabels("", metaID, labels, mrw, loadMetricsFunc, initMetricsFunc)
+
+	metrics := metricsMapValue.(*TopologyMetricsData)
+
+	done := make(chan struct{})
+	reg, err := mrw.Meter.RegisterCallback(func(_ context.Context, obs otelMetric.Observer) error {
+		obs.ObserveFloat64(metrics.PvAvailable, float64(metric.PVAvailable), otelMetric.WithAttributes(labels...))
+		go func() {
+			done <- struct{}{}
+		}()
+		return nil
+	},
+		metrics.PvAvailable)
+	if err != nil {
+		return err
+	}
+
+	<-done
+
+	_ = reg.Unregister()
+
+	return nil
+}
+
+func (mrw *MetricsRecorderWrapper) initTopologyMetrics(metaID string, labels []attribute.KeyValue) *TopologyMetricsData {
+	pvAvailable, _ := mrw.Meter.Float64ObservableUpDownCounter("karavi_topology_metrics")
+
+	metrics := &TopologyMetricsData{
+		PvAvailable: pvAvailable,
+	}
+
+	mrw.TopologyMetrics.Store(metaID, metrics)
+	mrw.Labels.Store(metaID, labels)
+
+	return metrics
+}
+
+func updateLabels(prefix, metaID string, labels []attribute.KeyValue, mrw *MetricsRecorderWrapper, loadMetrics loadMetricsFunc, initMetrics initMetricsFunc) any {
+	metricsMapValue, ok := loadMetrics(metaID)
+
+	if !ok {
+		newMetrics := initMetrics(prefix, metaID, labels)
+		metricsMapValue = newMetrics
+	} else {
+		// If VolumeSpaceMetrics for this MetricsWrapper exist, then update the labels
+		currentLabels, ok := mrw.Labels.Load(metaID)
+		if ok {
+			haveLabelsChanged, updatedLabels := HaveLabelsChanged(currentLabels.([]attribute.KeyValue), labels)
+			if haveLabelsChanged {
+				newMetrics := initMetrics(prefix, metaID, updatedLabels)
+				metricsMapValue = newMetrics
+			}
+		}
+	}
+
+	done := make(chan struct{})
+	defer close(done)
+
+	return metricsMapValue
+}
+
+// HaveLabelsChanged checks if labels have been changed
+func HaveLabelsChanged(currentLabels []attribute.KeyValue, labels []attribute.KeyValue) (bool, []attribute.KeyValue) {
+	updatedLabels := currentLabels
+	haveLabelsChanged := false
+	for i, current := range currentLabels {
+		for _, new := range labels {
+			if current.Key == new.Key {
+				if current.Value != new.Value {
+					updatedLabels[i].Value = new.Value
+					haveLabelsChanged = true
+				}
+			}
+		}
+	}
+	return haveLabelsChanged, updatedLabels
 }

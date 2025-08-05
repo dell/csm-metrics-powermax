@@ -85,6 +85,7 @@ type Service interface {
 	GetVolumeFinder() VolumeFinder
 	ExportCapacityMetrics(ctx context.Context)
 	ExportPerformanceMetrics(ctx context.Context)
+	ExportTopologyMetrics(ctx context.Context)
 }
 
 // MeterCreator interface is used to create and provide Meter instances, which are used to report measurements
@@ -101,6 +102,7 @@ type MetricsRecorder interface {
 	RecordNumericMetrics(prefix string, labels []attribute.KeyValue, metric VolumeCapacityMetricsRecord) error
 	RecordVolPerfMetrics(prefix string, metric VolumePerfMetricsRecord) error
 	RecordStorageGroupPerfMetrics(prefix string, metric StorageGroupPerfMetricsRecord) error
+	RecordTopologyMetrics(ctx context.Context, meta interface{}, metric *TopologyMetricsRecord) error
 }
 
 // PowerMaxArray is a struct that stores all PowerMax connection information.
@@ -122,6 +124,27 @@ type VolumeCapacityMetricsRecord struct {
 	ArrayID, VolumeID, SrpID, StorageGroupID                                                                 string
 	StorageClass, Driver, PersistentVolumeName, PersistentVolumeStatus, PersistentVolumeClaimName, Namespace string
 	Total, Used, UsedPercent                                                                                 float64
+}
+
+type TopologyMeta struct {
+	Namespace               string
+	PersistentVolumeClaim   string
+	PersistentVolumeStatus  string
+	VolumeClaimName         string
+	PersistentVolume        string
+	StorageClass            string
+	Driver                  string
+	ProvisionedSize         string
+	StorageSystemVolumeName string
+	StoragePoolName         string
+	StorageSystem           string
+	Protocol                string
+	CreatedTime             string
+}
+
+type TopologyMetricsRecord struct {
+	TopologyMeta *TopologyMeta
+	PVAvailable  int64
 }
 
 // StorageGroupPerfMetricsRecord struct for storage group performance

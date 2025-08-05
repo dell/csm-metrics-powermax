@@ -55,6 +55,7 @@ func Test_Run(t *testing.T) {
 			svc := mocks.NewMockService(ctrl)
 			svc.EXPECT().ExportCapacityMetrics(gomock.Any()).AnyTimes()
 			svc.EXPECT().ExportPerformanceMetrics(gomock.Any()).AnyTimes()
+			svc.EXPECT().ExportTopologyMetrics(gomock.Any()).AnyTimes()
 
 			return false, config, e, svc, prevConfigValidationFunc, ctrl, false
 		},
@@ -64,11 +65,13 @@ func Test_Run(t *testing.T) {
 			clients := make(map[string]metrictypes.PowerMaxClient)
 			clients["test"] = mocks.NewMockPowerMaxClient(ctrl)
 			config := &entrypoint.Config{
-				CapacityMetricsEnabled:    true,
-				PerformanceMetricsEnabled: true,
-				LeaderElector:             leaderElector,
-				CapacityTickInterval:      100 * time.Second,
-				PerformanceTickInterval:   0 * time.Millisecond,
+				CapacityMetricsEnabled:      true,
+				PerformanceMetricsEnabled:   true,
+				TopologyMetricsEnabled:      true,
+				LeaderElector:               leaderElector,
+				CapacityTickInterval:        100 * time.Second,
+				PerformanceTickInterval:     0 * time.Millisecond,
+				TopologyMetricsTickInterval: 100 * time.Second,
 			}
 			prevConfigValidationFunc := entrypoint.ConfigValidatorFunc
 			e := exportermocks.NewMockOtlexporter(ctrl)
@@ -82,11 +85,33 @@ func Test_Run(t *testing.T) {
 			clients := make(map[string]metrictypes.PowerMaxClient)
 			clients["test"] = mocks.NewMockPowerMaxClient(ctrl)
 			config := &entrypoint.Config{
-				CapacityMetricsEnabled:    true,
-				PerformanceMetricsEnabled: true,
-				LeaderElector:             leaderElector,
-				CapacityTickInterval:      0 * time.Millisecond,
-				PerformanceTickInterval:   0 * time.Millisecond,
+				CapacityMetricsEnabled:      true,
+				PerformanceMetricsEnabled:   true,
+				TopologyMetricsEnabled:      true,
+				LeaderElector:               leaderElector,
+				CapacityTickInterval:        0 * time.Millisecond,
+				PerformanceTickInterval:     100 * time.Millisecond,
+				TopologyMetricsTickInterval: 100 * time.Second,
+			}
+			prevConfigValidationFunc := entrypoint.ConfigValidatorFunc
+			e := exportermocks.NewMockOtlexporter(ctrl)
+			svc := mocks.NewMockService(ctrl)
+
+			return true, config, e, svc, prevConfigValidationFunc, ctrl, true
+		},
+		"error with invalid topology ticker interval": func(*testing.T) (bool, *entrypoint.Config, otlexporters.Otlexporter, metrictypes.Service, func(*entrypoint.Config) error, *gomock.Controller, bool) {
+			ctrl := gomock.NewController(t)
+			leaderElector := mocks.NewMockLeaderElector(ctrl)
+			clients := make(map[string]metrictypes.PowerMaxClient)
+			clients["test"] = mocks.NewMockPowerMaxClient(ctrl)
+			config := &entrypoint.Config{
+				CapacityMetricsEnabled:      true,
+				PerformanceMetricsEnabled:   true,
+				TopologyMetricsEnabled:      true,
+				LeaderElector:               leaderElector,
+				CapacityTickInterval:        100 * time.Second,
+				PerformanceTickInterval:     100 * time.Second,
+				TopologyMetricsTickInterval: 0 * time.Second,
 			}
 			prevConfigValidationFunc := entrypoint.ConfigValidatorFunc
 			e := exportermocks.NewMockOtlexporter(ctrl)
@@ -102,11 +127,13 @@ func Test_Run(t *testing.T) {
 			clients := make(map[string]metrictypes.PowerMaxClient)
 			clients["test"] = mocks.NewMockPowerMaxClient(ctrl)
 			config := &entrypoint.Config{
-				CapacityMetricsEnabled:    false,
-				PerformanceMetricsEnabled: true,
-				LeaderElector:             leaderElector,
-				CapacityTickInterval:      100 * time.Millisecond,
-				PerformanceTickInterval:   100 * time.Millisecond,
+				CapacityMetricsEnabled:      false,
+				PerformanceMetricsEnabled:   true,
+				TopologyMetricsEnabled:      true,
+				LeaderElector:               leaderElector,
+				CapacityTickInterval:        100 * time.Millisecond,
+				PerformanceTickInterval:     100 * time.Millisecond,
+				TopologyMetricsTickInterval: 100 * time.Millisecond,
 			}
 			prevConfigValidationFunc := entrypoint.ConfigValidatorFunc
 			entrypoint.ConfigValidatorFunc = noCheckConfig
@@ -118,6 +145,7 @@ func Test_Run(t *testing.T) {
 			svc := mocks.NewMockService(ctrl)
 			svc.EXPECT().ExportCapacityMetrics(gomock.Any()).AnyTimes()
 			svc.EXPECT().ExportPerformanceMetrics(gomock.Any()).AnyTimes()
+			svc.EXPECT().ExportTopologyMetrics(gomock.Any()).AnyTimes()
 
 			return false, config, e, svc, prevConfigValidationFunc, ctrl, true
 		},
@@ -129,11 +157,13 @@ func Test_Run(t *testing.T) {
 			clients := make(map[string]metrictypes.PowerMaxClient)
 			clients["test"] = mocks.NewMockPowerMaxClient(ctrl)
 			config := &entrypoint.Config{
-				CapacityMetricsEnabled:    true,
-				PerformanceMetricsEnabled: false,
-				LeaderElector:             leaderElector,
-				CapacityTickInterval:      100 * time.Millisecond,
-				PerformanceTickInterval:   100 * time.Millisecond,
+				CapacityMetricsEnabled:      true,
+				PerformanceMetricsEnabled:   false,
+				TopologyMetricsEnabled:      true,
+				LeaderElector:               leaderElector,
+				CapacityTickInterval:        100 * time.Millisecond,
+				PerformanceTickInterval:     100 * time.Millisecond,
+				TopologyMetricsTickInterval: 100 * time.Millisecond,
 			}
 			prevConfigValidationFunc := entrypoint.ConfigValidatorFunc
 			entrypoint.ConfigValidatorFunc = noCheckConfig
@@ -145,6 +175,36 @@ func Test_Run(t *testing.T) {
 			svc := mocks.NewMockService(ctrl)
 			svc.EXPECT().ExportCapacityMetrics(gomock.Any()).AnyTimes()
 			svc.EXPECT().ExportPerformanceMetrics(gomock.Any()).AnyTimes()
+			svc.EXPECT().ExportTopologyMetrics(gomock.Any()).AnyTimes()
+			return false, config, e, svc, prevConfigValidationFunc, ctrl, true
+		},
+		"success with topology false enable ": func(*testing.T) (bool, *entrypoint.Config, otlexporters.Otlexporter, metrictypes.Service, func(*entrypoint.Config) error, *gomock.Controller, bool) {
+			ctrl := gomock.NewController(t)
+			leaderElector := mocks.NewMockLeaderElector(ctrl)
+			leaderElector.EXPECT().InitLeaderElection(gomock.Any(), gomock.Any()).Times(1).Return(nil)
+			leaderElector.EXPECT().IsLeader().AnyTimes().Return(true)
+			clients := make(map[string]metrictypes.PowerMaxClient)
+			clients["test"] = mocks.NewMockPowerMaxClient(ctrl)
+			config := &entrypoint.Config{
+				CapacityMetricsEnabled:      true,
+				PerformanceMetricsEnabled:   true,
+				TopologyMetricsEnabled:      false,
+				LeaderElector:               leaderElector,
+				CapacityTickInterval:        100 * time.Millisecond,
+				PerformanceTickInterval:     100 * time.Millisecond,
+				TopologyMetricsTickInterval: 100 * time.Millisecond,
+			}
+			prevConfigValidationFunc := entrypoint.ConfigValidatorFunc
+			entrypoint.ConfigValidatorFunc = noCheckConfig
+
+			e := exportermocks.NewMockOtlexporter(ctrl)
+			e.EXPECT().InitExporter(gomock.Any(), gomock.Any()).Return(nil)
+			e.EXPECT().StopExporter().Return(nil)
+
+			svc := mocks.NewMockService(ctrl)
+			svc.EXPECT().ExportCapacityMetrics(gomock.Any()).AnyTimes()
+			svc.EXPECT().ExportPerformanceMetrics(gomock.Any()).AnyTimes()
+			svc.EXPECT().ExportTopologyMetrics(gomock.Any()).AnyTimes()
 			return false, config, e, svc, prevConfigValidationFunc, ctrl, true
 		},
 		"error nil config": func(*testing.T) (bool, *entrypoint.Config, otlexporters.Otlexporter, metrictypes.Service, func(*entrypoint.Config) error, *gomock.Controller, bool) {
@@ -220,6 +280,7 @@ func Test_Run(t *testing.T) {
 			svc := mocks.NewMockService(ctrl)
 			svc.EXPECT().ExportCapacityMetrics(gomock.Any()).AnyTimes()
 			svc.EXPECT().ExportPerformanceMetrics(gomock.Any()).AnyTimes()
+			svc.EXPECT().ExportTopologyMetrics(gomock.Any()).AnyTimes()
 
 			return false, config, e, svc, prevConfigValidationFunc, ctrl, false
 		},
@@ -252,12 +313,14 @@ func Test_Run(t *testing.T) {
 			leaderElector.EXPECT().IsLeader().AnyTimes().Return(true)
 
 			config := &entrypoint.Config{
-				CapacityMetricsEnabled:    false,
-				PerformanceMetricsEnabled: false,
-				LeaderElector:             leaderElector,
-				CapacityTickInterval:      100 * time.Millisecond,
-				PerformanceTickInterval:   100 * time.Millisecond,
-				LivenessProbeTickInterval: 100 * time.Millisecond,
+				CapacityMetricsEnabled:      false,
+				PerformanceMetricsEnabled:   false,
+				TopologyMetricsEnabled:      false,
+				LeaderElector:               leaderElector,
+				CapacityTickInterval:        100 * time.Millisecond,
+				PerformanceTickInterval:     100 * time.Millisecond,
+				LivenessProbeTickInterval:   100 * time.Millisecond,
+				TopologyMetricsTickInterval: 100 * time.Millisecond,
 			}
 			prevConfigValidationFunc := entrypoint.ConfigValidatorFunc
 			entrypoint.ConfigValidatorFunc = noCheckConfig
@@ -288,12 +351,14 @@ func Test_Run(t *testing.T) {
 			leaderElector.EXPECT().IsLeader().AnyTimes().Return(true)
 
 			config := &entrypoint.Config{
-				CapacityMetricsEnabled:    false,
-				PerformanceMetricsEnabled: false,
-				LeaderElector:             leaderElector,
-				CapacityTickInterval:      100 * time.Millisecond,
-				PerformanceTickInterval:   100 * time.Millisecond,
-				LivenessProbeTickInterval: 100 * time.Millisecond,
+				CapacityMetricsEnabled:      false,
+				PerformanceMetricsEnabled:   false,
+				TopologyMetricsEnabled:      false,
+				LeaderElector:               leaderElector,
+				CapacityTickInterval:        100 * time.Millisecond,
+				PerformanceTickInterval:     100 * time.Millisecond,
+				LivenessProbeTickInterval:   100 * time.Millisecond,
+				TopologyMetricsTickInterval: 100 * time.Millisecond,
 			}
 			prevConfigValidationFunc := entrypoint.ConfigValidatorFunc
 			entrypoint.ConfigValidatorFunc = noCheckConfig
@@ -331,6 +396,7 @@ func Test_Run(t *testing.T) {
 					// In this case, we can use smaller intervals for testing purposes.
 					config.CapacityTickInterval = 100 * time.Millisecond
 					config.PerformanceTickInterval = 100 * time.Millisecond
+					config.TopologyMetricsTickInterval = 100 * time.Millisecond
 				}
 			}
 			err := entrypoint.Run(ctx, config, exporter, svc)

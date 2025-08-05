@@ -263,6 +263,14 @@ func updateMetricsEnabled(config *entrypoint.Config) {
 	}
 	config.PerformanceMetricsEnabled = performanceMetricsEnabled
 	logger.WithField("performance_metrics_enabled", performanceMetricsEnabled).Debug("setting performance metrics enabled")
+
+	topologyMetricsEnabled := true
+	topologyMetricsEnabledValue := viper.GetString("POWERMAX_TOPOLOGY_METRICS_ENABLED")
+	if topologyMetricsEnabledValue == "false" {
+		topologyMetricsEnabled = false
+	}
+	config.TopologyMetricsEnabled = topologyMetricsEnabled
+	logger.WithField("topology_metrics_enabled", topologyMetricsEnabled).Debug("setting topology metrics enabled")
 }
 
 func updateTickIntervals(config *entrypoint.Config) {
@@ -291,6 +299,19 @@ func updateTickIntervals(config *entrypoint.Config) {
 	}
 	config.PerformanceTickInterval = performanceTickInterval
 	logger.WithField("performance_tick_interval", fmt.Sprintf("%v", performanceTickInterval)).Debug("setting performance tick interval")
+
+	topologyMetricsTickInterval := defaultTickInterval
+	topologyMetricsPollFrequencySeconds := viper.GetString("POWERMAX_TOPOLOGY_METRICS_POLL_FREQUENCY")
+	if topologyMetricsPollFrequencySeconds != "" {
+		numSeconds, err := strconv.Atoi(topologyMetricsPollFrequencySeconds)
+		if err != nil {
+			logger.WithError(err).Error("POWERMAX_TOPOLOGY_METRICS_POLL_FREQUENCY was not set to a valid number")
+			numSeconds = int(defaultTickInterval.Seconds())
+		}
+		topologyMetricsTickInterval = time.Duration(numSeconds) * time.Second
+	}
+	config.TopologyMetricsTickInterval = topologyMetricsTickInterval
+	logger.WithField("cluster_performance_tick_interval", fmt.Sprintf("%v", topologyMetricsTickInterval)).Debug("setting cluster performance tick interval")
 }
 
 func updateMaxConnections(powerMaxSvc *service.PowerMaxService) {

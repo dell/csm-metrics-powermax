@@ -17,7 +17,10 @@
 package metric_test
 
 import (
+	"context"
+	"reflect"
 	"testing"
+	"time"
 
 	"github.com/dell/csm-metrics-powermax/internal/service/metric"
 	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes"
@@ -131,6 +134,111 @@ func Test_RecordStorageGroupPerfMetrics(t *testing.T) {
 			recorder, metrics, ctrl, _, err := tc(t)
 			assert.Equal(t, err, recorder.RecordStorageGroupPerfMetrics("powermax_storage_group_", metrics))
 			ctrl.Finish()
+		})
+	}
+}
+
+func Test_RecordTopologyMetrics(t *testing.T) {
+	tests := map[string]func(t *testing.T) (*metric.MetricsRecorderWrapper, metrictypes.TopologyMetricsRecord, *gomock.Controller, *otlexporters.OtlCollectorExporter, error){
+		"success": func(*testing.T) (*metric.MetricsRecorderWrapper, metrictypes.TopologyMetricsRecord, *gomock.Controller, *otlexporters.OtlCollectorExporter, error) {
+			exporter := &otlexporters.OtlCollectorExporter{}
+			err := exporter.InitExporter()
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			t1, err := time.Parse(time.RFC3339, "2022-06-06T20:00:00+00:00")
+			assert.Nil(t, err)
+
+			ctrl := gomock.NewController(t)
+			otMeter := otel.Meter("powermax_test")
+
+			metrics := metrictypes.TopologyMetricsRecord{
+				TopologyMeta: &metrictypes.TopologyMeta{
+					Namespace:               "namespace-1",
+					PersistentVolumeClaim:   "pvc-uid",
+					VolumeClaimName:         "pvc-1",
+					PersistentVolumeStatus:  "Bound",
+					PersistentVolume:        "pv-1",
+					StorageClass:            "sc-1",
+					Driver:                  "csi-powermax.dellemc.com",
+					ProvisionedSize:         "16Gi",
+					StorageSystemVolumeName: "k8s-7242537ae1",
+					StoragePoolName:         "pool-1",
+					StorageSystem:           "000197902573",
+					Protocol:                "",
+					CreatedTime:             t1.String(),
+				},
+				PVAvailable: 10,
+			}
+
+			recorder := &metric.MetricsRecorderWrapper{
+				Meter: otMeter,
+			}
+
+			return recorder, metrics, ctrl, exporter, nil
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			recorder, metrics, ctrl, _, err := tc(t)
+			assert.Equal(t, err, recorder.RecordTopologyMetrics(context.Background(), metrics.TopologyMeta, &metrics))
+			ctrl.Finish()
+		})
+	}
+}
+
+func TestHaveLabelsChanged(t *testing.T) {
+	tests := []struct {
+		name                  string
+		currentLabels         []attribute.KeyValue
+		newLabels             []attribute.KeyValue
+		wantHaveLabelsChanged bool
+		wantUpdatedLabels     []attribute.KeyValue
+	}{
+		{
+			name: "no change",
+			currentLabels: []attribute.KeyValue{
+				{Key: "key1", Value: attribute.StringValue("value1")},
+				{Key: "key2", Value: attribute.StringValue("value2")},
+			},
+			newLabels: []attribute.KeyValue{
+				{Key: "key1", Value: attribute.StringValue("value1")},
+				{Key: "key2", Value: attribute.StringValue("value2")},
+			},
+			wantHaveLabelsChanged: false,
+			wantUpdatedLabels: []attribute.KeyValue{
+				{Key: "key1", Value: attribute.StringValue("value1")},
+				{Key: "key2", Value: attribute.StringValue("value2")},
+			},
+		},
+		{
+			name: "label value changed",
+			currentLabels: []attribute.KeyValue{
+				{Key: "key1", Value: attribute.StringValue("value1")},
+				{Key: "key2", Value: attribute.StringValue("value2")},
+			},
+			newLabels: []attribute.KeyValue{
+				{Key: "key1", Value: attribute.StringValue("value3")},
+				{Key: "key2", Value: attribute.StringValue("value4")},
+			},
+			wantHaveLabelsChanged: true,
+			wantUpdatedLabels: []attribute.KeyValue{
+				{Key: "key1", Value: attribute.StringValue("value3")},
+				{Key: "key2", Value: attribute.StringValue("value4")},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotHaveLabelsChanged, gotUpdatedLabels := metric.HaveLabelsChanged(tt.currentLabels, tt.newLabels)
+			if gotHaveLabelsChanged != tt.wantHaveLabelsChanged {
+				t.Errorf("haveLabelsChanged() haveLabelsChanged = %v, want %v", gotHaveLabelsChanged, tt.wantHaveLabelsChanged)
+			}
+			if !reflect.DeepEqual(gotUpdatedLabels, tt.wantUpdatedLabels) {
+				t.Errorf("haveLabelsChanged() updatedLabels = %v, want %v", gotUpdatedLabels, tt.wantUpdatedLabels)
+			}
 		})
 	}
 }
