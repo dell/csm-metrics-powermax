@@ -19,7 +19,6 @@ package metric_test
 import (
 	"context"
 	"reflect"
-	"sync"
 	"testing"
 	"time"
 
@@ -172,17 +171,10 @@ func Test_RecordTopologyMetrics(t *testing.T) {
 				},
 				PVAvailable: 10,
 			}
-			labelsMap := &sync.Map{}
-			topologyMetricsMap := &sync.Map{}
-			labelsMap.Store("pv-1", "xyz")
 
 			recorder := &metric.MetricsRecorderWrapper{
-				Meter:           otMeter,
-				Labels:          *labelsMap,
-				TopologyMetrics: *topologyMetricsMap,
+				Meter: otMeter,
 			}
-
-			topologyMetricsMap.Store("pv-1", "pv1-value")
 
 			return recorder, metrics, ctrl, exporter, nil
 		},

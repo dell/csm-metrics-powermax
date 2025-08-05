@@ -57,23 +57,23 @@ func CreateTopologyMetricsInstance(service metrictypes.Service) *TopologyMetrics
 }
 
 // Collect metric collection and processing
-func (m *TopologyMetrics) Collect(ctx context.Context) error {
-	pvs, err := m.VolumeFinder.GetPersistentVolumes(ctx)
+func (s *TopologyMetrics) Collect(ctx context.Context) error {
+	pvs, err := s.VolumeFinder.GetPersistentVolumes(ctx)
 	if err != nil {
-		m.Logger.WithError(err).Error("find no PVs, will do nothing")
+		s.Logger.WithError(err).Error("find no PVs, will do nothing")
 		return err
 	}
 
-	for range m.pushTopologyMetrics(ctx, m.gatherTopologyMetrics(m.volumeServer(ctx, pvs))) {
+	for range s.pushTopologyMetrics(ctx, s.gatherTopologyMetrics(s.volumeServer(ctx, pvs))) {
 		// consume the channel until it is empty and closed
 	} // revive:disable-line:empty-block
 	return nil
 }
 
 // pushTopologyMetrics will push the provided channel of volume metrics to a data collector
-func (m *TopologyMetrics) pushTopologyMetrics(ctx context.Context, topologyMetrics <-chan *metrictypes.TopologyMetricsRecord) <-chan *metrictypes.TopologyMetricsRecord {
+func (s *TopologyMetrics) pushTopologyMetrics(ctx context.Context, topologyMetrics <-chan *metrictypes.TopologyMetricsRecord) <-chan *metrictypes.TopologyMetricsRecord {
 	start := time.Now()
-	defer m.timeSince(start, "pushTopologyMetrics")
+	defer s.timeSince(start, "pushTopologyMetrics")
 	var wg sync.WaitGroup
 
 	ch := make(chan *metrictypes.TopologyMetricsRecord)
@@ -82,9 +82,9 @@ func (m *TopologyMetrics) pushTopologyMetrics(ctx context.Context, topologyMetri
 			wg.Add(1)
 			go func(metrics *metrictypes.TopologyMetricsRecord) {
 				defer wg.Done()
-				err := m.MetricsRecorder.RecordTopologyMetrics(ctx, metrics.TopologyMeta, metrics)
+				err := s.MetricsRecorder.RecordTopologyMetrics(ctx, metrics.TopologyMeta, metrics)
 				if err != nil {
-					m.Logger.WithError(err).WithField("volume_id", metrics.TopologyMeta.PersistentVolume).Error("recording topology metrics for volume")
+					s.Logger.WithError(err).WithField("volume_id", metrics.TopologyMeta.PersistentVolume).Error("recording topology metrics for volume")
 				} else {
 					ch <- metrics
 				}
@@ -157,8 +157,8 @@ func (s *TopologyMetrics) volumeServer(_ context.Context, volumes []k8s.VolumeIn
 }
 
 // timeSince will log the amount of time spent in a given function
-func (m *TopologyMetrics) timeSince(start time.Time, fName string) {
-	m.Logger.WithFields(logrus.Fields{
+func (s *TopologyMetrics) timeSince(start time.Time, fName string) {
+	s.Logger.WithFields(logrus.Fields{
 		"duration": fmt.Sprintf("%v", time.Since(start)),
 		"function": fName,
 	}).Info("function duration")
