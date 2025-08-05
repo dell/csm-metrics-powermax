@@ -155,3 +155,50 @@ func Test_ExportPerformanceMetrics(t *testing.T) {
 		})
 	}
 }
+
+func Test_ExportTopologyMetrics(t *testing.T) {
+	var mockVolumes []k8s.VolumeInfo
+
+	mockVolBytes, _ := os.ReadFile(filepath.Join(mockDir, "persistent_volumes.json"))
+	err := json.Unmarshal(mockVolBytes, &mockVolumes)
+
+	assert.Nil(t, err)
+
+	tests := map[string]func(t *testing.T) (service.PowerMaxService, *gomock.Controller){
+		"success": func(*testing.T) (service.PowerMaxService, *gomock.Controller) {
+			ctrl := gomock.NewController(t)
+			metrics := mocks.NewMockMetricsRecorder(ctrl)
+			volFinder := mocks.NewMockVolumeFinder(ctrl)
+			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(mockVolumes, nil).Times(1)
+			scFinder := mocks.NewMockStorageClassFinder(ctrl)
+
+			metrics.EXPECT().RecordTopologyMetrics(gomock.Any(), gomock.Any(), gomock.Any()).Times(2)
+
+			c := mocks.NewMockPowerMaxClient(ctrl)
+
+			clients := make(map[string][]metrictypes.PowerMaxArray)
+			array := metrictypes.PowerMaxArray{
+				Client:   c,
+				IsActive: true,
+			}
+			clients["000197902599"] = append(clients["000197902599"], array)
+
+			service := service.PowerMaxService{
+				Logger:                 logrus.New(),
+				MetricsRecorder:        metrics,
+				VolumeFinder:           volFinder,
+				StorageClassFinder:     scFinder,
+				PowerMaxClients:        clients,
+				MaxPowerMaxConnections: service.DefaultMaxPowerMaxConnections,
+			}
+			return service, ctrl
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			service, ctrl := tc(t)
+			service.ExportTopologyMetrics(context.Background())
+			ctrl.Finish()
+		})
+	}
+}

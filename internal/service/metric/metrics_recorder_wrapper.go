@@ -18,7 +18,6 @@ package metric
 
 import (
 	"context"
-	"errors"
 	"sync"
 
 	"github.com/dell/csm-metrics-powermax/utilsconverter"
@@ -38,7 +37,7 @@ type MetricsRecorderWrapper struct {
 
 type (
 	loadMetricsFunc func(metaID string) (value any, ok bool)
-	initMetricsFunc func(prefix, metaID string, labels []attribute.KeyValue) (any, error)
+	initMetricsFunc func(prefix, metaID string, labels []attribute.KeyValue) any
 )
 
 // TopologyMetricsData contains topology metrics when PV is available on cluster
@@ -263,22 +262,17 @@ func (mrw *MetricsRecorderWrapper) RecordTopologyMetrics(_ context.Context, meta
 			attribute.String("Protocol", v.Protocol),
 			attribute.String("CreatedTime", v.CreatedTime),
 		}
-	default:
-		return errors.New("unknown MetaData type")
 	}
 
 	loadMetricsFunc := func(metaID string) (any, bool) {
 		return mrw.TopologyMetrics.Load(metaID)
 	}
 
-	initMetricsFunc := func(_, metaID string, labels []attribute.KeyValue) (any, error) {
+	initMetricsFunc := func(_, metaID string, labels []attribute.KeyValue) any {
 		return mrw.initTopologyMetrics(metaID, labels)
 	}
 
-	metricsMapValue, err := updateLabels("", metaID, labels, mrw, loadMetricsFunc, initMetricsFunc)
-	if err != nil {
-		return err
-	}
+	metricsMapValue := updateLabels("", metaID, labels, mrw, loadMetricsFunc, initMetricsFunc)
 
 	metrics := metricsMapValue.(*TopologyMetricsData)
 
@@ -302,7 +296,7 @@ func (mrw *MetricsRecorderWrapper) RecordTopologyMetrics(_ context.Context, meta
 	return nil
 }
 
-func (mrw *MetricsRecorderWrapper) initTopologyMetrics(metaID string, labels []attribute.KeyValue) (*TopologyMetricsData, error) {
+func (mrw *MetricsRecorderWrapper) initTopologyMetrics(metaID string, labels []attribute.KeyValue) *TopologyMetricsData {
 	pvAvailable, _ := mrw.Meter.Float64ObservableUpDownCounter("karavi_topology_metrics")
 
 	metrics := &TopologyMetricsData{
@@ -312,28 +306,22 @@ func (mrw *MetricsRecorderWrapper) initTopologyMetrics(metaID string, labels []a
 	mrw.TopologyMetrics.Store(metaID, metrics)
 	mrw.Labels.Store(metaID, labels)
 
-	return metrics, nil
+	return metrics
 }
 
-func updateLabels(prefix, metaID string, labels []attribute.KeyValue, mrw *MetricsRecorderWrapper, loadMetrics loadMetricsFunc, initMetrics initMetricsFunc) (any, error) {
+func updateLabels(prefix, metaID string, labels []attribute.KeyValue, mrw *MetricsRecorderWrapper, loadMetrics loadMetricsFunc, initMetrics initMetricsFunc) any {
 	metricsMapValue, ok := loadMetrics(metaID)
 
 	if !ok {
-		newMetrics, err := initMetrics(prefix, metaID, labels)
-		if err != nil {
-			return nil, err
-		}
+		newMetrics := initMetrics(prefix, metaID, labels)
 		metricsMapValue = newMetrics
 	} else {
 		// If VolumeSpaceMetrics for this MetricsWrapper exist, then update the labels
 		currentLabels, ok := mrw.Labels.Load(metaID)
 		if ok {
-			haveLabelsChanged, updatedLabels := haveLabelsChanged(currentLabels.([]attribute.KeyValue), labels)
+			haveLabelsChanged, updatedLabels := HaveLabelsChanged(currentLabels.([]attribute.KeyValue), labels)
 			if haveLabelsChanged {
-				newMetrics, err := initMetrics(prefix, metaID, updatedLabels)
-				if err != nil {
-					return nil, err
-				}
+				newMetrics := initMetrics(prefix, metaID, updatedLabels)
 				metricsMapValue = newMetrics
 			}
 		}
@@ -342,11 +330,11 @@ func updateLabels(prefix, metaID string, labels []attribute.KeyValue, mrw *Metri
 	done := make(chan struct{})
 	defer close(done)
 
-	return metricsMapValue, nil
+	return metricsMapValue
 }
 
-// haveLabelsChanged checks if labels have been changed
-func haveLabelsChanged(currentLabels []attribute.KeyValue, labels []attribute.KeyValue) (bool, []attribute.KeyValue) {
+// HaveLabelsChanged checks if labels have been changed
+func HaveLabelsChanged(currentLabels []attribute.KeyValue, labels []attribute.KeyValue) (bool, []attribute.KeyValue) {
 	updatedLabels := currentLabels
 	haveLabelsChanged := false
 	for i, current := range currentLabels {

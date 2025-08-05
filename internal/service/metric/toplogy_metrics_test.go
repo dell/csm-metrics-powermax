@@ -1,0 +1,144 @@
+/*
+ Copyright (c) 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+*/
+
+package metric_test
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/dell/csm-metrics-powermax/internal/k8s"
+	"github.com/dell/csm-metrics-powermax/internal/service"
+	"github.com/dell/csm-metrics-powermax/internal/service/metric"
+	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes"
+	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes/mocks"
+	"github.com/golang/mock/gomock"
+	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
+)
+
+func TestCreateTopologyMetricsInstance(t *testing.T) {
+	tests := map[string]func(t *testing.T) (service.PowerMaxService, *gomock.Controller){
+		"init success": func(*testing.T) (service.PowerMaxService, *gomock.Controller) {
+			ctrl := gomock.NewController(t)
+			powerMaxService := service.PowerMaxService{}
+			return powerMaxService, ctrl
+		},
+		// due to the singleton instance, this call will enter another branch
+		"reuse success": func(*testing.T) (service.PowerMaxService, *gomock.Controller) {
+			ctrl := gomock.NewController(t)
+			powerMaxService := service.PowerMaxService{}
+			return powerMaxService, ctrl
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			powerMaxService, ctrl := tc(t)
+			powerMaxService.Logger = logrus.New()
+			metric.CreateTopologyMetricsInstance(&powerMaxService)
+			ctrl.Finish()
+		})
+	}
+}
+
+func TestToplogyMetrics_Collect(t *testing.T) {
+	var mockVolumes []k8s.VolumeInfo
+
+	mockVolBytes, _ := os.ReadFile(filepath.Join(mockDir, "persistent_volumes.json"))
+	err := json.Unmarshal(mockVolBytes, &mockVolumes)
+	assert.Nil(t, err)
+
+	tests := map[string]func(t *testing.T) (metric.TopologyMetrics, *gomock.Controller, error){
+		"success": func(t *testing.T) (metric.TopologyMetrics, *gomock.Controller, error) {
+			ctrl := gomock.NewController(t)
+			metrics := mocks.NewMockMetricsRecorder(ctrl)
+			volFinder := mocks.NewMockVolumeFinder(ctrl)
+
+			metrics.EXPECT().RecordTopologyMetrics(gomock.Any(), gomock.Any(), gomock.Any()).Times(2)
+			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(mockVolumes, nil).Times(1)
+
+			c := mocks.NewMockPowerMaxClient(ctrl)
+			clients := make(map[string][]metrictypes.PowerMaxArray)
+			array := metrictypes.PowerMaxArray{
+				Client:   c,
+				IsActive: true,
+			}
+			clients["000197902599"] = append(clients["000197902599"], array)
+
+			topologyMetric := metric.TopologyMetrics{
+				BaseMetrics: &metric.BaseMetrics{
+					VolumeFinder:           volFinder,
+					PowerMaxClients:        clients,
+					MetricsRecorder:        metrics,
+					MaxPowerMaxConnections: service.DefaultMaxPowerMaxConnections,
+				},
+			}
+			return topologyMetric, ctrl, nil
+		},
+		"failed to get pvs": func(*testing.T) (metric.TopologyMetrics, *gomock.Controller, error) {
+			ctrl := gomock.NewController(t)
+			metrics := mocks.NewMockMetricsRecorder(ctrl)
+			volFinder := mocks.NewMockVolumeFinder(ctrl)
+
+			metrics.EXPECT().RecordTopologyMetrics(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+			err := errors.New("find no PVs, will do nothing")
+			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(nil, err).Times(1)
+
+			clients := make(map[string][]metrictypes.PowerMaxArray)
+
+			topologyMetric := metric.TopologyMetrics{
+				BaseMetrics: &metric.BaseMetrics{
+					VolumeFinder:           volFinder,
+					PowerMaxClients:        clients,
+					MetricsRecorder:        metrics,
+					MaxPowerMaxConnections: service.DefaultMaxPowerMaxConnections,
+				},
+			}
+			return topologyMetric, ctrl, err
+		},
+		"get 0 pv": func(t *testing.T) (metric.TopologyMetrics, *gomock.Controller, error) {
+			ctrl := gomock.NewController(t)
+			metrics := mocks.NewMockMetricsRecorder(ctrl)
+			volFinder := mocks.NewMockVolumeFinder(ctrl)
+
+			metrics.EXPECT().RecordTopologyMetrics(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(nil, nil).Times(1)
+
+			clients := make(map[string][]metrictypes.PowerMaxArray)
+			topologyMetric := metric.TopologyMetrics{
+				BaseMetrics: &metric.BaseMetrics{
+					VolumeFinder:           volFinder,
+					PowerMaxClients:        clients,
+					MetricsRecorder:        metrics,
+					MaxPowerMaxConnections: service.DefaultMaxPowerMaxConnections,
+				},
+			}
+			return topologyMetric, ctrl, nil
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			performanceMetric, ctrl, err := tc(t)
+			performanceMetric.Logger = logrus.New()
+			assert.Equal(t, err, performanceMetric.Collect(context.Background()))
+			ctrl.Finish()
+		})
+	}
+}

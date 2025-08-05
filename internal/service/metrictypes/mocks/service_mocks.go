@@ -60,6 +60,18 @@ func (mr *MockServiceMockRecorder) ExportPerformanceMetrics(arg0 interface{}) *g
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExportPerformanceMetrics", reflect.TypeOf((*MockService)(nil).ExportPerformanceMetrics), arg0)
 }
 
+// ExportTopologyMetrics mocks base method.
+func (m *MockService) ExportTopologyMetrics(arg0 context.Context) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "ExportTopologyMetrics", arg0)
+}
+
+// ExportTopologyMetrics indicates an expected call of ExportTopologyMetrics.
+func (mr *MockServiceMockRecorder) ExportTopologyMetrics(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExportTopologyMetrics", reflect.TypeOf((*MockService)(nil).ExportTopologyMetrics), arg0)
+}
+
 // GetLogger mocks base method.
 func (m *MockService) GetLogger() *logrus.Logger {
 	m.ctrl.T.Helper()

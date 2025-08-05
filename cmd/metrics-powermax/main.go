@@ -305,7 +305,8 @@ func updateTickIntervals(config *entrypoint.Config) {
 	if topologyMetricsPollFrequencySeconds != "" {
 		numSeconds, err := strconv.Atoi(topologyMetricsPollFrequencySeconds)
 		if err != nil {
-			logger.WithError(err).Fatal("POWERMAX_TOPOLOGY_METRICS_POLL_FREQUENCY was not set to a valid number")
+			logger.WithError(err).Error("POWERMAX_TOPOLOGY_METRICS_POLL_FREQUENCY was not set to a valid number")
+			numSeconds = int(defaultTickInterval.Seconds())
 		}
 		topologyMetricsTickInterval = time.Duration(numSeconds) * time.Second
 	}

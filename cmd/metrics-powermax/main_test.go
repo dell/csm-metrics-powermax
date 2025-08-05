@@ -290,36 +290,55 @@ func TestUpdateMetricsEnabled(t *testing.T) {
 		name                string
 		capacityValue       string
 		performanceValue    string
+		topologyValue       string
 		expectedCapacity    bool
 		expectedPerformance bool
+		expectedTopology    bool
 	}{
 		{
 			name:                "default values",
 			capacityValue:       "true",
 			performanceValue:    "true",
+			topologyValue:       "true",
 			expectedCapacity:    true,
 			expectedPerformance: true,
+			expectedTopology:    true,
 		},
 		{
 			name:                "capacity disabled",
 			capacityValue:       "false",
 			performanceValue:    "true",
+			topologyValue:       "true",
 			expectedCapacity:    false,
 			expectedPerformance: true,
+			expectedTopology:    true,
 		},
 		{
 			name:                "performance disabled",
 			capacityValue:       "true",
 			performanceValue:    "false",
+			topologyValue:       "true",
 			expectedCapacity:    true,
 			expectedPerformance: false,
+			expectedTopology:    true,
 		},
 		{
-			name:                "both disabled",
+			name:                "topology disabled",
+			capacityValue:       "true",
+			performanceValue:    "true",
+			topologyValue:       "false",
+			expectedCapacity:    true,
+			expectedPerformance: true,
+			expectedTopology:    false,
+		},
+		{
+			name:                "all disabled",
 			capacityValue:       "false",
 			performanceValue:    "false",
+			topologyValue:       "false",
 			expectedCapacity:    false,
 			expectedPerformance: false,
+			expectedTopology:    false,
 		},
 	}
 
@@ -330,11 +349,13 @@ func TestUpdateMetricsEnabled(t *testing.T) {
 			config := &entrypoint.Config{}
 			viper.Set("POWERMAX_CAPACITY_METRICS_ENABLED", tt.capacityValue)
 			viper.Set("POWERMAX_PERFORMANCE_METRICS_ENABLED", tt.performanceValue)
+			viper.Set("POWERMAX_TOPOLOGY_METRICS_ENABLED", tt.topologyValue)
 
 			updateMetricsEnabled(config)
 
 			assert.Equal(t, tt.expectedCapacity, config.CapacityMetricsEnabled)
 			assert.Equal(t, tt.expectedPerformance, config.PerformanceMetricsEnabled)
+			assert.Equal(t, tt.expectedTopology, config.TopologyMetricsEnabled)
 		})
 	}
 }
@@ -434,46 +455,76 @@ func TestUpdateCollectorAddress(t *testing.T) {
 
 func TestUpdateTickIntervals(t *testing.T) {
 	tests := []struct {
-		name                     string
-		capacityPollFrequency    string
-		expectedCapacityTick     time.Duration
-		performancePollFrequency string
-		expectedPerformanceTick  time.Duration
+		name                         string
+		capacityPollFrequency        string
+		expectedCapacityTick         time.Duration
+		performancePollFrequency     string
+		expectedPerformanceTick      time.Duration
+		topologyMetricsPollfrequency string
+		expectedTopologyTick         time.Duration
 	}{
 		{
-			name:                     "default values",
-			capacityPollFrequency:    "",
-			expectedCapacityTick:     defaultTickInterval,
-			performancePollFrequency: "",
-			expectedPerformanceTick:  defaultTickInterval,
+			name:                         "default values",
+			capacityPollFrequency:        "",
+			expectedCapacityTick:         defaultTickInterval,
+			performancePollFrequency:     "",
+			expectedPerformanceTick:      defaultTickInterval,
+			topologyMetricsPollfrequency: "",
+			expectedTopologyTick:         defaultTickInterval,
 		},
 		{
-			name:                     "valid capacity poll frequency",
-			capacityPollFrequency:    "30",
-			expectedCapacityTick:     30 * time.Second,
-			performancePollFrequency: "",
-			expectedPerformanceTick:  defaultTickInterval,
+			name:                         "valid capacity poll frequency",
+			capacityPollFrequency:        "30",
+			expectedCapacityTick:         30 * time.Second,
+			performancePollFrequency:     "",
+			expectedPerformanceTick:      defaultTickInterval,
+			topologyMetricsPollfrequency: "",
+			expectedTopologyTick:         defaultTickInterval,
 		},
 		{
-			name:                     "valid performance poll frequency",
-			capacityPollFrequency:    "",
-			expectedCapacityTick:     defaultTickInterval,
-			performancePollFrequency: "15",
-			expectedPerformanceTick:  15 * time.Second,
+			name:                         "valid performance poll frequency",
+			capacityPollFrequency:        "",
+			expectedCapacityTick:         defaultTickInterval,
+			performancePollFrequency:     "15",
+			expectedPerformanceTick:      15 * time.Second,
+			topologyMetricsPollfrequency: "",
+			expectedTopologyTick:         defaultTickInterval,
 		},
 		{
-			name:                     "invalid capacity poll frequency",
-			capacityPollFrequency:    "invalid",
-			expectedCapacityTick:     defaultTickInterval,
-			performancePollFrequency: "",
-			expectedPerformanceTick:  defaultTickInterval,
+			name:                         "valid topology metric poll frequency",
+			capacityPollFrequency:        "",
+			expectedCapacityTick:         defaultTickInterval,
+			performancePollFrequency:     "",
+			expectedPerformanceTick:      defaultTickInterval,
+			topologyMetricsPollfrequency: "30",
+			expectedTopologyTick:         30 * time.Second,
 		},
 		{
-			name:                     "invalid performance poll frequency",
-			capacityPollFrequency:    "",
-			expectedCapacityTick:     defaultTickInterval,
-			performancePollFrequency: "invalid",
-			expectedPerformanceTick:  defaultTickInterval,
+			name:                         "invalid capacity poll frequency",
+			capacityPollFrequency:        "invalid",
+			expectedCapacityTick:         defaultTickInterval,
+			performancePollFrequency:     "",
+			expectedPerformanceTick:      defaultTickInterval,
+			topologyMetricsPollfrequency: "",
+			expectedTopologyTick:         defaultTickInterval,
+		},
+		{
+			name:                         "invalid performance poll frequency",
+			capacityPollFrequency:        "",
+			expectedCapacityTick:         defaultTickInterval,
+			performancePollFrequency:     "invalid",
+			expectedPerformanceTick:      defaultTickInterval,
+			topologyMetricsPollfrequency: "",
+			expectedTopologyTick:         defaultTickInterval,
+		},
+		{
+			name:                         "invalid topology metric poll frequency",
+			capacityPollFrequency:        "",
+			expectedCapacityTick:         defaultTickInterval,
+			performancePollFrequency:     "",
+			expectedPerformanceTick:      defaultTickInterval,
+			topologyMetricsPollfrequency: "invalid",
+			expectedTopologyTick:         defaultTickInterval,
 		},
 	}
 
@@ -485,11 +536,13 @@ func TestUpdateTickIntervals(t *testing.T) {
 
 			viper.Set("POWERMAX_CAPACITY_POLL_FREQUENCY", tt.capacityPollFrequency)
 			viper.Set("POWERMAX_PERFORMANCE_POLL_FREQUENCY", tt.performancePollFrequency)
+			viper.Set("POWERMAX_TOPOLOGY_METRICS_POLL_FREQUENCY", tt.topologyMetricsPollfrequency)
 
 			updateTickIntervals(config)
 
 			assert.Equal(t, tt.expectedCapacityTick, config.CapacityTickInterval)
 			assert.Equal(t, tt.expectedPerformanceTick, config.PerformanceTickInterval)
+			assert.Equal(t, tt.expectedTopologyTick, config.TopologyMetricsTickInterval)
 		})
 	}
 }

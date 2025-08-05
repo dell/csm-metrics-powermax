@@ -1,3 +1,19 @@
+/*
+ Copyright (c) 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+*/
+
 package metric
 
 import (
@@ -94,14 +110,6 @@ func (s *TopologyMetrics) gatherTopologyMetrics(volumes <-chan k8s.VolumeInfo) <
 			wg.Add(1)
 			go func(volume k8s.VolumeInfo) {
 				defer wg.Done()
-
-				// volumeName=_=_=exportID=_=_=accessZone=_=_=clusterName
-				// VolumeHandle is of the format "volumeHandle: k8s-2217be0fe2=_=_=5=_=_=System=_=_=PIE-Isilon-X"
-				/* 				volumeProperties := strings.Split(volume.VolumeHandle, "=_=_=")
-				   				if len(volumeProperties) != ExpectedVolumeHandleProperties {
-				   					s.Logger.WithField("volume_handle", volume.VolumeHandle).Warn("unable to get VolumeID and ClusterID from volume handle")
-				   					return
-				   				} */
 
 				topologyMeta := &metrictypes.TopologyMeta{
 					Namespace:               volume.Namespace,
