@@ -321,7 +321,6 @@ func Test_K8sPersistentVolumeFinder(t *testing.T) {
 										"StorageGroup":   "csi-BYM-Gold-SRP_1-SG",
 										"powermax/SYMID": "000197902573",
 										"storage.kubernetes.io/csiProvisionerIdentity": "1667811541157-8081-csi-powermax.dellemc.com",
-										"Protocol": "N/A",
 									},
 									VolumeHandle: "csi-BYM-yiming-398993ad1b-powermaxtest-000197902573-00822",
 								},
