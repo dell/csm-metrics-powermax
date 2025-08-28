@@ -5,7 +5,7 @@
 package mocks
 
 import (
-	"context"
+	context "context"
 	reflect "reflect"
 
 	metrictypes "github.com/dell/csm-metrics-powermax/internal/service/metrictypes"
@@ -65,6 +65,20 @@ func (mr *MockMetricsRecorderMockRecorder) RecordStorageGroupPerfMetrics(arg0, a
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RecordStorageGroupPerfMetrics", reflect.TypeOf((*MockMetricsRecorder)(nil).RecordStorageGroupPerfMetrics), arg0, arg1)
 }
 
+// RecordTopologyMetrics mocks base method.
+func (m *MockMetricsRecorder) RecordTopologyMetrics(arg0 context.Context, arg1 interface{}, arg2 *metrictypes.TopologyMetricsRecord) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RecordTopologyMetrics", arg0, arg1, arg2)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RecordTopologyMetrics indicates an expected call of RecordTopologyMetrics.
+func (mr *MockMetricsRecorderMockRecorder) RecordTopologyMetrics(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RecordTopologyMetrics", reflect.TypeOf((*MockMetricsRecorder)(nil).RecordTopologyMetrics), arg0, arg1, arg2)
+}
+
 // RecordVolPerfMetrics mocks base method.
 func (m *MockMetricsRecorder) RecordVolPerfMetrics(arg0 string, arg1 metrictypes.VolumePerfMetricsRecord) error {
 	m.ctrl.T.Helper()
@@ -77,20 +91,6 @@ func (m *MockMetricsRecorder) RecordVolPerfMetrics(arg0 string, arg1 metrictypes
 func (mr *MockMetricsRecorderMockRecorder) RecordVolPerfMetrics(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RecordVolPerfMetrics", reflect.TypeOf((*MockMetricsRecorder)(nil).RecordVolPerfMetrics), arg0, arg1)
-}
-
-// RecordVolPerfMetrics mocks base method.
-func (m *MockMetricsRecorder) RecordTopologyMetrics(arg0 context.Context, arg1 interface{}, arg2 *metrictypes.TopologyMetricsRecord) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RecordTopologyMetrics", arg0, arg1, arg2)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// RecordTopologyMetrics indicates an expected call of RecordTopologyMetrics.
-func (mr *MockMetricsRecorderMockRecorder) RecordTopologyMetrics(arg0, arg1, arg2 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RecordTopologyMetrics", reflect.TypeOf((*MockMetricsRecorder)(nil).RecordTopologyMetrics), arg0, arg1, arg2)
 }
 
 // MockMeterCreator is a mock of MeterCreator interface.

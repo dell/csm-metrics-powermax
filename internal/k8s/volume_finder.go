@@ -88,6 +88,10 @@ func (f VolumeFinder) GetPersistentVolumes(_ context.Context) ([]VolumeInfo, err
 			serviceLevel := volume.Spec.CSI.VolumeAttributes["ServiceLevel"]
 			storageGroup := volume.Spec.CSI.VolumeAttributes["StorageGroup"]
 			symID := volume.Spec.CSI.VolumeAttributes["powermax/SYMID"]
+			storageProtocol := volume.Spec.CSI.VolumeAttributes["Protocol"]
+			if storageProtocol == "" {
+				storageProtocol = "N/A"
+			}
 
 			info := VolumeInfo{
 				Namespace:               claim.Namespace,
@@ -105,7 +109,7 @@ func (f VolumeFinder) GetPersistentVolumes(_ context.Context) ([]VolumeInfo, err
 				StorageGroup:            storageGroup,
 				SymID:                   symID,
 				StorageSystemVolumeName: volume.Name,
-				Protocol:                volume.Spec.CSI.VolumeAttributes["Protocol"],
+				Protocol:                storageProtocol,
 			}
 			volumeInfo = append(volumeInfo, info)
 		}
