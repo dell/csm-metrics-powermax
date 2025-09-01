@@ -12,8 +12,8 @@ github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/dell/csi-powermax/csireverseproxy/v2 v2.0.0-20250516145625-06e8b1e5b9cd h1:fVMeXNEgLGDxKHRahJmuMGcH14bKFhlIW3CkrZJBDSE=
 github.com/dell/csi-powermax/csireverseproxy/v2 v2.0.0-20250516145625-06e8b1e5b9cd/go.mod h1:hdErgFYZWDMhUlKOyJLgDpALZpwceJkEt4Rmh5kZNrw=
-github.com/dell/gopowermax/v2 v2.10.1-0.20250819060431-d564b2c30fb8 h1:4ynyxl+t1KsLcfN0OTivc/iCPwBJNO/q808pTi7crLc=
-github.com/dell/gopowermax/v2 v2.10.1-0.20250819060431-d564b2c30fb8/go.mod h1:5CDcZJLGZV6ghCNjuOjp9tmiZ8Y5nDIUNNzE8iho1tg=
+github.com/dell/gopowermax/v2 v2.10.1-0.20250828071903-5855848dd9f8 h1:QvQG0bYYsF86rsfL7vf21hglb0O0O0iLU+DyL27TL4c=
+github.com/dell/gopowermax/v2 v2.10.1-0.20250828071903-5855848dd9f8/go.mod h1:Dz+YoAg/GT1V0d5w4+oV4/TzN1/Vu88SwHMLWUb/2EA=
 github.com/emicklei/go-restful/v3 v3.12.1 h1:PJMDIM/ak7btuL8Ex0iYET9hxM3CI2sjZtzpL63nKAU=
 github.com/emicklei/go-restful/v3 v3.12.1/go.mod h1:6n3XBCmQQb25CM2LCACGz8ukIrRry+4bhvbpWn3mrbc=
 github.com/frankban/quicktest v1.14.6 h1:7Xjx+VpznH+oBnejlPUj8oUpdxnVs4f8XU8WnHkI4W8=
