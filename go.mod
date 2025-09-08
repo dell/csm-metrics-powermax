@@ -4,7 +4,7 @@ go 1.25
 
 require (
 	github.com/dell/csi-powermax/csireverseproxy/v2 v2.0.0-20250516145625-06e8b1e5b9cd
-	github.com/dell/gopowermax/v2 v2.10.1-0.20250828071903-5855848dd9f8
+	github.com/dell/gopowermax/v2 v2.10.1-0.20250905055843-a9fb8b3b902c
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/golang/mock v1.6.0
 	github.com/google/uuid v1.6.0
