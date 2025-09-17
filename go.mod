@@ -3,7 +3,7 @@ module github.com/dell/csm-metrics-powermax
 go 1.25
 
 require (
-	github.com/dell/csi-powermax/csireverseproxy/v2 v2.0.0-20250516145625-06e8b1e5b9cd
+	github.com/dell/csi-powermax/csireverseproxy/v2 v2.0.0-20250917131629-aab2a922a116
 	github.com/dell/gopowermax/v2 v2.11.0
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/golang/mock v1.6.0
