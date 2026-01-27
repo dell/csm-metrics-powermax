@@ -194,6 +194,13 @@ func Test_GetStorageClasses(t *testing.T) {
 }
 
 func Test_InClusterConfigFn(t *testing.T) {
+	originalFunc := k8s.InClusterConfigFunc
+	defer func() { k8s.InClusterConfigFunc = originalFunc }()
+
+	// Patch to simulate missing in-cluster environment
+	k8s.InClusterConfigFunc = func() (*rest.Config, error) {
+		return nil, errors.New("unable to load in-cluster configuration, KUBERNETES_SERVICE_HOST and KUBERNETES_SERVICE_PORT must be defined")
+	}
 	t.Run("success", func(t *testing.T) {
 		_, err := k8s.InClusterConfigFn()
 		assert.Error(t, err)

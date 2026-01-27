@@ -72,10 +72,11 @@ var ConnectFn = func(api *API) error {
 	}
 	return nil
 }
+var InClusterConfigFunc = rest.InClusterConfig
 
 // InClusterConfigFn will return a valid configuration if we are running in a Pod on a kubernetes cluster
 var InClusterConfigFn = func() (*rest.Config, error) {
-	return rest.InClusterConfig()
+	return InClusterConfigFunc()
 }
 
 // NewConfigFn will return a valid kubernetes.Clientset
