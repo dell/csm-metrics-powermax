@@ -30,6 +30,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/rest"
 )
 
 func TestGetCertFileFromSecret(t *testing.T) {
@@ -490,6 +491,13 @@ func TestInit(t *testing.T) {
 }
 
 func TestCreateInClusterKubeClient(t *testing.T) {
+	originalFunc := inClusterConfigFunc
+	defer func() { inClusterConfigFunc = originalFunc }()
+
+	// Patch to simulate missing in-cluster environment
+	inClusterConfigFunc = func() (*rest.Config, error) {
+		return nil, errors.New("unable to load in-cluster configuration, KUBERNETES_SERVICE_HOST and KUBERNETES_SERVICE_PORT must be defined")
+	}
 	tests := []struct {
 		name    string
 		wantErr error
@@ -507,4 +515,60 @@ func TestCreateInClusterKubeClient(t *testing.T) {
 			assert.Equal(t, tt.wantErr, err)
 		})
 	}
+}
+
+func TestK8sUtils_StopInformer(t *testing.T) {
+	// Arrange: create the utils object with a non-nil stopCh
+	utils := &K8sUtils{
+		stopCh: make(chan struct{}),
+	}
+
+	// Act: call StopInformer to close the channel
+	utils.StopInformer()
+
+	// Assert: check if the channel is closed
+	_, ok := <-utils.stopCh
+	assert.False(t, ok, "stopCh should be closed after calling StopInformer")
+}
+
+func TestK8sUtils_createFile(t *testing.T) {
+	// Arrange
+	utils := &K8sUtils{}
+	testDir := os.TempDir()
+	testFile := filepath.Join(testDir, "test_create_file.txt")
+	testData := []byte("Hello, unit test!")
+
+	// Clean up before and after
+	_ = os.Remove(testFile)
+	defer os.Remove(testFile)
+
+	// Act
+	err := utils.createFile(testFile, testData)
+
+	// Assert
+	assert.NoError(t, err, "createFile should not return an error")
+
+	// Check file exists
+	_, statErr := os.Stat(testFile)
+	assert.NoError(t, statErr, "file should exist after createFile")
+
+	// Check file contents
+	content, readErr := os.ReadFile(testFile)
+	assert.NoError(t, readErr, "should be able to read the file")
+	assert.Equal(t, testData, content, "file content should match input data")
+}
+
+func TestCreateInClusterKubeClient_ReturnsError1(t *testing.T) {
+	t.Run("return config", func(t *testing.T) {
+		originalFunc := inClusterConfigFunc
+		defer func() { inClusterConfigFunc = originalFunc }()
+
+		inClusterConfigFunc = func() (*rest.Config, error) {
+			return &rest.Config{}, nil
+		}
+
+		kc := &KubernetesClient{}
+		err := kc.CreateInClusterKubeClient()
+		assert.Nil(t, err)
+	})
 }

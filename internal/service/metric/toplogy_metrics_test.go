@@ -29,9 +29,9 @@ import (
 	"github.com/dell/csm-metrics-powermax/internal/service/metric"
 	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes"
 	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes/mocks"
-	"github.com/golang/mock/gomock"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/mock/gomock"
 )
 
 func TestCreateTopologyMetricsInstance(t *testing.T) {

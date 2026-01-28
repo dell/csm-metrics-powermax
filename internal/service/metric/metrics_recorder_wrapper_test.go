@@ -25,11 +25,11 @@ import (
 	"github.com/dell/csm-metrics-powermax/internal/service/metric"
 	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes"
 	otlexporters "github.com/dell/csm-metrics-powermax/opentelemetry/exporters"
-	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.uber.org/mock/gomock"
 )
 
 func Test_RecordNumericMetrics(t *testing.T) {

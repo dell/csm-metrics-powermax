@@ -79,10 +79,12 @@ func (c *KubernetesClient) CreateKubeClient(inCluster bool) error {
 	return c.CreateOutOfClusterKubeClient()
 }
 
+var inClusterConfigFunc = rest.InClusterConfig
+
 // CreateInClusterKubeClient - creates the in-cluster config
 func (c *KubernetesClient) CreateInClusterKubeClient() error {
 	// creates the in-cluster config
-	config, err := rest.InClusterConfig()
+	config, err := inClusterConfigFunc()
 	if err != nil {
 		return err
 	}
