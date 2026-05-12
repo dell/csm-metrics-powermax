@@ -38,7 +38,7 @@ import (
 
 func Test_Run_Unauthorized(t *testing.T) {
 	mockUtils := k8smock.Init()
-	mockUtils.CreateNewCredentialSecret("powermax-creds")
+	_, _ = mockUtils.CreateNewCredentialSecret("powermax-creds")
 
 	tests := map[string]func(t *testing.T) (filePath string, k8sUtils k8sutils.UtilsInterface, expectError bool){
 		"failed with unauthorized user": func(*testing.T) (string, k8sutils.UtilsInterface, bool) {
@@ -67,7 +67,7 @@ func Test_Run_Unauthorized(t *testing.T) {
 				assert.NotNil(t, clusters)
 				assert.Nil(t, err)
 			}
-			os.WriteFile(filePath, original, 0o600)
+			_ = os.WriteFile(filePath, original, 0o600)
 		})
 	}
 }
@@ -77,8 +77,8 @@ func Test_GetK8sUtils(t *testing.T) {
 }
 
 func Test_InitK8sUtils(t *testing.T) {
-	os.Setenv("HOME", "")
-	os.Setenv("X_CSI_KUBECONFIG_PATH", "../k8s/testdata/")
+	_ = os.Setenv("HOME", "")
+	_ = os.Setenv("X_CSI_KUBECONFIG_PATH", "../k8s/testdata/")
 	callback := func(_ k8sutils.UtilsInterface, _ *corev1.Secret) {}
 	_, err := k8spmax.InitK8sUtils(logrus.New(), callback, false)
 	assert.Nil(t, err)
@@ -89,7 +89,7 @@ func TestGetPowerMaxArrays(t *testing.T) {
 	defer server.Close()
 
 	mockUtils := k8smock.Init()
-	mockUtils.CreateNewCredentialSecret("powermax-creds")
+	_, _ = mockUtils.CreateNewCredentialSecret("powermax-creds")
 
 	testCases := []struct {
 		name                   string
@@ -176,9 +176,9 @@ func TestGetPowerMaxArrays(t *testing.T) {
 			original := replaceEnpoints(tc.filePath, server.URL)
 
 			ctx := context.Background()
-			setReverseProxyUseSecret(tc.useSecret)
+			_ = setReverseProxyUseSecret(tc.useSecret)
 			if tc.useSecret {
-				setEnv(revcommon.EnvSecretFilePath, tc.filePath)
+				_ = setEnv(revcommon.EnvSecretFilePath, tc.filePath)
 			}
 			powerMaxArrays, err := k8spmax.GetPowerMaxArrays(ctx, tc.k8sUtils, tc.filePath, tc.logger)
 			if err != nil {
@@ -190,7 +190,7 @@ func TestGetPowerMaxArrays(t *testing.T) {
 			if len(powerMaxArrays) != len(tc.expectedPowerMaxArrays) {
 				t.Errorf("Expected powerMaxArrays: %v, but got: %v", tc.expectedPowerMaxArrays, powerMaxArrays)
 			}
-			os.WriteFile(tc.filePath, original, 0o600)
+			_ = os.WriteFile(tc.filePath, original, 0o600)
 		})
 	}
 }
@@ -210,7 +210,7 @@ func getHandler(router http.Handler) http.Handler {
 func getRouter() http.Handler {
 	router := http.NewServeMux()
 	router.HandleFunc("/univmax/restapi/version", func(w http.ResponseWriter, _ *http.Request) {
-		w.Write([]byte("{\"version\": \"T10.0.0.1311\"}"))
+		_, _ = w.Write([]byte("{\"version\": \"T10.0.0.1311\"}"))
 	})
 	return router
 }
@@ -220,7 +220,7 @@ func getUnauthorizedRouter() http.Handler {
 	router := http.NewServeMux()
 	router.HandleFunc("/univmax/restapi/version", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(401)
-		w.Write([]byte("<html><head><title>Error</title></head><body>Unauthorized</body></html>"))
+		_, _ = w.Write([]byte("<html><head><title>Error</title></head><body>Unauthorized</body></html>"))
 	})
 	return router
 }
@@ -248,6 +248,6 @@ func createServer() *httptest.Server {
 func replaceEnpoints(configFile, endpoint string) []byte {
 	fileContentBytes, _ := os.ReadFile(configFile)
 	newContent := strings.ReplaceAll(string(fileContentBytes), "[REPLACE_ENDPOINT]", endpoint)
-	os.WriteFile(configFile, []byte(newContent), 0o600)
+	_ = os.WriteFile(configFile, []byte(newContent), 0o600) // #nosec G703 -- This is a false positive as the filepath is hardcoded in the test
 	return fileContentBytes
 }

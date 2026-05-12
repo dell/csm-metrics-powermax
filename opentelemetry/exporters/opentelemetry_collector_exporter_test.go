@@ -103,7 +103,7 @@ func TestOtlCollectorExporter_StopExporter(t *testing.T) {
 			}
 
 			if tt.preShutdown {
-				tt.collector.exporter.Shutdown(context.Background())
+				_ = tt.collector.exporter.Shutdown(context.Background())
 			}
 
 			err = tt.collector.StopExporter()
