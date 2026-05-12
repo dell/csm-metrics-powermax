@@ -47,7 +47,7 @@ func Test_GetPersistentVolumes(t *testing.T) {
 
 	checkExpectedOutput := func(expectedOutput *corev1.PersistentVolumeList) func(t *testing.T, volumes *corev1.PersistentVolumeList, err error) {
 		return func(t *testing.T, volumes *corev1.PersistentVolumeList, _ error) {
-			assert.Equal(t, expectedOutput, volumes)
+			assert.Equal(t, expectedOutput.Items, volumes.Items)
 		}
 	}
 
@@ -69,10 +69,16 @@ func Test_GetPersistentVolumes(t *testing.T) {
 				},
 			}
 			connect := func(api *k8s.API) error {
-				api.Client = fake.NewSimpleClientset(volumes)
+				api.Client = fake.NewClientset(volumes)
 				return nil
 			}
-			return connect, nil, check(hasNoError, checkExpectedOutput(volumes))
+			expectedVolumes := &corev1.PersistentVolumeList{
+				ListMeta: metav1.ListMeta{
+					ResourceVersion: "2",
+				},
+				Items: volumes.Items,
+			}
+			return connect, nil, check(hasNoError, checkExpectedOutput(expectedVolumes))
 		},
 		"error connecting": func(*testing.T) (connectFn, configFn, []checkFn) {
 			connect := func(_ *k8s.API) error {
@@ -123,7 +129,7 @@ func Test_GetStorageClasses(t *testing.T) {
 
 	checkExpectedOutput := func(expectedOutput *v1.StorageClassList) func(t *testing.T, volumes *v1.StorageClassList, err error) {
 		return func(t *testing.T, volumes *v1.StorageClassList, _ error) {
-			assert.Equal(t, expectedOutput, volumes)
+			assert.Equal(t, expectedOutput.Items, volumes.Items)
 		}
 	}
 
@@ -153,7 +159,7 @@ func Test_GetStorageClasses(t *testing.T) {
 			}
 
 			connect := func(api *k8s.API) error {
-				api.Client = fake.NewSimpleClientset(storageClasses)
+				api.Client = fake.NewClientset(storageClasses)
 				return nil
 			}
 			return connect, nil, check(hasNoError, checkExpectedOutput(storageClasses))

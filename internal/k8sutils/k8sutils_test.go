@@ -140,7 +140,7 @@ func TestGetSecret(t *testing.T) {
 			namespace:  "test-namespace",
 			secretName: "test-secret",
 			setup: func() (*KubernetesClient, error) {
-				client := fake.NewSimpleClientset(&corev1.Secret{
+				client := fake.NewClientset(&corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test-secret",
 						Namespace: "test-namespace",
@@ -193,7 +193,7 @@ func TestGetCertFileFromSecretName(t *testing.T) {
 			namespace:  "test-namespace",
 			secretName: "test-secret",
 			setup: func() (*K8sUtils, error) {
-				client := fake.NewSimpleClientset(&corev1.Secret{
+				client := fake.NewClientset(&corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test-secret",
 						Namespace: "test-namespace",
@@ -213,7 +213,7 @@ func TestGetCertFileFromSecretName(t *testing.T) {
 			namespace:  "test-namespace",
 			secretName: "test-secret",
 			setup: func() (*K8sUtils, error) {
-				client := fake.NewSimpleClientset(&corev1.Secret{})
+				client := fake.NewClientset(&corev1.Secret{})
 				return &K8sUtils{
 					KubernetesClient: &KubernetesClient{Clientset: client},
 					Namespace:        "test-namespace",
@@ -256,7 +256,7 @@ func TestGetCredentialsFromSecretName(t *testing.T) {
 			namespace:  "test-namespace",
 			secretName: "test-secret",
 			setup: func() (*K8sUtils, error) {
-				client := fake.NewSimpleClientset(&corev1.Secret{
+				client := fake.NewClientset(&corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test-secret",
 						Namespace: "test-namespace",
@@ -277,7 +277,7 @@ func TestGetCredentialsFromSecretName(t *testing.T) {
 			namespace:  "test-namespace",
 			secretName: "test-secret",
 			setup: func() (*K8sUtils, error) {
-				client := fake.NewSimpleClientset(&corev1.Secret{})
+				client := fake.NewClientset(&corev1.Secret{})
 				return &K8sUtils{
 					KubernetesClient: &KubernetesClient{Clientset: client},
 					Namespace:        "test-namespace",
@@ -322,7 +322,7 @@ func TestStartInformer(t *testing.T) {
 			secretName: "test-secret",
 			callback:   func(_ UtilsInterface, _ *corev1.Secret) {},
 			setup: func() (*K8sUtils, error) {
-				client := fake.NewSimpleClientset(&corev1.Secret{
+				client := fake.NewClientset(&corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test-secret",
 						Namespace: "test-namespace",
@@ -380,14 +380,14 @@ func TestCreateOutOfClusterKubeClient(t *testing.T) {
 		{
 			name: "valid with empty HOME variable",
 			setup: func() error {
-				os.Setenv("HOME", "")
+				_ = os.Setenv("HOME", "")
 
 				wd, err := os.Getwd()
 				if err != nil {
 					return err
 				}
 				path := filepath.Join(wd, "..", "k8s/testdata")
-				os.Setenv("X_CSI_KUBECONFIG_PATH", path)
+				_ = os.Setenv("X_CSI_KUBECONFIG_PATH", path)
 				return nil
 			},
 		},
@@ -399,17 +399,16 @@ func TestCreateOutOfClusterKubeClient(t *testing.T) {
 					return err
 				}
 				path := filepath.Join(wd, "..", "k8s/testdata")
-				os.Setenv("HOME", path)
-
-				os.Setenv("X_CSI_KUBECONFIG_PATH", "")
+				_ = os.Setenv("HOME", path)
+				_ = os.Setenv("X_CSI_KUBECONFIG_PATH", "")
 				return nil
 			},
 		},
 		{
 			name: "invalid with empty HOME and X_CSI_KUBECONFIG_PATH variable",
 			setup: func() error {
-				os.Setenv("HOME", "")
-				os.Setenv("X_CSI_KUBECONFIG_PATH", "")
+				_ = os.Setenv("HOME", "")
+				_ = os.Setenv("X_CSI_KUBECONFIG_PATH", "")
 				return nil
 			},
 			wantErr: errors.New("failed to get kube config path"),
@@ -467,15 +466,17 @@ func TestInit(t *testing.T) {
 			tt.setup()
 
 			home := os.Getenv("HOME")
-			os.Setenv("HOME", "")
-			defer os.Setenv("HOME", home)
+			_ = os.Setenv("HOME", "")
+			defer func() {
+				_ = os.Setenv("HOME", home)
+			}()
 
 			wd, err := os.Getwd()
 			if err != nil {
 				t.Fatalf("failed to get working directory: %s", err.Error())
 			}
 			str := filepath.Join(wd, "..", "k8s/testdata")
-			os.Setenv("X_CSI_KUBECONFIG_PATH", str)
+			_ = os.Setenv("X_CSI_KUBECONFIG_PATH", str)
 
 			defer func() { k8sUtils = nil }()
 
@@ -540,8 +541,9 @@ func TestK8sUtils_createFile(t *testing.T) {
 
 	// Clean up before and after
 	_ = os.Remove(testFile)
-	defer os.Remove(testFile)
-
+	defer func() {
+		_ = os.Remove(testFile)
+	}()
 	// Act
 	err := utils.createFile(testFile, testData)
 
