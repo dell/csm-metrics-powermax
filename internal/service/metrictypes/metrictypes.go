@@ -37,12 +37,15 @@ type PowerMaxClient interface {
 	Authenticate(ctx context.Context, configConnect *pmax.ConfigConnect) error
 	GetStorageGroup(ctx context.Context, symID string, storageGroupID string) (*types.StorageGroup, error)
 	GetVolumeByID(ctx context.Context, symID string, volumeID string) (*types.Volume, error)
+	GetVolumesCapacityBulk(ctx context.Context, symID string) (*types.Volumev1, error)
 	GetArrayPerfKeys(ctx context.Context) (*types.ArrayKeysResult, error)
 	GetVolumesMetrics(ctx context.Context, symID string, storageGroups string, metricsQuery []string, firstAvailableTime,
 		lastAvailableTime int64) (*types.VolumeMetricsIterator, error)
 	GetStorageGroupPerfKeys(ctx context.Context, symID string) (*types.StorageGroupKeysResult, error)
 	GetStorageGroupMetrics(ctx context.Context, symID string, storageGroupID string, metricsQuery []string,
 		firstAvailableTime, lastAvailableTime int64) (*types.StorageGroupMetricsIterator, error)
+	GetStorageGroupMetricsBulk(ctx context.Context, symID string) (*types.StorageGroupPerfCategoryResult, error)
+	GetStorageGroupIDList(ctx context.Context, symID, storageGroupIDMatch string, like bool) (*types.StorageGroupIDList, error)
 }
 
 // VolumeFinder is used to find volume information in kubernetes

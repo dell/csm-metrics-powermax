@@ -22,6 +22,8 @@ Metrics for PowerMax is an open source distributed solution that provides insigh
 
 Metrics for PowerMax captures telemetry data of storage usage and performance obtained through the CSI Driver for Dell PowerMax. The Metrics service pushes it to the OpenTelemetry Collector, so it can be processed, and exported in a format consumable by Prometheus. Prometheus can then be configured to scrape the OpenTelemetry Collector exporter endpoint to provide metrics so they can be visualized in Grafana.
 
+For documentation, please visit [Container Storage Modules documentation](https://dell.github.io/csm-docs/).
+
 ## Table of Contents
 
 * [Code of Conduct](https://github.com/dell/csm/blob/main/docs/CODE_OF_CONDUCT.md)

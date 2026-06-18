@@ -18,6 +18,9 @@ package metric
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -26,13 +29,57 @@ import (
 	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes"
 )
 
+const sgCountCacheTTL = 5 * time.Minute
+
+// defaultBulkThresholdRatio is the default minimum fraction of monitored-to-total storage
+// groups before the bulk GET endpoint is preferred over individual POST calls.
+// Bulk fetches ALL SG metrics in one call so it pays off when a large share of
+// SGs is monitored; individual calls are cheaper when only a few SGs are
+// needed.  0.25 (25 %) was chosen as a reasonable default balancing response
+// size against per-call overhead.
+const defaultBulkThresholdRatio = 0.25
+
+// bulkThresholdRatio is the active threshold ratio, optionally overridden by
+// the POWERMAX_BULK_THRESHOLD_RATIO environment variable.
+var bulkThresholdRatio = defaultBulkThresholdRatio
+
+func init() {
+	if v := os.Getenv("POWERMAX_BULK_THRESHOLD_RATIO"); v != "" {
+		parsed, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "POWERMAX_BULK_THRESHOLD_RATIO is not a valid number (%q), using default %v\n", v, defaultBulkThresholdRatio)
+		} else if parsed < 0 || parsed > 1 {
+			fmt.Fprintf(os.Stderr, "POWERMAX_BULK_THRESHOLD_RATIO must be between 0 and 1 (%v), using default %v\n", parsed, defaultBulkThresholdRatio)
+		} else {
+			bulkThresholdRatio = parsed
+		}
+	}
+}
+
+// sgCountCacheEntry represents a cached storage group count with timestamp
+type sgCountCacheEntry struct {
+	count     int
+	timestamp time.Time
+}
+
 // PerformanceMetrics performance metrics
 type PerformanceMetrics struct {
 	*BaseMetrics
+	sgCountCache      map[string]sgCountCacheEntry
+	sgCountCacheMutex sync.RWMutex
 }
 
 // performanceMetricsInstance single instance of Performance metrics
 var performanceMetricsInstance *PerformanceMetrics
+
+// NewPerformanceMetrics creates a new PerformanceMetrics with the given BaseMetrics and
+// properly initialized internal state. Use this for constructing test instances.
+func NewPerformanceMetrics(base *BaseMetrics) *PerformanceMetrics {
+	return &PerformanceMetrics{
+		BaseMetrics:  base,
+		sgCountCache: make(map[string]sgCountCacheEntry),
+	}
+}
 
 // CreatePerformanceMetricsInstance return a singleton instance of PerformanceMetrics.
 func CreatePerformanceMetricsInstance(service metrictypes.Service) *PerformanceMetrics {
@@ -42,12 +89,51 @@ func CreatePerformanceMetricsInstance(service metrictypes.Service) *PerformanceM
 
 		if performanceMetricsInstance == nil {
 			base := NewBaseMetrics(service)
-			performanceMetricsInstance = &PerformanceMetrics{base}
+			performanceMetricsInstance = &PerformanceMetrics{
+				BaseMetrics:  base,
+				sgCountCache: make(map[string]sgCountCacheEntry),
+			}
 			base.Collector = performanceMetricsInstance
 		}
 	}
 
 	return performanceMetricsInstance
+}
+
+// getTotalSGCount returns the total number of storage groups for an array, using cache if available
+func (m *PerformanceMetrics) getTotalSGCount(ctx context.Context, pmaxClient metrictypes.PowerMaxClient, arrayID string) (int, error) {
+	// Check cache first
+	m.sgCountCacheMutex.RLock()
+	if m.sgCountCache != nil {
+		entry, exists := m.sgCountCache[arrayID]
+		m.sgCountCacheMutex.RUnlock()
+		if exists && time.Since(entry.timestamp) < sgCountCacheTTL {
+			return entry.count, nil
+		}
+	} else {
+		m.sgCountCacheMutex.RUnlock()
+	}
+
+	// Cache miss or expired, fetch from API
+	sgIDList, err := pmaxClient.GetStorageGroupIDList(ctx, arrayID, "", false)
+	if err != nil {
+		return 0, err
+	}
+
+	totalSGs := len(sgIDList.StorageGroupIDs)
+
+	// Update cache
+	m.sgCountCacheMutex.Lock()
+	if m.sgCountCache == nil {
+		m.sgCountCache = make(map[string]sgCountCacheEntry)
+	}
+	m.sgCountCache[arrayID] = sgCountCacheEntry{
+		count:     totalSGs,
+		timestamp: time.Now(),
+	}
+	m.sgCountCacheMutex.Unlock()
+
+	return totalSGs, nil
 }
 
 // Collect performance metric collection and processing
@@ -267,29 +353,6 @@ func (m *PerformanceMetrics) gatherStorageGroupPerformanceMetrics(ctx context.Co
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, m.MaxPowerMaxConnections)
 
-	// Store the last available time for query
-	storageGroup2LastAvailTime := make(map[string]int64)
-	for arrayID, sgs := range array2Sgs {
-		pmaxClient, err := m.GetPowerMaxClient(arrayID)
-		if err != nil {
-			m.Logger.WithError(err).WithField("arrayID", arrayID).Warn("no client found for PowerMax")
-			continue
-		}
-		timeResult, err := pmaxClient.GetStorageGroupPerfKeys(ctx, arrayID)
-		if err != nil {
-			m.Logger.WithError(err).WithField("arrayID", arrayID).Warn("cannot query last available time for storage groups in the array")
-			continue
-		}
-		// Store the query time for storage groups
-		for _, storageGroupInfo := range timeResult.StorageGroupInfos {
-			if _, ok := sgs[storageGroupInfo.StorageGroupID]; ok {
-				// store both arrayID & storage for collision risk
-				storageGroup2LastAvailTime[arrayID+"="+storageGroupInfo.StorageGroupID] = storageGroupInfo.LastAvailableDate
-				m.Logger.Debugf("last available time of the storage group %s is %d", storageGroupInfo.StorageGroupID, storageGroupInfo.LastAvailableDate)
-			}
-		}
-	}
-
 	go func() {
 		exported := false
 		for arrayID, sgs := range array2Sgs {
@@ -306,35 +369,39 @@ func (m *PerformanceMetrics) gatherStorageGroupPerformanceMetrics(ctx context.Co
 					m.Logger.WithError(err).WithField("arrayID", arrayID).Warn("no client found for PowerMax")
 					return
 				}
-				for storageGroupID := range sgs {
-					if _, ok := storageGroup2LastAvailTime[arrayID+"="+storageGroupID]; !ok {
-						m.Logger.WithField("storageGroupID", storageGroupID).Warn("last available time for storage group is not found")
-						continue
-					}
-					sgMetrics, err := pmaxClient.GetStorageGroupMetrics(ctx, arrayID, storageGroupID, []string{
-						"HostMBReads", "HostMBWritten",
-						"ReadResponseTime", "WriteResponseTime", "HostReads", "HostWrites", "AvgIOSize",
-					},
-						storageGroup2LastAvailTime[arrayID+"="+storageGroupID], storageGroup2LastAvailTime[arrayID+"="+storageGroupID])
-					if err != nil {
-						m.Logger.WithError(err).WithField("storageGroupID ID", storageGroupID).Warn("failed to get storage group metrics")
-						continue
-					}
-					for _, sgResult := range sgMetrics.ResultList.Result {
-						metric := &metrictypes.StorageGroupPerfMetricsRecord{
-							ArrayID:           arrayID,
-							StorageGroupID:    storageGroupID,
-							HostMBReads:       sgResult.HostMBReads,
-							HostMBWritten:     sgResult.HostMBWritten,
-							ReadResponseTime:  sgResult.ReadResponseTime,
-							WriteResponseTime: sgResult.WriteResponseTime,
-							HostReads:         sgResult.HostReads,
-							HostWrites:        sgResult.HostWrites,
-							AvgIOSize:         sgResult.AvgIOSize,
-						}
-						ch <- metric
-					}
+
+				// Get total number of storage groups on the array (cached with TTL)
+				totalSGs, err := m.getTotalSGCount(ctx, pmaxClient, arrayID)
+				if err != nil {
+					m.Logger.WithError(err).WithField("arrayID", arrayID).Warn(
+						"failed to get total storage group count, using individual API")
+					m.collectSGMetricsLegacy(ctx, pmaxClient, arrayID, sgs, ch)
+					return
 				}
+
+				requestedSGs := len(sgs)
+
+				// Use bulk API when the monitored fraction exceeds bulkThresholdRatio.
+				// Guard against totalSGs == 0 (empty array) to avoid float division producing +Inf.
+				useBulk := totalSGs > 0 && requestedSGs > 0 && float64(requestedSGs)/float64(totalSGs) > bulkThresholdRatio
+				m.Logger.WithFields(map[string]interface{}{
+					"arrayID":      arrayID,
+					"requestedSGs": requestedSGs,
+					"totalSGs":     totalSGs,
+					"useBulk":      useBulk,
+				}).Debug("Storage group performance collection strategy")
+
+				if useBulk {
+					// Try the bulk GET endpoint first (one API call for all SGs).
+					if m.collectSGMetricsBulk(ctx, pmaxClient, arrayID, sgs, ch) {
+						return
+					}
+					// Bulk call failed; fall back to the legacy per-SG POST calls.
+					m.Logger.WithField("arrayID", arrayID).Warn(
+						"bulk SG performance collection failed, falling back to per-SG collection")
+				}
+				// Use individual API
+				m.collectSGMetricsLegacy(ctx, pmaxClient, arrayID, sgs, ch)
 			}(arrayID, sgs)
 		}
 		if !exported {
@@ -357,6 +424,105 @@ func (m *PerformanceMetrics) gatherStorageGroupPerformanceMetrics(ctx context.Co
 		close(sem)
 	}()
 	return ch
+}
+
+// collectSGMetricsBulk tries the single GET /performance-categories/StorageGroup endpoint
+// to retrieve all SG metrics in one call. Returns true if it succeeded.
+func (m *PerformanceMetrics) collectSGMetricsBulk(
+	ctx context.Context,
+	pmaxClient metrictypes.PowerMaxClient,
+	arrayID string,
+	sgs map[string]struct{},
+	ch chan<- *metrictypes.StorageGroupPerfMetricsRecord,
+) bool {
+	bulkResult, err := pmaxClient.GetStorageGroupMetricsBulk(ctx, arrayID)
+	if err != nil {
+		return false
+	}
+	if bulkResult == nil {
+		return false
+	}
+	metricsEmitted := 0
+	for _, instance := range bulkResult.MetricInstances {
+		if _, ok := sgs[instance.ID]; !ok {
+			continue
+		}
+		for _, metric := range instance.Metrics {
+			ch <- &metrictypes.StorageGroupPerfMetricsRecord{
+				ArrayID:           arrayID,
+				StorageGroupID:    instance.ID,
+				HostMBReads:       metric.HostMBReads,
+				HostMBWritten:     metric.HostMBWritten,
+				ReadResponseTime:  metric.ReadResponseTime,
+				WriteResponseTime: metric.WriteResponseTime,
+				HostReads:         metric.HostReads,
+				HostWrites:        metric.HostWrites,
+				AvgIOSize:         metric.AvgIOSize,
+			}
+			metricsEmitted++
+		}
+	}
+	if metricsEmitted == 0 && len(sgs) > 0 {
+		m.Logger.WithField("arrayID", arrayID).Warn(
+			"bulk SG metrics returned zero records, falling back to per-SG collection")
+		return false
+	}
+	return true
+}
+
+// collectSGMetricsLegacy retrieves SG performance metrics using the legacy per-SG POST calls.
+// It first calls GetStorageGroupPerfKeys to get timestamps, then GetStorageGroupMetrics per SG.
+func (m *PerformanceMetrics) collectSGMetricsLegacy(
+	ctx context.Context,
+	pmaxClient metrictypes.PowerMaxClient,
+	arrayID string,
+	sgs map[string]struct{},
+	ch chan<- *metrictypes.StorageGroupPerfMetricsRecord,
+) {
+	timeResult, err := pmaxClient.GetStorageGroupPerfKeys(ctx, arrayID)
+	if err != nil {
+		m.Logger.WithError(err).WithField("arrayID", arrayID).Warn("cannot query last available time for storage groups in the array")
+		return
+	}
+	// Build a map of SG -> last available time
+	storageGroup2LastAvailTime := make(map[string]int64)
+	for _, storageGroupInfo := range timeResult.StorageGroupInfos {
+		if _, ok := sgs[storageGroupInfo.StorageGroupID]; ok {
+			storageGroup2LastAvailTime[storageGroupInfo.StorageGroupID] = storageGroupInfo.LastAvailableDate
+			m.Logger.Debugf("last available time of the storage group %s is %d", storageGroupInfo.StorageGroupID, storageGroupInfo.LastAvailableDate)
+		}
+	}
+	for storageGroupID := range sgs {
+		lastAvailTime, ok := storageGroup2LastAvailTime[storageGroupID]
+		if !ok {
+			m.Logger.WithField("storageGroupID", storageGroupID).Warn("last available time for storage group is not found")
+			continue
+		}
+		sgMetrics, sgErr := pmaxClient.GetStorageGroupMetrics(ctx, arrayID, storageGroupID, sgPerfMetricsQuery, lastAvailTime, lastAvailTime)
+		if sgErr != nil {
+			m.Logger.WithError(sgErr).WithField("storageGroupID ID", storageGroupID).Warn("failed to get storage group metrics")
+			continue
+		}
+		for _, sgResult := range sgMetrics.ResultList.Result {
+			ch <- &metrictypes.StorageGroupPerfMetricsRecord{
+				ArrayID:           arrayID,
+				StorageGroupID:    storageGroupID,
+				HostMBReads:       sgResult.HostMBReads,
+				HostMBWritten:     sgResult.HostMBWritten,
+				ReadResponseTime:  sgResult.ReadResponseTime,
+				WriteResponseTime: sgResult.WriteResponseTime,
+				HostReads:         sgResult.HostReads,
+				HostWrites:        sgResult.HostWrites,
+				AvgIOSize:         sgResult.AvgIOSize,
+			}
+		}
+	}
+}
+
+// sgPerfMetricsQuery is the set of storage group performance metrics collected per scrape.
+var sgPerfMetricsQuery = []string{
+	"HostMBReads", "HostMBWritten",
+	"ReadResponseTime", "WriteResponseTime", "HostReads", "HostWrites", "AvgIOSize",
 }
 
 func (m *PerformanceMetrics) pushStorageGroupPerformanceMetrics(_ context.Context, storageGroupPerfMetrics <-chan *metrictypes.StorageGroupPerfMetricsRecord) <-chan string {

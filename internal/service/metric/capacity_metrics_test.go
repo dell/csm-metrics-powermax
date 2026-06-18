@@ -63,13 +63,16 @@ func Test_CapacityMetricsCollect(t *testing.T) {
 	var mockVolumes []k8s.VolumeInfo
 	var volume00833 v100.Volume
 	var volume00834 v100.Volume
+	var bulkCapacity v100.Volumev1
 
 	mockVolBytes, _ := os.ReadFile(filepath.Join(mockDir, "persistent_volumes.json"))
 	_ = json.Unmarshal(mockVolBytes, &mockVolumes)
 	vol00833Bytes, _ := os.ReadFile(filepath.Join(mockDir, "pmax_vol_00833.json"))
 	_ = json.Unmarshal(vol00833Bytes, &volume00833)
 	vol00834Bytes, _ := os.ReadFile(filepath.Join(mockDir, "pmax_vol_00834.json"))
-	err := json.Unmarshal(vol00834Bytes, &volume00834)
+	_ = json.Unmarshal(vol00834Bytes, &volume00834)
+	bulkBytes, _ := os.ReadFile(filepath.Join(mockDir, "pmax_vol_capacity_bulk.json"))
+	err := json.Unmarshal(bulkBytes, &bulkCapacity)
 	assert.Nil(t, err)
 
 	tests := map[string]func(t *testing.T) (metric.CapacityMetrics, *gomock.Controller, error){
@@ -82,6 +85,36 @@ func Test_CapacityMetricsCollect(t *testing.T) {
 			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any(), gomock.Any()).Times(6)
 
 			c := mocks.NewMockPowerMaxClient(ctrl)
+			c.EXPECT().GetVolumesCapacityBulk(gomock.Any(), gomock.Any()).Return(&bulkCapacity, nil).Times(1)
+
+			clients := make(map[string][]metrictypes.PowerMaxArray)
+			array := metrictypes.PowerMaxArray{
+				Client:   c,
+				IsActive: true,
+			}
+			clients["000197902599"] = append(clients["000197902599"], array)
+
+			capacityMetric := metric.CapacityMetrics{
+				BaseMetrics: &metric.BaseMetrics{
+					VolumeFinder:           volFinder,
+					PowerMaxClients:        clients,
+					MetricsRecorder:        metrics,
+					MaxPowerMaxConnections: service.DefaultMaxPowerMaxConnections,
+				},
+			}
+			return capacityMetric, ctrl, nil
+		},
+		"bulk unavailable falls back to per-volume": func(t *testing.T) (metric.CapacityMetrics, *gomock.Controller, error) {
+			ctrl := gomock.NewController(t)
+			metrics := mocks.NewMockMetricsRecorder(ctrl)
+			volFinder := mocks.NewMockVolumeFinder(ctrl)
+
+			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(mockVolumes, nil).Times(1)
+			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any(), gomock.Any()).Times(6)
+
+			bulkErr := errors.New("bulk endpoint unavailable")
+			c := mocks.NewMockPowerMaxClient(ctrl)
+			c.EXPECT().GetVolumesCapacityBulk(gomock.Any(), gomock.Any()).Return(nil, bulkErr).Times(1)
 			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(&volume00833, nil).Times(1)
 			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(&volume00834, nil).Times(1)
 
@@ -170,7 +203,9 @@ func Test_CapacityMetricsCollect(t *testing.T) {
 
 			err := errors.New("failed to get volume")
 
+			// Bulk call fails, exercising the per-volume fallback path which also fails.
 			c := mocks.NewMockPowerMaxClient(ctrl)
+			c.EXPECT().GetVolumesCapacityBulk(gomock.Any(), gomock.Any()).Return(nil, err).Times(1)
 			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, err).Times(2)
 
 			clients := make(map[string][]metrictypes.PowerMaxArray)
@@ -200,8 +235,93 @@ func Test_CapacityMetricsCollect(t *testing.T) {
 			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(mockVolumes, nil).Times(1)
 
 			c := mocks.NewMockPowerMaxClient(ctrl)
+			c.EXPECT().GetVolumesCapacityBulk(gomock.Any(), gomock.Any()).Return(&bulkCapacity, nil).Times(1)
+
+			clients := make(map[string][]metrictypes.PowerMaxArray)
+			array := metrictypes.PowerMaxArray{
+				Client:   c,
+				IsActive: true,
+			}
+			clients["000197902599"] = append(clients["000197902599"], array)
+
+			capacityMetric := metric.CapacityMetrics{
+				BaseMetrics: &metric.BaseMetrics{
+					VolumeFinder:           volFinder,
+					PowerMaxClients:        clients,
+					MetricsRecorder:        metrics,
+					MaxPowerMaxConnections: service.DefaultMaxPowerMaxConnections,
+				},
+			}
+			return capacityMetric, ctrl, nil
+		},
+		"bulk returns nil result - fallback to per-volume": func(t *testing.T) (metric.CapacityMetrics, *gomock.Controller, error) {
+			ctrl := gomock.NewController(t)
+			metrics := mocks.NewMockMetricsRecorder(ctrl)
+			volFinder := mocks.NewMockVolumeFinder(ctrl)
+
+			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(mockVolumes, nil).Times(1)
+			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any(), gomock.Any()).Times(6)
+
+			c := mocks.NewMockPowerMaxClient(ctrl)
+			c.EXPECT().GetVolumesCapacityBulk(gomock.Any(), gomock.Any()).Return(nil, nil).Times(1)
 			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(&volume00833, nil).Times(1)
 			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(&volume00834, nil).Times(1)
+
+			clients := make(map[string][]metrictypes.PowerMaxArray)
+			array := metrictypes.PowerMaxArray{
+				Client:   c,
+				IsActive: true,
+			}
+			clients["000197902599"] = append(clients["000197902599"], array)
+
+			capacityMetric := metric.CapacityMetrics{
+				BaseMetrics: &metric.BaseMetrics{
+					VolumeFinder:           volFinder,
+					PowerMaxClients:        clients,
+					MetricsRecorder:        metrics,
+					MaxPowerMaxConnections: service.DefaultMaxPowerMaxConnections,
+				},
+			}
+			return capacityMetric, ctrl, nil
+		},
+		"volume with short handle": func(t *testing.T) (metric.CapacityMetrics, *gomock.Controller, error) {
+			ctrl := gomock.NewController(t)
+			metrics := mocks.NewMockMetricsRecorder(ctrl)
+			volFinder := mocks.NewMockVolumeFinder(ctrl)
+
+			shortHandleVolumes := []k8s.VolumeInfo{
+				{VolumeHandle: "noDash"},
+			}
+			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(shortHandleVolumes, nil).Times(1)
+			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any(), gomock.Any()).Times(5)
+
+			clients := make(map[string][]metrictypes.PowerMaxArray)
+
+			capacityMetric := metric.CapacityMetrics{
+				BaseMetrics: &metric.BaseMetrics{
+					VolumeFinder:           volFinder,
+					PowerMaxClients:        clients,
+					MetricsRecorder:        metrics,
+					MaxPowerMaxConnections: service.DefaultMaxPowerMaxConnections,
+				},
+			}
+			return capacityMetric, ctrl, nil
+		},
+		"bulk missing volume": func(t *testing.T) (metric.CapacityMetrics, *gomock.Controller, error) {
+			ctrl := gomock.NewController(t)
+			metrics := mocks.NewMockMetricsRecorder(ctrl)
+			volFinder := mocks.NewMockVolumeFinder(ctrl)
+
+			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(mockVolumes, nil).Times(1)
+			// No volumes found in bulk response -> 0 metrics recorded per volume, only empty aggregates
+			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+
+			emptyBulk := v100.Volumev1{
+				Volumes: []v100.VolumeEnhanced{}, // no volumes in response
+			}
+
+			c := mocks.NewMockPowerMaxClient(ctrl)
+			c.EXPECT().GetVolumesCapacityBulk(gomock.Any(), gomock.Any()).Return(&emptyBulk, nil).Times(1)
 
 			clients := make(map[string][]metrictypes.PowerMaxArray)
 			array := metrictypes.PowerMaxArray{

@@ -132,6 +132,33 @@ func TestToplogyMetrics_Collect(t *testing.T) {
 			}
 			return topologyMetric, ctrl, nil
 		},
+		"failed to record topology metrics": func(t *testing.T) (metric.TopologyMetrics, *gomock.Controller, error) {
+			ctrl := gomock.NewController(t)
+			metrics := mocks.NewMockMetricsRecorder(ctrl)
+			volFinder := mocks.NewMockVolumeFinder(ctrl)
+
+			recErr := errors.New("failed to record topology metric")
+			metrics.EXPECT().RecordTopologyMetrics(gomock.Any(), gomock.Any(), gomock.Any()).Return(recErr).Times(2)
+			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(mockVolumes, nil).Times(1)
+
+			c := mocks.NewMockPowerMaxClient(ctrl)
+			clients := make(map[string][]metrictypes.PowerMaxArray)
+			array := metrictypes.PowerMaxArray{
+				Client:   c,
+				IsActive: true,
+			}
+			clients["000197902599"] = append(clients["000197902599"], array)
+
+			topologyMetric := metric.TopologyMetrics{
+				BaseMetrics: &metric.BaseMetrics{
+					VolumeFinder:           volFinder,
+					PowerMaxClients:        clients,
+					MetricsRecorder:        metrics,
+					MaxPowerMaxConnections: service.DefaultMaxPowerMaxConnections,
+				},
+			}
+			return topologyMetric, ctrl, nil
+		},
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {

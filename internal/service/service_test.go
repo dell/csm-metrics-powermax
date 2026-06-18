@@ -38,15 +38,12 @@ const mockDir = "metric/mockdata"
 
 func Test_ExportCapacityMetrics(t *testing.T) {
 	var mockVolumes []k8s.VolumeInfo
-	var volume00833 v100.Volume
-	var volume00834 v100.Volume
+	var bulkCapacity v100.Volumev1
 
 	mockVolBytes, _ := os.ReadFile(filepath.Join(mockDir, "persistent_volumes.json"))
 	_ = json.Unmarshal(mockVolBytes, &mockVolumes)
-	vol00833Bytes, _ := os.ReadFile(filepath.Join(mockDir, "pmax_vol_00833.json"))
-	_ = json.Unmarshal(vol00833Bytes, &volume00833)
-	vol00834Bytes, _ := os.ReadFile(filepath.Join(mockDir, "pmax_vol_00834.json"))
-	err := json.Unmarshal(vol00834Bytes, &volume00834)
+	bulkBytes, _ := os.ReadFile(filepath.Join(mockDir, "pmax_vol_capacity_bulk.json"))
+	err := json.Unmarshal(bulkBytes, &bulkCapacity)
 	assert.Nil(t, err)
 
 	tests := map[string]func(t *testing.T) (service.PowerMaxService, *gomock.Controller){
@@ -60,8 +57,7 @@ func Test_ExportCapacityMetrics(t *testing.T) {
 			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any(), gomock.Any()).Times(6)
 
 			c := mocks.NewMockPowerMaxClient(ctrl)
-			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), "00833").Return(&volume00833, nil).Times(1)
-			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), "00834").Return(&volume00834, nil).Times(1)
+			c.EXPECT().GetVolumesCapacityBulk(gomock.Any(), gomock.Any()).Return(&bulkCapacity, nil).Times(1)
 
 			clients := make(map[string][]metrictypes.PowerMaxArray)
 			array := metrictypes.PowerMaxArray{
@@ -96,6 +92,7 @@ func Test_ExportPerformanceMetrics(t *testing.T) {
 	var storageGroupTimeResult v100.StorageGroupKeysResult
 	var volumePerfMetricsResult v100.VolumeMetricsIterator
 	var storageGroupPerfMetricsResult v100.StorageGroupMetricsIterator
+	var storageGroupIDList v100.StorageGroupIDList
 
 	mockVolBytes, _ := os.ReadFile(filepath.Join(mockDir, "persistent_volumes.json"))
 	_ = json.Unmarshal(mockVolBytes, &mockVolumes)
@@ -108,6 +105,23 @@ func Test_ExportPerformanceMetrics(t *testing.T) {
 	volMetricBytes, _ := os.ReadFile(filepath.Join(mockDir, "vol_perf_metrics.json"))
 	err := json.Unmarshal(volMetricBytes, &volumePerfMetricsResult)
 	assert.Nil(t, err)
+
+	// Create a mock storage group ID list with more total SGs to test individual API path
+	// (2 requested SGs out of 10 total = 20% < 25%, so individual API will be used)
+	storageGroupIDList = v100.StorageGroupIDList{
+		StorageGroupIDs: []string{
+			"csi-TAO-Gold-SRP_1-SG",
+			"csi-TAO-Gold-SRP_2-SG",
+			"csi-TAO-Gold-SRP_3-SG",
+			"csi-TAO-Gold-SRP_4-SG",
+			"csi-TAO-Gold-SRP_5-SG",
+			"csi-TAO-Gold-SRP_6-SG",
+			"csi-TAO-Gold-SRP_7-SG",
+			"csi-TAO-Gold-SRP_8-SG",
+			"csi-TAO-Gold-SRP_9-SG",
+			"csi-TAO-Gold-SRP_10-SG",
+		},
+	}
 
 	tests := map[string]func(t *testing.T) (service.PowerMaxService, *gomock.Controller){
 		"success": func(*testing.T) (service.PowerMaxService, *gomock.Controller) {
@@ -123,11 +137,12 @@ func Test_ExportPerformanceMetrics(t *testing.T) {
 
 			c := mocks.NewMockPowerMaxClient(ctrl)
 			c.EXPECT().GetArrayPerfKeys(gomock.Any()).Return(&arrayKeysResult, nil).Times(1)
+			c.EXPECT().GetStorageGroupIDList(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(&storageGroupIDList, nil).Times(1)
 			c.EXPECT().GetStorageGroupPerfKeys(gomock.Any(), gomock.Any()).Return(&storageGroupTimeResult, nil).Times(1)
 			c.EXPECT().GetVolumesMetrics(gomock.Any(), gomock.Any(), gomock.Any(),
 				gomock.Any(), gomock.Any(), gomock.Any()).Return(&volumePerfMetricsResult, nil).Times(1)
 			c.EXPECT().GetStorageGroupMetrics(gomock.Any(), gomock.Any(), gomock.Any(),
-				gomock.Any(), gomock.Any(), gomock.Any()).Return(&storageGroupPerfMetricsResult, nil).Times(1)
+				gomock.Any(), gomock.Any(), gomock.Any()).Return(&storageGroupPerfMetricsResult, nil).AnyTimes()
 
 			clients := make(map[string][]metrictypes.PowerMaxArray)
 			array := metrictypes.PowerMaxArray{

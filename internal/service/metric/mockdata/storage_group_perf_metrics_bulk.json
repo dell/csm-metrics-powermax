@@ -1,0 +1,23 @@
+{
+  "id": "StorageGroup",
+  "resource_type": "performance-categories",
+  "system": "000197902599",
+  "metric_instances": [
+    {
+      "id": "csi-TAO-Gold-SRP_1-SG",
+      "metrics": [
+        {
+          "HostReads": 0,
+          "HostWrites": 0,
+          "HostMBReads": 0,
+          "HostMBWritten": 0,
+          "ReadResponseTime": 0,
+          "WriteResponseTime": 0,
+          "AllocatedCapacity": 0,
+          "AvgIOSize": 0,
+          "timestamp": 0
+        }
+      ]
+    }
+  ]
+}

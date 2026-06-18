@@ -389,6 +389,11 @@ func Test_Run(t *testing.T) {
 			expectError, config, exporter, svc, prevConfValidation, ctrl, validateConfig := test(t)
 			ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 			defer cancel()
+
+			// Use a shorter leader check interval for tests
+			prevLeaderCheckInterval := entrypoint.LeaderCheckInterval
+			entrypoint.LeaderCheckInterval = 10 * time.Millisecond
+
 			if config != nil {
 				config.Logger = logrus.New()
 				if !validateConfig {
@@ -405,6 +410,7 @@ func Test_Run(t *testing.T) {
 				t.Errorf("Unexpected result from test \"%v\": wanted error (%v), but got (%v)", name, expectError, errorOccurred)
 			}
 			entrypoint.ConfigValidatorFunc = prevConfValidation
+			entrypoint.LeaderCheckInterval = prevLeaderCheckInterval
 			ctrl.Finish()
 		})
 	}
@@ -412,4 +418,144 @@ func Test_Run(t *testing.T) {
 
 func noCheckConfig(_ *entrypoint.Config) error {
 	return nil
+}
+
+func TestValidateConfig(t *testing.T) {
+	tests := map[string]struct {
+		config    *entrypoint.Config
+		expectErr bool
+	}{
+		"valid config": {
+			config: &entrypoint.Config{
+				CapacityTickInterval:        100 * time.Second,
+				PerformanceTickInterval:     100 * time.Second,
+				TopologyMetricsTickInterval: 100 * time.Second,
+			},
+			expectErr: false,
+		},
+		"nil config": {
+			config:    nil,
+			expectErr: true,
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			err := entrypoint.ValidateConfig(tt.config)
+			if tt.expectErr && err == nil {
+				t.Error("expected error but got nil")
+			}
+			if !tt.expectErr && err != nil {
+				t.Errorf("expected no error but got: %v", err)
+			}
+		})
+	}
+}
+
+func Test_Run_TickIntervalChanges(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
+	leaderElector := mocks.NewMockLeaderElector(ctrl)
+	leaderElector.EXPECT().InitLeaderElection(gomock.Any(), gomock.Any()).Times(1).Return(nil)
+	leaderElector.EXPECT().IsLeader().AnyTimes().Return(true)
+
+	config := &entrypoint.Config{
+		CapacityMetricsEnabled:      true,
+		PerformanceMetricsEnabled:   true,
+		TopologyMetricsEnabled:      true,
+		LeaderElector:               leaderElector,
+		Logger:                      logrus.New(),
+		CapacityTickInterval:        100 * time.Millisecond,
+		PerformanceTickInterval:     100 * time.Millisecond,
+		TopologyMetricsTickInterval: 100 * time.Millisecond,
+	}
+
+	prevConfigValidationFunc := entrypoint.ConfigValidatorFunc
+	entrypoint.ConfigValidatorFunc = noCheckConfig
+	defer func() { entrypoint.ConfigValidatorFunc = prevConfigValidationFunc }()
+
+	prevLeaderCheckInterval := entrypoint.LeaderCheckInterval
+	entrypoint.LeaderCheckInterval = 10 * time.Millisecond
+	defer func() { entrypoint.LeaderCheckInterval = prevLeaderCheckInterval }()
+
+	e := exportermocks.NewMockOtlexporter(ctrl)
+	e.EXPECT().InitExporter(gomock.Any(), gomock.Any()).Return(nil)
+	e.EXPECT().StopExporter().Return(nil)
+
+	svc := mocks.NewMockService(ctrl)
+	svc.EXPECT().ExportCapacityMetrics(gomock.Any()).AnyTimes()
+	svc.EXPECT().ExportPerformanceMetrics(gomock.Any()).AnyTimes()
+	svc.EXPECT().ExportTopologyMetrics(gomock.Any()).AnyTimes()
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// After a short delay, change all tick intervals, then cancel context
+	go func() {
+		time.Sleep(150 * time.Millisecond)
+		config.SetTickIntervals(200*time.Millisecond, 200*time.Millisecond, 200*time.Millisecond)
+		time.Sleep(150 * time.Millisecond)
+		cancel()
+	}()
+
+	err := entrypoint.Run(ctx, config, e, svc)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	ctrl.Finish()
+}
+
+func Test_Run_LeaderLoss(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
+	callCount := 0
+	leaderElector := mocks.NewMockLeaderElector(ctrl)
+	leaderElector.EXPECT().InitLeaderElection(gomock.Any(), gomock.Any()).Times(1).Return(nil)
+	// First few calls: leader=true, then leader=false, then leader=true again
+	leaderElector.EXPECT().IsLeader().AnyTimes().DoAndReturn(func() bool {
+		callCount++
+		// Start as leader, lose leadership around call 10, regain around call 20
+		if callCount <= 8 {
+			return true
+		}
+		if callCount <= 15 {
+			return false
+		}
+		return true
+	})
+
+	config := &entrypoint.Config{
+		CapacityMetricsEnabled:      true,
+		PerformanceMetricsEnabled:   true,
+		TopologyMetricsEnabled:      true,
+		LeaderElector:               leaderElector,
+		Logger:                      logrus.New(),
+		CapacityTickInterval:        100 * time.Millisecond,
+		PerformanceTickInterval:     100 * time.Millisecond,
+		TopologyMetricsTickInterval: 100 * time.Millisecond,
+	}
+
+	prevConfigValidationFunc := entrypoint.ConfigValidatorFunc
+	entrypoint.ConfigValidatorFunc = noCheckConfig
+	defer func() { entrypoint.ConfigValidatorFunc = prevConfigValidationFunc }()
+
+	prevLeaderCheckInterval := entrypoint.LeaderCheckInterval
+	entrypoint.LeaderCheckInterval = 10 * time.Millisecond
+	defer func() { entrypoint.LeaderCheckInterval = prevLeaderCheckInterval }()
+
+	e := exportermocks.NewMockOtlexporter(ctrl)
+	e.EXPECT().InitExporter(gomock.Any(), gomock.Any()).Return(nil)
+	e.EXPECT().StopExporter().Return(nil)
+
+	svc := mocks.NewMockService(ctrl)
+	svc.EXPECT().ExportCapacityMetrics(gomock.Any()).AnyTimes()
+	svc.EXPECT().ExportPerformanceMetrics(gomock.Any()).AnyTimes()
+	svc.EXPECT().ExportTopologyMetrics(gomock.Any()).AnyTimes()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+
+	err := entrypoint.Run(ctx, config, e, svc)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	ctrl.Finish()
 }

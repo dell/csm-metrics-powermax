@@ -4,7 +4,7 @@ go 1.26.0
 
 require (
 	github.com/dell/csi-powermax/csireverseproxy/v2 v2.0.0-20260511192910-4a7b0351d479
-	github.com/dell/gopowermax/v2 v2.13.0
+	github.com/dell/gopowermax/v2 v2.13.1
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/google/uuid v1.6.0
 	github.com/sirupsen/logrus v1.9.4

@@ -13,7 +13,7 @@
 
 ARG BASEIMAGE
 ARG GOIMAGE
-ARG VERSION="1.10.0"
+ARG VERSION="1.10.1"
 
 # Build the sdk binary
 FROM $GOIMAGE as builder
@@ -37,7 +37,7 @@ LABEL vendor="Dell Technologies" \
       name="csm-metrics-powermax" \
       summary="Dell Container Storage Modules (CSM) for Observability - Metrics for PowerMax" \
       description="Provides insight into storage usage and performance as it relates to the CSI (Container Storage Interface) Driver for Dell PowerMax" \
-      release="1.17.0" \
+      release="1.17.1" \
       version=$VERSION \
       license="Apache-2.0"
 
