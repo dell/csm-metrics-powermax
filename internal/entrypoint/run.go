@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"sync"
 	"time"
 
 	"github.com/dell/csm-metrics-powermax/internal/k8spmax"
@@ -36,7 +37,7 @@ import (
 
 const (
 	// MaximumTickInterval is the maximum allowed interval when querying metrics
-	MaximumTickInterval = 10 * time.Minute
+	MaximumTickInterval = 24 * time.Hour
 	// MinimumTickInterval is the minimum allowed interval when querying metrics
 	MinimumTickInterval = 5 * time.Second
 	// DefaultEndPoint for leader election path
@@ -49,6 +50,10 @@ const (
 
 // ConfigValidatorFunc is used to override config validation in testing
 var ConfigValidatorFunc = ValidateConfig
+
+// LeaderCheckInterval is the interval to check if this pod has acquired the leader lease.
+// It is a variable so tests can override it.
+var LeaderCheckInterval = 5 * time.Second
 
 // Config holds data that will be used by the service
 type Config struct {
@@ -63,6 +68,24 @@ type Config struct {
 	CollectorAddress            string
 	CollectorCertPath           string
 	Logger                      *logrus.Logger
+	// mu protects the tick interval fields from concurrent access.
+	mu sync.RWMutex
+}
+
+// GetTickIntervals returns all three tick intervals under a single read lock.
+func (c *Config) GetTickIntervals() (capacity, performance, topology time.Duration) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.CapacityTickInterval, c.PerformanceTickInterval, c.TopologyMetricsTickInterval
+}
+
+// SetTickIntervals sets all three tick intervals under a single write lock.
+func (c *Config) SetTickIntervals(capacity, performance, topology time.Duration) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.CapacityTickInterval = capacity
+	c.PerformanceTickInterval = performance
+	c.TopologyMetricsTickInterval = topology
 }
 
 // Run is the entry point for starting the service
@@ -115,11 +138,9 @@ func Run(ctx context.Context, config *Config, exporter otlexporters.Otlexporter,
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	// set initial tick intervals
-	capacityTickInterval := config.CapacityTickInterval
+	capacityTickInterval, performanceTickInterval, topologyMetricsTickInterval := config.GetTickIntervals()
 	capacityTicker := time.NewTicker(capacityTickInterval)
-	performanceTickInterval := config.PerformanceTickInterval
 	performanceTicker := time.NewTicker(performanceTickInterval)
-	topologyMetricsTickInterval := config.TopologyMetricsTickInterval
 	topologyMetricsTicker := time.NewTicker(topologyMetricsTickInterval)
 
 	livenessProbeTickInterval := config.LivenessProbeTickInterval
@@ -128,38 +149,68 @@ func Run(ctx context.Context, config *Config, exporter otlexporters.Otlexporter,
 	}
 	livenessProbeTick := time.NewTicker(livenessProbeTickInterval)
 
+	// Poll for leader status so we can collect metrics immediately once the lease is obtained,
+	// rather than waiting for the first tick interval to elapse.
+	leaderCheckTicker := time.NewTicker(LeaderCheckInterval)
+	collectedOnLeaderAcquired := false
+	wasLeader := false
+
 	for {
 		select {
+		case <-leaderCheckTicker.C:
+			isLeader := config.LeaderElector.IsLeader()
+			// Reset on leadership loss so re-election triggers immediate collection.
+			if wasLeader && !isLeader {
+				collectedOnLeaderAcquired = false
+				wasLeader = false
+				leaderCheckTicker.Reset(LeaderCheckInterval)
+				logger.Info("leader lease lost, will collect immediately on re-election")
+			}
+			if !collectedOnLeaderAcquired && isLeader {
+				logger.Info("leader lease acquired, collecting metrics immediately")
+				wasLeader = true
+				collectCapacityMetrics(ctx, config, logger, powerMaxSvc)
+				// Check for cancellation between blocking collection calls.
+				select {
+				case <-ctx.Done():
+					return nil
+				default:
+				}
+				collectPerformanceMetrics(ctx, config, logger, powerMaxSvc)
+				select {
+				case <-ctx.Done():
+					return nil
+				default:
+				}
+				collectTopologyMetrics(ctx, config, logger, powerMaxSvc)
+				// Mark complete only after collections have run,
+				// so a transient failure during collection doesn't permanently
+				// suppress the immediate-collection path on re-election.
+				collectedOnLeaderAcquired = true
+				// Reset tickers so the next collection happens a full interval from now.
+				// Drain first to discard any tick that accumulated during collection.
+				select {
+				case <-capacityTicker.C:
+				default:
+				}
+				capacityTicker.Reset(capacityTickInterval)
+				select {
+				case <-performanceTicker.C:
+				default:
+				}
+				performanceTicker.Reset(performanceTickInterval)
+				select {
+				case <-topologyMetricsTicker.C:
+				default:
+				}
+				topologyMetricsTicker.Reset(topologyMetricsTickInterval)
+			}
 		case <-capacityTicker.C:
-			if !config.LeaderElector.IsLeader() {
-				logger.Info("not leader pod to collect metrics")
-				continue
-			}
-			if !config.CapacityMetricsEnabled {
-				logger.Info("powerMax capacity metrics collection is disabled")
-				continue
-			}
-			powerMaxSvc.ExportCapacityMetrics(ctx)
+			collectCapacityMetrics(ctx, config, logger, powerMaxSvc)
 		case <-performanceTicker.C:
-			if !config.LeaderElector.IsLeader() {
-				logger.Info("not leader pod to collect metrics")
-				continue
-			}
-			if !config.PerformanceMetricsEnabled {
-				logger.Info("powerMax performance metrics collection is disabled")
-				continue
-			}
-			powerMaxSvc.ExportPerformanceMetrics(ctx)
+			collectPerformanceMetrics(ctx, config, logger, powerMaxSvc)
 		case <-topologyMetricsTicker.C:
-			if !config.LeaderElector.IsLeader() {
-				logger.Info("not leader pod to collect metrics")
-				continue
-			}
-			if !config.TopologyMetricsEnabled {
-				logger.Info("powermax topology metrics collection is disabled")
-				continue
-			}
-			powerMaxSvc.ExportTopologyMetrics(ctx)
+			collectTopologyMetrics(ctx, config, logger, powerMaxSvc)
 		case <-livenessProbeTick.C:
 			logger.Info("validate powermax connection")
 			validatePowerMaxArrays(ctx, powerMaxSvc)
@@ -173,20 +224,17 @@ func Run(ctx context.Context, config *Config, exporter otlexporters.Otlexporter,
 		}
 
 		// check if tick interval config settings have changed
-		if capacityTickInterval != config.CapacityTickInterval {
-			capacityTickInterval = config.CapacityTickInterval
+		newCapacity, newPerformance, newTopology := config.GetTickIntervals()
+		if capacityTickInterval != newCapacity {
+			capacityTickInterval = newCapacity
 			capacityTicker = time.NewTicker(capacityTickInterval)
 		}
-
-		// check if tick interval config settings have changed
-		if performanceTickInterval != config.PerformanceTickInterval {
-			performanceTickInterval = config.PerformanceTickInterval
+		if performanceTickInterval != newPerformance {
+			performanceTickInterval = newPerformance
 			performanceTicker = time.NewTicker(performanceTickInterval)
 		}
-
-		// check if tick interval config settings have changed for topology metrics
-		if topologyMetricsTickInterval != config.TopologyMetricsTickInterval {
-			topologyMetricsTickInterval = config.TopologyMetricsTickInterval
+		if topologyMetricsTickInterval != newTopology {
+			topologyMetricsTickInterval = newTopology
 			topologyMetricsTicker = time.NewTicker(topologyMetricsTickInterval)
 		}
 	}
@@ -205,6 +253,42 @@ func validatePowerMaxArrays(ctx context.Context, powerMaxSvc metrictypes.Service
 			powerMaxSvc.GetLogger().Infof("authentication successful to PowerMax array %s, %s", arrayID, array.Endpoint)
 		}
 	}
+}
+
+func collectCapacityMetrics(ctx context.Context, config *Config, logger *logrus.Logger, powerMaxSvc metrictypes.Service) {
+	if !config.LeaderElector.IsLeader() {
+		logger.Info("not leader pod to collect metrics")
+		return
+	}
+	if !config.CapacityMetricsEnabled {
+		logger.Info("powerMax capacity metrics collection is disabled")
+		return
+	}
+	powerMaxSvc.ExportCapacityMetrics(ctx)
+}
+
+func collectPerformanceMetrics(ctx context.Context, config *Config, logger *logrus.Logger, powerMaxSvc metrictypes.Service) {
+	if !config.LeaderElector.IsLeader() {
+		logger.Info("not leader pod to collect metrics")
+		return
+	}
+	if !config.PerformanceMetricsEnabled {
+		logger.Info("powerMax performance metrics collection is disabled")
+		return
+	}
+	powerMaxSvc.ExportPerformanceMetrics(ctx)
+}
+
+func collectTopologyMetrics(ctx context.Context, config *Config, logger *logrus.Logger, powerMaxSvc metrictypes.Service) {
+	if !config.LeaderElector.IsLeader() {
+		logger.Info("not leader pod to collect metrics")
+		return
+	}
+	if !config.TopologyMetricsEnabled {
+		logger.Info("powermax topology metrics collection is disabled")
+		return
+	}
+	powerMaxSvc.ExportTopologyMetrics(ctx)
 }
 
 // ValidateConfig will validate the configuration and return any errors

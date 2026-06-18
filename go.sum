@@ -2,8 +2,8 @@ github.com/dell/csi-powermax/csireverseproxy/v2 v2.0.0-20260511192910-4a7b0351d4
 github.com/dell/csi-powermax/csireverseproxy/v2 v2.0.0-20260511192910-4a7b0351d479/go.mod h1:uWbIqZRdrACXXTIr9nIsUPiUkpjCKHp8d8/+SlTIZnU=
 github.com/dell/csmlog v1.1.0 h1:M2pi9a/xTI2FtQNruOoCs2LPACsdJIqPmtUYIH3Y2cI=
 github.com/dell/csmlog v1.1.0/go.mod h1:+I49NJrSPD8DhS7PY37vfIwM0lIHAvGm22zRoMG2ygU=
-github.com/dell/gopowermax/v2 v2.13.0 h1:bsEUfKyEeLCFksZ86I1kJJNmSEELzB8lZi9j0qyT6jk=
-github.com/dell/gopowermax/v2 v2.13.0/go.mod h1:F2DSQ9MlqryFRu9tmX/p1V4bw2ZBZbRhEa/kut+Qfg8=
+github.com/dell/gopowermax/v2 v2.13.1 h1:CXPXrTKFjgP0/HVR6zrd/K5UBKJAqos9buNNM2m/E2E=
+github.com/dell/gopowermax/v2 v2.13.1/go.mod h1:F2DSQ9MlqryFRu9tmX/p1V4bw2ZBZbRhEa/kut+Qfg8=
 github.com/cenkalti/backoff/v5 v5.0.3 h1:ZN+IMa753KfX5hd8vVaMixjnqRZ3y8CuJKRKj1xcsSM=
 github.com/cenkalti/backoff/v5 v5.0.3/go.mod h1:rkhZdG3JZukswDf7f0cwqPNk4K0sa+F97BxZthm/crw=
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=

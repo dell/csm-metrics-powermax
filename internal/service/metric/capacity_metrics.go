@@ -25,6 +25,7 @@ import (
 
 	"github.com/dell/csm-metrics-powermax/internal/k8s"
 	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes"
+	types "github.com/dell/gopowermax/v2/types/v100"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -74,29 +75,33 @@ func (m *CapacityMetrics) gatherCapacityMetrics(ctx context.Context, pvs []k8s.V
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, m.MaxPowerMaxConnections)
 
+	// Group the persistent volumes by array so capacity can be retrieved with a single
+	// bulk call per array instead of one call per volume.
+	// VolumeHandle is of the format "volumeIdentifier-serial-volumeId"
+	// csi-BYM-yiming-398993ad1b-powermaxtest-000197902573-00822
+	array2Volumes := make(map[string][]k8s.VolumeInfo)
+	for _, volume := range pvs {
+		volumeProperties := strings.Split(volume.VolumeHandle, "-")
+		if len(volumeProperties) < 2 {
+			m.Logger.WithField("volume_handle", volume.VolumeHandle).Warn("unable to get Volume ID and Array ID from volume handle")
+			continue
+		}
+		arrayID := volumeProperties[len(volumeProperties)-2]
+		array2Volumes[arrayID] = append(array2Volumes[arrayID], volume)
+	}
+
 	go func() {
 		exported := false
 
-		for _, volume := range pvs {
+		for arrayID, volumes := range array2Volumes {
 			exported = true
 			wg.Add(1)
 			sem <- struct{}{}
-			go func(volume k8s.VolumeInfo) {
+			go func(arrayID string, volumes []k8s.VolumeInfo) {
 				defer func() {
 					wg.Done()
 					<-sem
 				}()
-
-				// VolumeHandle is of the format "volumeIdentifier-serial-volumeId"
-				// csi-BYM-yiming-398993ad1b-powermaxtest-000197902573-00822
-				volumeProperties := strings.Split(volume.VolumeHandle, "-")
-				if len(volumeProperties) < 2 {
-					m.Logger.WithField("volume_handle", volume.VolumeHandle).Warn("unable to get Volume ID and Array ID from volume handle")
-					return
-				}
-
-				volumeID := volumeProperties[len(volumeProperties)-1]
-				arrayID := volumeProperties[len(volumeProperties)-2]
 
 				pmaxClient, err := m.GetPowerMaxClient(arrayID)
 				if err != nil {
@@ -104,30 +109,10 @@ func (m *CapacityMetrics) gatherCapacityMetrics(ctx context.Context, pvs []k8s.V
 					return
 				}
 
-				vol, err := pmaxClient.GetVolumeByID(ctx, arrayID, volumeID)
-				if err != nil {
-					m.Logger.WithError(err).WithField("arrayID", arrayID).WithField("volumeID", volumeID).Error("getting capacity metrics for volume")
-					return
+				for _, metric := range m.collectArrayCapacityMetrics(ctx, pmaxClient, arrayID, volumes) {
+					ch <- metric
 				}
-
-				metric := &metrictypes.VolumeCapacityMetricsRecord{
-					ArrayID:                   arrayID,
-					VolumeID:                  volumeID,
-					StorageGroupID:            volume.StorageGroup,
-					SrpID:                     volume.SRP,
-					StorageClass:              volume.StorageClass,
-					PersistentVolumeName:      volume.PersistentVolume,
-					PersistentVolumeStatus:    volume.PersistentVolumeStatus,
-					PersistentVolumeClaimName: volume.VolumeClaimName,
-					Namespace:                 volume.Namespace,
-					Driver:                    volume.Driver,
-					Total:                     vol.CapacityGB,
-					Used:                      float64(vol.AllocatedPercent) / 100 * vol.CapacityGB,
-					UsedPercent:               float64(vol.AllocatedPercent),
-				}
-
-				ch <- metric
-			}(volume)
+			}(arrayID, volumes)
 		}
 
 		if !exported {
@@ -154,6 +139,94 @@ func (m *CapacityMetrics) gatherCapacityMetrics(ctx context.Context, pvs []k8s.V
 		close(sem)
 	}()
 	return ch
+}
+
+// collectArrayCapacityMetrics retrieves capacity metrics for all the supplied volumes on a single
+// array. It issues one bulk call (GetVolumesCapacityBulk) and maps the result back to each volume.
+// If the bulk endpoint is unavailable (e.g. older Unisphere), it falls back to per-volume
+// GetVolumeByID calls so behavior is preserved on legacy arrays.
+func (m *CapacityMetrics) collectArrayCapacityMetrics(ctx context.Context, pmaxClient metrictypes.PowerMaxClient, arrayID string, volumes []k8s.VolumeInfo) []*metrictypes.VolumeCapacityMetricsRecord {
+	metrics := make([]*metrictypes.VolumeCapacityMetricsRecord, 0, len(volumes))
+
+	bulk, err := pmaxClient.GetVolumesCapacityBulk(ctx, arrayID)
+	if err != nil {
+		m.Logger.WithError(err).WithField("arrayID", arrayID).Warn("bulk capacity collection failed, falling back to per-volume collection")
+		return m.collectArrayCapacityMetricsLegacy(ctx, pmaxClient, arrayID, volumes)
+	}
+	if bulk == nil {
+		m.Logger.WithField("arrayID", arrayID).Warn("bulk capacity collection returned nil, falling back to per-volume collection")
+		return m.collectArrayCapacityMetricsLegacy(ctx, pmaxClient, arrayID, volumes)
+	}
+
+	// Index the bulk result by volume ID for O(1) lookup.
+	capByVolumeID := make(map[string]types.VolumeEnhanced, len(bulk.Volumes))
+	for _, vol := range bulk.Volumes {
+		capByVolumeID[vol.ID] = vol
+	}
+
+	for _, volume := range volumes {
+		volumeProperties := strings.Split(volume.VolumeHandle, "-")
+		volumeID := volumeProperties[len(volumeProperties)-1]
+
+		vol, ok := capByVolumeID[volumeID]
+		if !ok {
+			m.Logger.WithField("arrayID", arrayID).WithField("volumeID", volumeID).Warn("volume not found in bulk capacity response")
+			continue
+		}
+
+		usedPercent := 0.0
+		if vol.CapGB > 0 {
+			usedPercent = vol.EffectiveUsedCapacityGB / vol.CapGB * 100
+		}
+		metrics = append(metrics, &metrictypes.VolumeCapacityMetricsRecord{
+			ArrayID:                   arrayID,
+			VolumeID:                  volumeID,
+			StorageGroupID:            volume.StorageGroup,
+			SrpID:                     volume.SRP,
+			StorageClass:              volume.StorageClass,
+			PersistentVolumeName:      volume.PersistentVolume,
+			PersistentVolumeStatus:    volume.PersistentVolumeStatus,
+			PersistentVolumeClaimName: volume.VolumeClaimName,
+			Namespace:                 volume.Namespace,
+			Driver:                    volume.Driver,
+			Total:                     vol.CapGB,
+			Used:                      vol.EffectiveUsedCapacityGB,
+			UsedPercent:               usedPercent,
+		})
+	}
+	return metrics
+}
+
+// collectArrayCapacityMetricsLegacy retrieves capacity metrics one volume at a time using
+// GetVolumeByID. It is used as a fallback when the bulk endpoint is not available.
+func (m *CapacityMetrics) collectArrayCapacityMetricsLegacy(ctx context.Context, pmaxClient metrictypes.PowerMaxClient, arrayID string, volumes []k8s.VolumeInfo) []*metrictypes.VolumeCapacityMetricsRecord {
+	metrics := make([]*metrictypes.VolumeCapacityMetricsRecord, 0, len(volumes))
+	for _, volume := range volumes {
+		volumeProperties := strings.Split(volume.VolumeHandle, "-")
+		volumeID := volumeProperties[len(volumeProperties)-1]
+
+		vol, err := pmaxClient.GetVolumeByID(ctx, arrayID, volumeID)
+		if err != nil {
+			m.Logger.WithError(err).WithField("arrayID", arrayID).WithField("volumeID", volumeID).Error("getting capacity metrics for volume")
+			continue
+		}
+		metrics = append(metrics, &metrictypes.VolumeCapacityMetricsRecord{
+			ArrayID:                   arrayID,
+			VolumeID:                  volumeID,
+			StorageGroupID:            volume.StorageGroup,
+			SrpID:                     volume.SRP,
+			StorageClass:              volume.StorageClass,
+			PersistentVolumeName:      volume.PersistentVolume,
+			PersistentVolumeStatus:    volume.PersistentVolumeStatus,
+			PersistentVolumeClaimName: volume.VolumeClaimName,
+			Namespace:                 volume.Namespace,
+			Driver:                    volume.Driver,
+			Total:                     vol.CapacityGB,
+			Used:                      float64(vol.AllocatedPercent) / 100 * vol.CapacityGB,
+			UsedPercent:               float64(vol.AllocatedPercent),
+		})
+	}
+	return metrics
 }
 
 func (m *CapacityMetrics) pushCapacityMetrics(_ context.Context, volumeCapacityMetrics <-chan *metrictypes.VolumeCapacityMetricsRecord) <-chan string {

@@ -45,7 +45,7 @@ import (
 )
 
 const (
-	defaultTickInterval = 20 * time.Second
+	defaultTickInterval = 5 * time.Minute
 	defaultConfigFile   = "/etc/config/karavi-metrics-powermax.yaml"
 	// defaultSecret                 = "/powermax-config/default-secret"
 	defaultReverseProxyConfigFile = "/etc/reverseproxy/config.yaml"

@@ -1,0 +1,30 @@
+{
+  "volumes": [
+    {
+      "id": "00833",
+      "cap_gb": 8,
+      "effective_used_capacity_gb": 0.8,
+      "storage_groups": [
+        {
+          "id": "csi-TAO-Gold-SRP_1-SG"
+        }
+      ],
+      "srp": {
+        "id": "SRP_1"
+      }
+    },
+    {
+      "id": "00834",
+      "cap_gb": 8,
+      "effective_used_capacity_gb": 0.8,
+      "storage_groups": [
+        {
+          "id": "csi-TAO-Gold-SRP_1-SG"
+        }
+      ],
+      "srp": {
+        "id": "SRP_1"
+      }
+    }
+  ]
+}
