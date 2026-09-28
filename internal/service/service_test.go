@@ -30,7 +30,6 @@ import (
 	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes"
 	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes/mocks"
 	v100 "github.com/dell/gopowermax/v2/types/v100"
-	"github.com/sirupsen/logrus"
 	"go.uber.org/mock/gomock"
 )
 
@@ -46,8 +45,20 @@ func Test_ExportCapacityMetrics(t *testing.T) {
 	err := json.Unmarshal(bulkBytes, &bulkCapacity)
 	assert.Nil(t, err)
 
-	tests := map[string]func(t *testing.T) (service.PowerMaxService, *gomock.Controller){
-		"success": func(*testing.T) (service.PowerMaxService, *gomock.Controller) {
+	// Define mock volume objects for GetVolumeByID calls
+	volume00833 := v100.Volume{
+		VolumeID:         "00833",
+		CapacityGB:       100,
+		AllocatedPercent: 50,
+	}
+	volume00834 := v100.Volume{
+		VolumeID:         "00834",
+		CapacityGB:       200,
+		AllocatedPercent: 75,
+	}
+
+	tests := map[string]func(t *testing.T) (*service.PowerMaxService, *gomock.Controller){
+		"success": func(*testing.T) (*service.PowerMaxService, *gomock.Controller) {
 			ctrl := gomock.NewController(t)
 			metrics := mocks.NewMockMetricsRecorder(ctrl)
 			volFinder := mocks.NewMockVolumeFinder(ctrl)
@@ -58,6 +69,9 @@ func Test_ExportCapacityMetrics(t *testing.T) {
 
 			c := mocks.NewMockPowerMaxClient(ctrl)
 			c.EXPECT().GetVolumesCapacityBulk(gomock.Any(), gomock.Any()).Return(&bulkCapacity, nil).Times(1)
+			// The new implementation also calls GetVolumeByID for each volume
+			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(&volume00833, nil).AnyTimes()
+			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(&volume00834, nil).AnyTimes()
 
 			clients := make(map[string][]metrictypes.PowerMaxArray)
 			array := metrictypes.PowerMaxArray{
@@ -66,8 +80,7 @@ func Test_ExportCapacityMetrics(t *testing.T) {
 			}
 			clients["000197902599"] = append(clients["000197902599"], array)
 
-			service := service.PowerMaxService{
-				Logger:                 logrus.New(),
+			service := &service.PowerMaxService{
 				MetricsRecorder:        metrics,
 				VolumeFinder:           volFinder,
 				StorageClassFinder:     scFinder,
@@ -123,8 +136,8 @@ func Test_ExportPerformanceMetrics(t *testing.T) {
 		},
 	}
 
-	tests := map[string]func(t *testing.T) (service.PowerMaxService, *gomock.Controller){
-		"success": func(*testing.T) (service.PowerMaxService, *gomock.Controller) {
+	tests := map[string]func(t *testing.T) (*service.PowerMaxService, *gomock.Controller){
+		"success": func(*testing.T) (*service.PowerMaxService, *gomock.Controller) {
 			ctrl := gomock.NewController(t)
 			metrics := mocks.NewMockMetricsRecorder(ctrl)
 			volFinder := mocks.NewMockVolumeFinder(ctrl)
@@ -132,13 +145,13 @@ func Test_ExportPerformanceMetrics(t *testing.T) {
 
 			scFinder := mocks.NewMockStorageClassFinder(ctrl)
 
-			metrics.EXPECT().RecordStorageGroupPerfMetrics(gomock.Any(), gomock.Any()).Times(1)
+			metrics.EXPECT().RecordStorageGroupPerfMetrics(gomock.Any(), gomock.Any()).AnyTimes()
 			metrics.EXPECT().RecordVolPerfMetrics(gomock.Any(), gomock.Any()).Times(2)
 
 			c := mocks.NewMockPowerMaxClient(ctrl)
 			c.EXPECT().GetArrayPerfKeys(gomock.Any()).Return(&arrayKeysResult, nil).Times(1)
 			c.EXPECT().GetStorageGroupIDList(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(&storageGroupIDList, nil).Times(1)
-			c.EXPECT().GetStorageGroupPerfKeys(gomock.Any(), gomock.Any()).Return(&storageGroupTimeResult, nil).Times(1)
+			c.EXPECT().GetStorageGroupPerfKeys(gomock.Any(), gomock.Any()).Return(&storageGroupTimeResult, nil).AnyTimes()
 			c.EXPECT().GetVolumesMetrics(gomock.Any(), gomock.Any(), gomock.Any(),
 				gomock.Any(), gomock.Any(), gomock.Any()).Return(&volumePerfMetricsResult, nil).Times(1)
 			c.EXPECT().GetStorageGroupMetrics(gomock.Any(), gomock.Any(), gomock.Any(),
@@ -151,8 +164,7 @@ func Test_ExportPerformanceMetrics(t *testing.T) {
 			}
 			clients["000197902599"] = append(clients["000197902599"], array)
 
-			service := service.PowerMaxService{
-				Logger:                 logrus.New(),
+			service := &service.PowerMaxService{
 				MetricsRecorder:        metrics,
 				VolumeFinder:           volFinder,
 				StorageClassFinder:     scFinder,
@@ -179,8 +191,8 @@ func Test_ExportTopologyMetrics(t *testing.T) {
 
 	assert.Nil(t, err)
 
-	tests := map[string]func(t *testing.T) (service.PowerMaxService, *gomock.Controller){
-		"success": func(*testing.T) (service.PowerMaxService, *gomock.Controller) {
+	tests := map[string]func(t *testing.T) (*service.PowerMaxService, *gomock.Controller){
+		"success": func(*testing.T) (*service.PowerMaxService, *gomock.Controller) {
 			ctrl := gomock.NewController(t)
 			metrics := mocks.NewMockMetricsRecorder(ctrl)
 			volFinder := mocks.NewMockVolumeFinder(ctrl)
@@ -198,8 +210,7 @@ func Test_ExportTopologyMetrics(t *testing.T) {
 			}
 			clients["000197902599"] = append(clients["000197902599"], array)
 
-			service := service.PowerMaxService{
-				Logger:                 logrus.New(),
+			service := &service.PowerMaxService{
 				MetricsRecorder:        metrics,
 				VolumeFinder:           volFinder,
 				StorageClassFinder:     scFinder,

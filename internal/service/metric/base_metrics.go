@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes"
-	"github.com/sirupsen/logrus"
+	"github.com/dell/csmlog"
 )
 
 var lock = &sync.Mutex{}
@@ -36,7 +36,6 @@ type MetricsCollector interface {
 // BaseMetrics presents the base class of concrete metric classes
 type BaseMetrics struct {
 	Collector              MetricsCollector
-	Logger                 *logrus.Logger
 	VolumeFinder           metrictypes.VolumeFinder
 	PowerMaxClients        map[string][]metrictypes.PowerMaxArray
 	MetricsRecorder        metrictypes.MetricsRecorder
@@ -46,7 +45,6 @@ type BaseMetrics struct {
 // NewBaseMetrics return BaseMetrics instance.
 func NewBaseMetrics(service metrictypes.Service) *BaseMetrics {
 	return &BaseMetrics{
-		Logger:                 service.GetLogger(),
 		VolumeFinder:           service.GetVolumeFinder(),
 		PowerMaxClients:        service.GetPowerMaxClients(),
 		MetricsRecorder:        service.GetMetricsRecorder(),
@@ -56,12 +54,10 @@ func NewBaseMetrics(service metrictypes.Service) *BaseMetrics {
 
 // TimeSince will log the amount of time spent in a given function
 func (m *BaseMetrics) TimeSince(start time.Time, fName string) {
-	if m.Logger != nil {
-		m.Logger.WithFields(logrus.Fields{
-			"duration": fmt.Sprintf("%v", time.Since(start)),
-			"function": fName,
-		}).Info("function duration")
-	}
+	csmlog.WithFields(csmlog.Fields{
+		"duration": fmt.Sprintf("%v", time.Since(start)),
+		"function": fName,
+	}).Info("function duration")
 }
 
 // GetPowerMaxClient return the first live PowerMaxClient based on the given arrayID
@@ -72,35 +68,35 @@ func (m *BaseMetrics) GetPowerMaxClient(arrayID string) (metrictypes.PowerMaxCli
 	if arrays, ok := m.PowerMaxClients[arrayID]; ok {
 		for _, array := range arrays {
 			if array.IsActive {
-				m.Logger.WithFields(logrus.Fields{"arrayID": arrayID, "endpoint": array.Endpoint}).Debug("connection is active")
+				csmlog.WithFields(csmlog.Fields{"arrayID": arrayID, "endpoint": array.Endpoint}).Debug("connection is active")
 				return array.Client, nil
 			}
-			m.Logger.WithFields(logrus.Fields{"arrayID": arrayID, "endpoint": array.Endpoint}).Warn("connection is inactive")
+			csmlog.WithFields(csmlog.Fields{"arrayID": arrayID, "endpoint": array.Endpoint}).Warn("connection is inactive")
 		}
 	}
 	return nil, fmt.Errorf("unable to find active gopowermax client for array %s", arrayID)
 }
 
 // ExportMetrics collect and export metrics to Otel
-func (m *BaseMetrics) ExportMetrics(ctx context.Context) {
+func (m *BaseMetrics) ExportMetrics(ctx context.Context) error {
 	if m.Collector == nil {
-		m.Logger.Errorf("no MetricsCollector provided")
-		return
+		csmlog.Error("no MetricsCollector provided")
+		return fmt.Errorf("no MetricsCollector provided")
 	}
 
 	if m.MetricsRecorder == nil {
-		m.Logger.Errorf("no MetricsRecorder provided for %T", m.Collector)
-		return
+		csmlog.Errorf("no MetricsRecorder provided for %T", m.Collector)
+		return fmt.Errorf("no MetricsRecorder provided for %T", m.Collector)
 	}
 
 	if m.PowerMaxClients == nil {
-		m.Logger.Errorf("no PowerMaxClients provided for %T", m.Collector)
-		return
+		csmlog.Errorf("no PowerMaxClients provided for %T", m.Collector)
+		return fmt.Errorf("no PowerMaxClients provided for %T", m.Collector)
 	}
 
 	if m.MaxPowerMaxConnections == 0 {
-		m.Logger.Errorf("no MaxPowerMaxConnections provided for %T", m.Collector)
-		return
+		csmlog.Errorf("no MaxPowerMaxConnections provided for %T", m.Collector)
+		return fmt.Errorf("no MaxPowerMaxConnections provided for %T", m.Collector)
 	}
 
 	start := time.Now()
@@ -108,6 +104,8 @@ func (m *BaseMetrics) ExportMetrics(ctx context.Context) {
 
 	err := m.Collector.Collect(ctx)
 	if err != nil {
-		m.Logger.WithError(err).Warn("failed to collect metrics")
+		csmlog.WithFields(csmlog.Fields{"error": err}).Warn("failed to collect metrics")
+		return err
 	}
+	return nil
 }

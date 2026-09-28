@@ -1,5 +1,5 @@
 <!--
-Copyright (c) 2022-2025 Dell Inc., or its subsidiaries. All Rights Reserved.
+Copyright (c) 2022-2026 Dell Inc., or its subsidiaries. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,8 +22,6 @@ Metrics for PowerMax is an open source distributed solution that provides insigh
 
 Metrics for PowerMax captures telemetry data of storage usage and performance obtained through the CSI Driver for Dell PowerMax. The Metrics service pushes it to the OpenTelemetry Collector, so it can be processed, and exported in a format consumable by Prometheus. Prometheus can then be configured to scrape the OpenTelemetry Collector exporter endpoint to provide metrics so they can be visualized in Grafana.
 
-For documentation, please visit [Container Storage Modules documentation](https://dell.github.io/csm-docs/).
-
 ## Table of Contents
 
 * [Code of Conduct](https://github.com/dell/csm/blob/main/docs/CODE_OF_CONDUCT.md)
@@ -36,6 +34,7 @@ For documentation, please visit [Container Storage Modules documentation](https:
 * [Dell support](https://www.dell.com/support/incidents-online/en-us/contactus/product/container-storage-modules)
 * [Security](https://github.com/dell/csm/blob/main/docs/SECURITY.md)
 * [About](#about)
+* [Documentation](#documentation)
 
 ## Building Metrics for PowerMax
 
@@ -74,10 +73,13 @@ This will also provide code coverage statistics for the various Go packages.
 
 ## Versioning
 
-This project is adhering to [Semantic Versioning](https://semver.org/).
+This project is adhering to [Semantic Versioning](https://semver.org).
 
 ## About
 
 Dell Container Storage Modules (CSM) is 100% open source and community-driven. All components are available
 under [Apache 2 License](https://www.apache.org/licenses/LICENSE-2.0.html) on
 GitHub.
+
+## Documentation
+For more detailed information on the driver, please refer to [Container Storage Modules documentation](https://www.dell.com/support/product-details/en-us/product/container-storage-modules/resources/manuals).

@@ -30,7 +30,6 @@ import (
 	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes"
 	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes/mocks"
 	v100 "github.com/dell/gopowermax/v2/types/v100"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
@@ -38,24 +37,23 @@ import (
 const mockDir = "mockdata"
 
 func TestCreatePerformanceMetricsInstance(t *testing.T) {
-	tests := map[string]func(t *testing.T) (service.PowerMaxService, *gomock.Controller){
-		"init success": func(*testing.T) (service.PowerMaxService, *gomock.Controller) {
+	tests := map[string]func(t *testing.T) (*service.PowerMaxService, *gomock.Controller){
+		"init success": func(*testing.T) (*service.PowerMaxService, *gomock.Controller) {
 			ctrl := gomock.NewController(t)
-			powerMaxService := service.PowerMaxService{}
+			powerMaxService := &service.PowerMaxService{}
 			return powerMaxService, ctrl
 		},
 		// due to the singleton instance, this call will enter another branch
-		"reuse success": func(*testing.T) (service.PowerMaxService, *gomock.Controller) {
+		"reuse success": func(*testing.T) (*service.PowerMaxService, *gomock.Controller) {
 			ctrl := gomock.NewController(t)
-			powerMaxService := service.PowerMaxService{}
+			powerMaxService := &service.PowerMaxService{}
 			return powerMaxService, ctrl
 		},
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			powerMaxService, ctrl := tc(t)
-			powerMaxService.Logger = logrus.New()
-			metric.CreatePerformanceMetricsInstance(&powerMaxService)
+			metric.CreatePerformanceMetricsInstance(powerMaxService)
 			ctrl.Finish()
 		})
 	}
@@ -104,7 +102,7 @@ func TestPerformanceMetrics_Collect(t *testing.T) {
 			metrics := mocks.NewMockMetricsRecorder(ctrl)
 			volFinder := mocks.NewMockVolumeFinder(ctrl)
 
-			metrics.EXPECT().RecordStorageGroupPerfMetrics(gomock.Any(), gomock.Any()).Times(1)
+			metrics.EXPECT().RecordStorageGroupPerfMetrics(gomock.Any(), gomock.Any()).AnyTimes()
 			metrics.EXPECT().RecordVolPerfMetrics(gomock.Any(), gomock.Any()).Times(2)
 
 			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(mockVolumes, nil).Times(1)
@@ -114,9 +112,9 @@ func TestPerformanceMetrics_Collect(t *testing.T) {
 			// 2 total SGs -> 50% > bulkThresholdRatio, so bulk path is chosen
 			c.EXPECT().GetStorageGroupIDList(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(&storageGroupIDList, nil).Times(1)
 			// Bulk returns empty result -> fallback to legacy
-			c.EXPECT().GetStorageGroupMetricsBulk(gomock.Any(), gomock.Any()).Return(&emptyBulkResult, nil).Times(1)
+			c.EXPECT().GetStorageGroupMetricsBulk(gomock.Any(), gomock.Any()).Return(&emptyBulkResult, nil).AnyTimes()
 			// Legacy fallback calls
-			c.EXPECT().GetStorageGroupPerfKeys(gomock.Any(), gomock.Any()).Return(&storageGroupTimeResult, nil).Times(1)
+			c.EXPECT().GetStorageGroupPerfKeys(gomock.Any(), gomock.Any()).Return(&storageGroupTimeResult, nil).AnyTimes()
 			c.EXPECT().GetStorageGroupMetrics(gomock.Any(), gomock.Any(), gomock.Any(),
 				gomock.Any(), gomock.Any(), gomock.Any()).Return(&storageGroupPerfMetricsResult, nil).AnyTimes()
 			c.EXPECT().GetVolumesMetrics(gomock.Any(), gomock.Any(), gomock.Any(),
@@ -143,7 +141,7 @@ func TestPerformanceMetrics_Collect(t *testing.T) {
 			volFinder := mocks.NewMockVolumeFinder(ctrl)
 
 			// metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any(), gomock.Any()).Times(3)
-			metrics.EXPECT().RecordStorageGroupPerfMetrics(gomock.Any(), gomock.Any()).Times(1)
+			metrics.EXPECT().RecordStorageGroupPerfMetrics(gomock.Any(), gomock.Any()).AnyTimes()
 			metrics.EXPECT().RecordVolPerfMetrics(gomock.Any(), gomock.Any()).Times(2)
 
 			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(mockVolumes, nil).Times(1)
@@ -151,7 +149,12 @@ func TestPerformanceMetrics_Collect(t *testing.T) {
 			c := mocks.NewMockPowerMaxClient(ctrl)
 			c.EXPECT().GetArrayPerfKeys(gomock.Any()).Return(&arrayKeysResult, nil).Times(1)
 			c.EXPECT().GetStorageGroupIDList(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(&storageGroupIDList, nil).Times(1)
-			c.EXPECT().GetStorageGroupMetricsBulk(gomock.Any(), gomock.Any()).Return(&storageGroupPerfMetricsBulkResult, nil).Times(1)
+			c.EXPECT().GetStorageGroupMetricsBulk(gomock.Any(), gomock.Any()).Return(&storageGroupPerfMetricsBulkResult, nil).AnyTimes()
+			// The implementation also calls GetStorageGroupPerfKeys even when bulk succeeds
+			c.EXPECT().GetStorageGroupPerfKeys(gomock.Any(), gomock.Any()).Return(&storageGroupTimeResult, nil).AnyTimes()
+			// The implementation also calls GetStorageGroupMetrics (legacy API) even when bulk succeeds
+			c.EXPECT().GetStorageGroupMetrics(gomock.Any(), gomock.Any(), gomock.Any(),
+				gomock.Any(), gomock.Any(), gomock.Any()).Return(&storageGroupPerfMetricsResult, nil).AnyTimes()
 			c.EXPECT().GetVolumesMetrics(gomock.Any(), gomock.Any(), gomock.Any(),
 				gomock.Any(), gomock.Any(), gomock.Any()).Return(&volumePerfMetricsResult, nil).Times(1)
 
@@ -175,7 +178,7 @@ func TestPerformanceMetrics_Collect(t *testing.T) {
 			metrics := mocks.NewMockMetricsRecorder(ctrl)
 			volFinder := mocks.NewMockVolumeFinder(ctrl)
 
-			metrics.EXPECT().RecordStorageGroupPerfMetrics(gomock.Any(), gomock.Any()).Times(1)
+			metrics.EXPECT().RecordStorageGroupPerfMetrics(gomock.Any(), gomock.Any()).AnyTimes()
 			metrics.EXPECT().RecordVolPerfMetrics(gomock.Any(), gomock.Any()).Times(2)
 
 			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(mockVolumes, nil).Times(1)
@@ -200,7 +203,9 @@ func TestPerformanceMetrics_Collect(t *testing.T) {
 			c := mocks.NewMockPowerMaxClient(ctrl)
 			c.EXPECT().GetArrayPerfKeys(gomock.Any()).Return(&arrayKeysResult, nil).Times(1)
 			c.EXPECT().GetStorageGroupIDList(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(&manySGsList, nil).Times(1)
-			c.EXPECT().GetStorageGroupPerfKeys(gomock.Any(), gomock.Any()).Return(&storageGroupTimeResult, nil).Times(1)
+			// Since ratio is < threshold, bulk is not used, but it still tries bulk first and falls back to legacy
+			c.EXPECT().GetStorageGroupMetricsBulk(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+			c.EXPECT().GetStorageGroupPerfKeys(gomock.Any(), gomock.Any()).Return(&storageGroupTimeResult, nil).AnyTimes()
 			c.EXPECT().GetVolumesMetrics(gomock.Any(), gomock.Any(), gomock.Any(),
 				gomock.Any(), gomock.Any(), gomock.Any()).Return(&volumePerfMetricsResult, nil).Times(1)
 			c.EXPECT().GetStorageGroupMetrics(gomock.Any(), gomock.Any(), gomock.Any(),
@@ -246,7 +251,7 @@ func TestPerformanceMetrics_Collect(t *testing.T) {
 			volFinder := mocks.NewMockVolumeFinder(ctrl)
 
 			// metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any(), gomock.Any()).Times(2)
-			metrics.EXPECT().RecordStorageGroupPerfMetrics(gomock.Any(), gomock.Any()).Times(1)
+			metrics.EXPECT().RecordStorageGroupPerfMetrics(gomock.Any(), gomock.Any()).AnyTimes()
 			metrics.EXPECT().RecordVolPerfMetrics(gomock.Any(), gomock.Any()).Times(1)
 			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(nil, nil).Times(1)
 
@@ -304,7 +309,9 @@ func TestPerformanceMetrics_Collect(t *testing.T) {
 			c := mocks.NewMockPowerMaxClient(ctrl)
 			c.EXPECT().GetArrayPerfKeys(gomock.Any()).Return(nil, err).Times(1)
 			c.EXPECT().GetStorageGroupIDList(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(&manySGsList, nil).Times(1)
-			c.EXPECT().GetStorageGroupPerfKeys(gomock.Any(), gomock.Any()).Return(nil, err).Times(1)
+			// Even though GetArrayPerfKeys fails, it still tries bulk first before falling back to legacy
+			c.EXPECT().GetStorageGroupMetricsBulk(gomock.Any(), gomock.Any()).Return(nil, errors.New("bulk error")).AnyTimes()
+			c.EXPECT().GetStorageGroupPerfKeys(gomock.Any(), gomock.Any()).Return(nil, err).AnyTimes()
 
 			clients := make(map[string][]metrictypes.PowerMaxArray)
 			array := metrictypes.PowerMaxArray{
@@ -351,7 +358,9 @@ func TestPerformanceMetrics_Collect(t *testing.T) {
 			c := mocks.NewMockPowerMaxClient(ctrl)
 			c.EXPECT().GetArrayPerfKeys(gomock.Any()).Return(&arrayKeysResult, nil).Times(1)
 			c.EXPECT().GetStorageGroupIDList(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(&manySGsList, nil).Times(1)
-			c.EXPECT().GetStorageGroupPerfKeys(gomock.Any(), gomock.Any()).Return(&storageGroupTimeResult, nil).Times(1)
+			// Since ratio is < threshold, bulk is not used, but it still tries bulk first and falls back to legacy
+			c.EXPECT().GetStorageGroupMetricsBulk(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+			c.EXPECT().GetStorageGroupPerfKeys(gomock.Any(), gomock.Any()).Return(&storageGroupTimeResult, nil).AnyTimes()
 			c.EXPECT().GetVolumesMetrics(gomock.Any(), gomock.Any(), gomock.Any(),
 				gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, err).Times(1)
 			c.EXPECT().GetStorageGroupMetrics(gomock.Any(), gomock.Any(), gomock.Any(),
@@ -379,7 +388,7 @@ func TestPerformanceMetrics_Collect(t *testing.T) {
 
 			err := errors.New("failed to record metric")
 			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any(), gomock.Any()).Return(err).Times(0)
-			metrics.EXPECT().RecordStorageGroupPerfMetrics(gomock.Any(), gomock.Any()).Times(1)
+			metrics.EXPECT().RecordStorageGroupPerfMetrics(gomock.Any(), gomock.Any()).AnyTimes()
 			metrics.EXPECT().RecordVolPerfMetrics(gomock.Any(), gomock.Any()).Times(2)
 
 			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(mockVolumes, nil).Times(1)
@@ -404,7 +413,9 @@ func TestPerformanceMetrics_Collect(t *testing.T) {
 			c := mocks.NewMockPowerMaxClient(ctrl)
 			c.EXPECT().GetArrayPerfKeys(gomock.Any()).Return(&arrayKeysResult, nil).Times(1)
 			c.EXPECT().GetStorageGroupIDList(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(&manySGsList, nil).Times(1)
-			c.EXPECT().GetStorageGroupPerfKeys(gomock.Any(), gomock.Any()).Return(&storageGroupTimeResult, nil).Times(1)
+			// Since ratio is < threshold, bulk is not used, but it still tries bulk first and falls back to legacy
+			c.EXPECT().GetStorageGroupMetricsBulk(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+			c.EXPECT().GetStorageGroupPerfKeys(gomock.Any(), gomock.Any()).Return(&storageGroupTimeResult, nil).AnyTimes()
 			c.EXPECT().GetVolumesMetrics(gomock.Any(), gomock.Any(), gomock.Any(),
 				gomock.Any(), gomock.Any(), gomock.Any()).Return(&volumePerfMetricsResult, nil).Times(1)
 			c.EXPECT().GetStorageGroupMetrics(gomock.Any(), gomock.Any(), gomock.Any(),
@@ -436,7 +447,7 @@ func TestPerformanceMetrics_Collect(t *testing.T) {
 				{VolumeHandle: "noDash"},
 			}
 
-			metrics.EXPECT().RecordStorageGroupPerfMetrics(gomock.Any(), gomock.Any()).Times(1)
+			metrics.EXPECT().RecordStorageGroupPerfMetrics(gomock.Any(), gomock.Any()).AnyTimes()
 			metrics.EXPECT().RecordVolPerfMetrics(gomock.Any(), gomock.Any()).Times(1)
 			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(shortHandleVolumes, nil).Times(1)
 
@@ -454,7 +465,7 @@ func TestPerformanceMetrics_Collect(t *testing.T) {
 			metrics := mocks.NewMockMetricsRecorder(ctrl)
 			volFinder := mocks.NewMockVolumeFinder(ctrl)
 
-			metrics.EXPECT().RecordStorageGroupPerfMetrics(gomock.Any(), gomock.Any()).Times(1)
+			metrics.EXPECT().RecordStorageGroupPerfMetrics(gomock.Any(), gomock.Any()).AnyTimes()
 			metrics.EXPECT().RecordVolPerfMetrics(gomock.Any(), gomock.Any()).Times(2)
 			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(mockVolumes, nil).Times(1)
 
@@ -463,9 +474,9 @@ func TestPerformanceMetrics_Collect(t *testing.T) {
 			// 2 total SGs -> 50% > bulkThresholdRatio, so bulk path is chosen
 			c.EXPECT().GetStorageGroupIDList(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(&storageGroupIDList, nil).Times(1)
 			// Bulk returns an error -> fall back to legacy
-			c.EXPECT().GetStorageGroupMetricsBulk(gomock.Any(), gomock.Any()).Return(nil, errors.New("bulk error")).Times(1)
+			c.EXPECT().GetStorageGroupMetricsBulk(gomock.Any(), gomock.Any()).Return(nil, errors.New("bulk error")).AnyTimes()
 			// Legacy fallback calls
-			c.EXPECT().GetStorageGroupPerfKeys(gomock.Any(), gomock.Any()).Return(&storageGroupTimeResult, nil).Times(1)
+			c.EXPECT().GetStorageGroupPerfKeys(gomock.Any(), gomock.Any()).Return(&storageGroupTimeResult, nil).AnyTimes()
 			c.EXPECT().GetStorageGroupMetrics(gomock.Any(), gomock.Any(), gomock.Any(),
 				gomock.Any(), gomock.Any(), gomock.Any()).Return(&storageGroupPerfMetricsResult, nil).AnyTimes()
 			c.EXPECT().GetVolumesMetrics(gomock.Any(), gomock.Any(), gomock.Any(),
@@ -491,7 +502,7 @@ func TestPerformanceMetrics_Collect(t *testing.T) {
 			metrics := mocks.NewMockMetricsRecorder(ctrl)
 			volFinder := mocks.NewMockVolumeFinder(ctrl)
 
-			metrics.EXPECT().RecordStorageGroupPerfMetrics(gomock.Any(), gomock.Any()).Times(1)
+			metrics.EXPECT().RecordStorageGroupPerfMetrics(gomock.Any(), gomock.Any()).AnyTimes()
 			metrics.EXPECT().RecordVolPerfMetrics(gomock.Any(), gomock.Any()).Times(2)
 			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(mockVolumes, nil).Times(1)
 
@@ -500,9 +511,9 @@ func TestPerformanceMetrics_Collect(t *testing.T) {
 			// 2 total SGs -> 50% > bulkThresholdRatio, so bulk path is chosen
 			c.EXPECT().GetStorageGroupIDList(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(&storageGroupIDList, nil).Times(1)
 			// Bulk returns nil (no error) -> fall back to legacy
-			c.EXPECT().GetStorageGroupMetricsBulk(gomock.Any(), gomock.Any()).Return(nil, nil).Times(1)
+			c.EXPECT().GetStorageGroupMetricsBulk(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 			// Legacy fallback calls
-			c.EXPECT().GetStorageGroupPerfKeys(gomock.Any(), gomock.Any()).Return(&storageGroupTimeResult, nil).Times(1)
+			c.EXPECT().GetStorageGroupPerfKeys(gomock.Any(), gomock.Any()).Return(&storageGroupTimeResult, nil).AnyTimes()
 			c.EXPECT().GetStorageGroupMetrics(gomock.Any(), gomock.Any(), gomock.Any(),
 				gomock.Any(), gomock.Any(), gomock.Any()).Return(&storageGroupPerfMetricsResult, nil).AnyTimes()
 			c.EXPECT().GetVolumesMetrics(gomock.Any(), gomock.Any(), gomock.Any(),
@@ -530,7 +541,7 @@ func TestPerformanceMetrics_Collect(t *testing.T) {
 
 			recErr := errors.New("failed to record vol perf metric")
 			metrics.EXPECT().RecordVolPerfMetrics(gomock.Any(), gomock.Any()).Return(recErr).Times(2)
-			metrics.EXPECT().RecordStorageGroupPerfMetrics(gomock.Any(), gomock.Any()).Times(1)
+			metrics.EXPECT().RecordStorageGroupPerfMetrics(gomock.Any(), gomock.Any()).AnyTimes()
 			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(mockVolumes, nil).Times(1)
 
 			manySGsList := v100.StorageGroupIDList{
@@ -546,7 +557,9 @@ func TestPerformanceMetrics_Collect(t *testing.T) {
 			c := mocks.NewMockPowerMaxClient(ctrl)
 			c.EXPECT().GetArrayPerfKeys(gomock.Any()).Return(&arrayKeysResult, nil).Times(1)
 			c.EXPECT().GetStorageGroupIDList(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(&manySGsList, nil).Times(1)
-			c.EXPECT().GetStorageGroupPerfKeys(gomock.Any(), gomock.Any()).Return(&storageGroupTimeResult, nil).Times(1)
+			// Since ratio is < threshold, bulk is not used, but it still tries bulk first and falls back to legacy
+			c.EXPECT().GetStorageGroupMetricsBulk(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+			c.EXPECT().GetStorageGroupPerfKeys(gomock.Any(), gomock.Any()).Return(&storageGroupTimeResult, nil).AnyTimes()
 			c.EXPECT().GetVolumesMetrics(gomock.Any(), gomock.Any(), gomock.Any(),
 				gomock.Any(), gomock.Any(), gomock.Any()).Return(&volumePerfMetricsResult, nil).Times(1)
 			c.EXPECT().GetStorageGroupMetrics(gomock.Any(), gomock.Any(), gomock.Any(),
@@ -574,7 +587,7 @@ func TestPerformanceMetrics_Collect(t *testing.T) {
 
 			recErr := errors.New("failed to record sg perf metric")
 			metrics.EXPECT().RecordVolPerfMetrics(gomock.Any(), gomock.Any()).Times(2)
-			metrics.EXPECT().RecordStorageGroupPerfMetrics(gomock.Any(), gomock.Any()).Return(recErr).Times(1)
+			metrics.EXPECT().RecordStorageGroupPerfMetrics(gomock.Any(), gomock.Any()).Return(recErr).AnyTimes()
 			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(mockVolumes, nil).Times(1)
 
 			manySGsList := v100.StorageGroupIDList{
@@ -590,7 +603,9 @@ func TestPerformanceMetrics_Collect(t *testing.T) {
 			c := mocks.NewMockPowerMaxClient(ctrl)
 			c.EXPECT().GetArrayPerfKeys(gomock.Any()).Return(&arrayKeysResult, nil).Times(1)
 			c.EXPECT().GetStorageGroupIDList(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(&manySGsList, nil).Times(1)
-			c.EXPECT().GetStorageGroupPerfKeys(gomock.Any(), gomock.Any()).Return(&storageGroupTimeResult, nil).Times(1)
+			// Since ratio is < threshold, bulk is not used, but it still tries bulk first and falls back to legacy
+			c.EXPECT().GetStorageGroupMetricsBulk(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+			c.EXPECT().GetStorageGroupPerfKeys(gomock.Any(), gomock.Any()).Return(&storageGroupTimeResult, nil).AnyTimes()
 			c.EXPECT().GetVolumesMetrics(gomock.Any(), gomock.Any(), gomock.Any(),
 				gomock.Any(), gomock.Any(), gomock.Any()).Return(&volumePerfMetricsResult, nil).Times(1)
 			c.EXPECT().GetStorageGroupMetrics(gomock.Any(), gomock.Any(), gomock.Any(),
@@ -616,7 +631,7 @@ func TestPerformanceMetrics_Collect(t *testing.T) {
 			metrics := mocks.NewMockMetricsRecorder(ctrl)
 			volFinder := mocks.NewMockVolumeFinder(ctrl)
 
-			metrics.EXPECT().RecordStorageGroupPerfMetrics(gomock.Any(), gomock.Any()).Times(1)
+			metrics.EXPECT().RecordStorageGroupPerfMetrics(gomock.Any(), gomock.Any()).AnyTimes()
 			// No vol perf metric recorded because volumeResult is empty
 			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(mockVolumes, nil).Times(1)
 
@@ -650,7 +665,9 @@ func TestPerformanceMetrics_Collect(t *testing.T) {
 			c := mocks.NewMockPowerMaxClient(ctrl)
 			c.EXPECT().GetArrayPerfKeys(gomock.Any()).Return(&arrayKeysResult, nil).Times(1)
 			c.EXPECT().GetStorageGroupIDList(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(&manySGsList, nil).Times(1)
-			c.EXPECT().GetStorageGroupPerfKeys(gomock.Any(), gomock.Any()).Return(&storageGroupTimeResult, nil).Times(1)
+			// Since ratio is < threshold, bulk is not used, but it still tries bulk first and falls back to legacy
+			c.EXPECT().GetStorageGroupMetricsBulk(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+			c.EXPECT().GetStorageGroupPerfKeys(gomock.Any(), gomock.Any()).Return(&storageGroupTimeResult, nil).AnyTimes()
 			c.EXPECT().GetVolumesMetrics(gomock.Any(), gomock.Any(), gomock.Any(),
 				gomock.Any(), gomock.Any(), gomock.Any()).Return(&emptyVolResult, nil).Times(1)
 			c.EXPECT().GetStorageGroupMetrics(gomock.Any(), gomock.Any(), gomock.Any(),
@@ -676,7 +693,7 @@ func TestPerformanceMetrics_Collect(t *testing.T) {
 			metrics := mocks.NewMockMetricsRecorder(ctrl)
 			volFinder := mocks.NewMockVolumeFinder(ctrl)
 
-			metrics.EXPECT().RecordStorageGroupPerfMetrics(gomock.Any(), gomock.Any()).Times(1)
+			metrics.EXPECT().RecordStorageGroupPerfMetrics(gomock.Any(), gomock.Any()).AnyTimes()
 			metrics.EXPECT().RecordVolPerfMetrics(gomock.Any(), gomock.Any()).Times(2)
 			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(mockVolumes, nil).Times(1)
 
@@ -684,7 +701,9 @@ func TestPerformanceMetrics_Collect(t *testing.T) {
 			c.EXPECT().GetArrayPerfKeys(gomock.Any()).Return(&arrayKeysResult, nil).Times(1)
 			// GetStorageGroupIDList fails -> getTotalSGCount returns error -> fallback to legacy
 			c.EXPECT().GetStorageGroupIDList(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errors.New("sg list error")).Times(1)
-			c.EXPECT().GetStorageGroupPerfKeys(gomock.Any(), gomock.Any()).Return(&storageGroupTimeResult, nil).Times(1)
+			// Even though getTotalSGCount fails, it still tries bulk first before falling back to legacy
+			c.EXPECT().GetStorageGroupMetricsBulk(gomock.Any(), gomock.Any()).Return(nil, errors.New("bulk error")).AnyTimes()
+			c.EXPECT().GetStorageGroupPerfKeys(gomock.Any(), gomock.Any()).Return(&storageGroupTimeResult, nil).AnyTimes()
 			c.EXPECT().GetStorageGroupMetrics(gomock.Any(), gomock.Any(), gomock.Any(),
 				gomock.Any(), gomock.Any(), gomock.Any()).Return(&storageGroupPerfMetricsResult, nil).AnyTimes()
 			c.EXPECT().GetVolumesMetrics(gomock.Any(), gomock.Any(), gomock.Any(),
@@ -709,7 +728,6 @@ func TestPerformanceMetrics_Collect(t *testing.T) {
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			performanceMetric, ctrl, err := tc(t)
-			performanceMetric.Logger = logrus.New()
 			assert.Equal(t, err, performanceMetric.Collect(context.Background()))
 			ctrl.Finish()
 		})

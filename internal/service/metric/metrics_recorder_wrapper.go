@@ -46,15 +46,25 @@ type TopologyMetricsData struct {
 }
 
 const (
-	TotalCapacityGigabytes          = "total_capacity_gigabytes"
-	UsedCapacityGigabytes           = "used_capacity_gigabytes"
-	UsedCapacityPercentage          = "used_capacity_percentage"
-	ReadBWMegabytesPerSecond        = "_read_bw_megabytes_per_second"
-	WriteBWMegabytesPerSecond       = "_write_bw_megabytes_per_second"
-	ReadLatencyMilliseconds         = "_read_latency_milliseconds"
-	WriteLatencyMilliseconds        = "_write_latency_milliseconds"
-	ReadIOPerSecond                 = "_read_io_per_second"
-	WriteIOPerSecond                = "_write_io_per_second"
+	// TotalCapacityGigabytes represents the total capacity in gigabytes
+	TotalCapacityGigabytes = "total_capacity_gigabytes"
+	// UsedCapacityGigabytes represents the used capacity in gigabytes
+	UsedCapacityGigabytes = "used_capacity_gigabytes"
+	// UsedCapacityPercentage represents the used capacity percentage
+	UsedCapacityPercentage = "used_capacity_percentage"
+	// ReadBWMegabytesPerSecond represents read bandwidth in MB/s
+	ReadBWMegabytesPerSecond = "_read_bw_megabytes_per_second"
+	// WriteBWMegabytesPerSecond represents write bandwidth in MB/s
+	WriteBWMegabytesPerSecond = "_write_bw_megabytes_per_second"
+	// ReadLatencyMilliseconds represents read latency in milliseconds
+	ReadLatencyMilliseconds = "_read_latency_milliseconds"
+	// WriteLatencyMilliseconds represents write latency in milliseconds
+	WriteLatencyMilliseconds = "_write_latency_milliseconds"
+	// ReadIOPerSecond represents read I/O operations per second
+	ReadIOPerSecond = "_read_io_per_second"
+	// WriteIOPerSecond represents write I/O operations per second
+	WriteIOPerSecond = "_write_io_per_second"
+	// AverageIOSizeMegabytesPerSecond represents average I/O size in MB/s
 	AverageIOSizeMegabytesPerSecond = "_average_io_size_megabytes_per_second"
 )
 
@@ -98,6 +108,7 @@ func (mrw *MetricsRecorderWrapper) RecordNumericMetrics(prefix string, labels []
 	return nil
 }
 
+// RecordVolPerfMetrics records volume performance metrics
 func (mrw *MetricsRecorderWrapper) RecordVolPerfMetrics(prefix string, metric metrictypes.VolumePerfMetricsRecord) error {
 	labels := []attribute.KeyValue{
 		attribute.String("VolumeID", metric.VolumeID),
@@ -168,6 +179,7 @@ func (mrw *MetricsRecorderWrapper) RecordVolPerfMetrics(prefix string, metric me
 	return nil
 }
 
+// RecordStorageGroupPerfMetrics records storage group performance metrics
 func (mrw *MetricsRecorderWrapper) RecordStorageGroupPerfMetrics(prefix string, metric metrictypes.StorageGroupPerfMetricsRecord) error {
 	labels := []attribute.KeyValue{
 		attribute.String("ArrayID", metric.ArrayID),

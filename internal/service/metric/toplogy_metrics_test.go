@@ -29,30 +29,28 @@ import (
 	"github.com/dell/csm-metrics-powermax/internal/service/metric"
 	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes"
 	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes/mocks"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
 
 func TestCreateTopologyMetricsInstance(t *testing.T) {
-	tests := map[string]func(t *testing.T) (service.PowerMaxService, *gomock.Controller){
-		"init success": func(*testing.T) (service.PowerMaxService, *gomock.Controller) {
+	tests := map[string]func(t *testing.T) (*service.PowerMaxService, *gomock.Controller){
+		"init success": func(*testing.T) (*service.PowerMaxService, *gomock.Controller) {
 			ctrl := gomock.NewController(t)
-			powerMaxService := service.PowerMaxService{}
+			powerMaxService := &service.PowerMaxService{}
 			return powerMaxService, ctrl
 		},
 		// due to the singleton instance, this call will enter another branch
-		"reuse success": func(*testing.T) (service.PowerMaxService, *gomock.Controller) {
+		"reuse success": func(*testing.T) (*service.PowerMaxService, *gomock.Controller) {
 			ctrl := gomock.NewController(t)
-			powerMaxService := service.PowerMaxService{}
+			powerMaxService := &service.PowerMaxService{}
 			return powerMaxService, ctrl
 		},
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			powerMaxService, ctrl := tc(t)
-			powerMaxService.Logger = logrus.New()
-			metric.CreateTopologyMetricsInstance(&powerMaxService)
+			metric.CreateTopologyMetricsInstance(powerMaxService)
 			ctrl.Finish()
 		})
 	}
@@ -163,7 +161,6 @@ func TestToplogyMetrics_Collect(t *testing.T) {
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			performanceMetric, ctrl, err := tc(t)
-			performanceMetric.Logger = logrus.New()
 			assert.Equal(t, err, performanceMetric.Collect(context.Background()))
 			ctrl.Finish()
 		})

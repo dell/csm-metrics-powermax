@@ -72,6 +72,8 @@ var ConnectFn = func(api *API) error {
 	}
 	return nil
 }
+
+// InClusterConfigFunc provides access to the Kubernetes in-cluster configuration function
 var InClusterConfigFunc = rest.InClusterConfig
 
 // InClusterConfigFn will return a valid configuration if we are running in a Pod on a kubernetes cluster

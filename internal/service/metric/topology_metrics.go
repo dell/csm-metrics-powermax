@@ -24,7 +24,7 @@ import (
 
 	"github.com/dell/csm-metrics-powermax/internal/k8s"
 	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes"
-	"github.com/sirupsen/logrus"
+	"github.com/dell/csmlog"
 )
 
 const (
@@ -60,7 +60,7 @@ func CreateTopologyMetricsInstance(service metrictypes.Service) *TopologyMetrics
 func (s *TopologyMetrics) Collect(ctx context.Context) error {
 	pvs, err := s.VolumeFinder.GetPersistentVolumes(ctx)
 	if err != nil {
-		s.Logger.WithError(err).Error("find no PVs, will do nothing")
+		csmlog.WithFields(csmlog.Fields{"error": err}).Error("find no PVs, will do nothing")
 		return err
 	}
 
@@ -84,7 +84,10 @@ func (s *TopologyMetrics) pushTopologyMetrics(ctx context.Context, topologyMetri
 				defer wg.Done()
 				err := s.MetricsRecorder.RecordTopologyMetrics(ctx, metrics.TopologyMeta, metrics)
 				if err != nil {
-					s.Logger.WithError(err).WithField("volume_id", metrics.TopologyMeta.PersistentVolume).Error("recording topology metrics for volume")
+					csmlog.WithFields(csmlog.Fields{
+						"error":     err,
+						"volume_id": metrics.TopologyMeta.PersistentVolume,
+					}).Error("recording topology metrics for volume")
 				} else {
 					ch <- metrics
 				}
@@ -158,7 +161,7 @@ func (s *TopologyMetrics) volumeServer(_ context.Context, volumes []k8s.VolumeIn
 
 // timeSince will log the amount of time spent in a given function
 func (s *TopologyMetrics) timeSince(start time.Time, fName string) {
-	s.Logger.WithFields(logrus.Fields{
+	csmlog.WithFields(csmlog.Fields{
 		"duration": fmt.Sprintf("%v", time.Since(start)),
 		"function": fName,
 	}).Info("function duration")

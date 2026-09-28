@@ -1,19 +1,17 @@
 /*
- Copyright (c) 2022-2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+Copyright (c) 2022-2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
+	http://www.apache.org/licenses/LICENSE-2.0
 
-     http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 */
-
 package k8spmax_test
 
 import (
@@ -31,7 +29,7 @@ import (
 	"github.com/dell/csi-powermax/csireverseproxy/v2/pkg/k8sutils"
 	"github.com/dell/csm-metrics-powermax/internal/k8spmax"
 	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes"
-	"github.com/sirupsen/logrus"
+
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -39,27 +37,19 @@ import (
 func Test_Run_Unauthorized(t *testing.T) {
 	mockUtils := k8smock.Init()
 	_, _ = mockUtils.CreateNewCredentialSecret("powermax-creds")
-
 	tests := map[string]func(t *testing.T) (filePath string, k8sUtils k8sutils.UtilsInterface, expectError bool){
 		"failed with unauthorized user": func(*testing.T) (string, k8sutils.UtilsInterface, bool) {
 			return "testdata/sample-config-default.yaml", mockUtils, false
 		},
 	}
-
 	handler := getHandler(getUnauthorizedRouter())
 	server := httptest.NewTLSServer(handler)
 	defer server.Close()
-
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			logger := logrus.New()
-			logger.Info(test(t))
 			filePath, k8sUtils, expectError := test(t)
-
 			original := replaceEnpoints(filePath, server.URL)
-
-			clusters, err := k8spmax.GetPowerMaxArrays(context.Background(), k8sUtils, filePath, logger)
-
+			clusters, err := k8spmax.GetPowerMaxArrays(context.Background(), k8sUtils, filePath)
 			if expectError {
 				assert.Nil(t, clusters)
 				assert.NotNil(t, err)
@@ -80,22 +70,19 @@ func Test_InitK8sUtils(t *testing.T) {
 	_ = os.Setenv("HOME", "")
 	_ = os.Setenv("X_CSI_KUBECONFIG_PATH", "../k8s/testdata/")
 	callback := func(_ k8sutils.UtilsInterface, _ *corev1.Secret) {}
-	_, err := k8spmax.InitK8sUtils(logrus.New(), callback, false)
+	_, err := k8spmax.InitK8sUtils(callback, false)
 	assert.Nil(t, err)
 }
 
 func TestGetPowerMaxArrays(t *testing.T) {
 	server := createServer()
 	defer server.Close()
-
 	mockUtils := k8smock.Init()
 	_, _ = mockUtils.CreateNewCredentialSecret("powermax-creds")
-
 	testCases := []struct {
 		name                   string
 		k8sUtils               k8sutils.UtilsInterface
 		filePath               string
-		logger                 *logrus.Logger
 		expectedPowerMaxArrays map[string][]metrictypes.PowerMaxArray
 		useSecret              bool
 		expectedError          error
@@ -104,7 +91,6 @@ func TestGetPowerMaxArrays(t *testing.T) {
 			name:     "Success: with secret file",
 			k8sUtils: &k8sutils.K8sUtils{},
 			filePath: "./testdata/secret-config.yaml",
-			logger:   logrus.New(),
 			expectedPowerMaxArrays: map[string][]metrictypes.PowerMaxArray{
 				"000000000001": {{StorageArrayID: "000000000001", Endpoint: server.URL}, {StorageArrayID: "000000000001", Endpoint: server.URL}},
 				"000000000002": {{StorageArrayID: "000000000002", Endpoint: server.URL}, {StorageArrayID: "000000000002", Endpoint: server.URL}},
@@ -116,7 +102,6 @@ func TestGetPowerMaxArrays(t *testing.T) {
 			name:                   "Failed: unable to unmarshal secret file",
 			k8sUtils:               &k8sutils.K8sUtils{},
 			filePath:               "./testdata/invalid-format.yaml",
-			logger:                 logrus.New(),
 			expectedPowerMaxArrays: nil,
 			useSecret:              true,
 			expectedError:          errors.New("cannot unmarshal !!str `invalid...` into map[string]interface {}"),
@@ -125,17 +110,14 @@ func TestGetPowerMaxArrays(t *testing.T) {
 			name:                   "Failed: invalid secret file",
 			k8sUtils:               &k8sutils.K8sUtils{},
 			filePath:               "./testdata/invalid-secret-config.yaml",
-			logger:                 logrus.New(),
 			expectedPowerMaxArrays: nil,
 			useSecret:              true,
-			expectedError:          errors.New("primary endpoint not configured"),
+			expectedError:          errors.New("no valid storage arrays configured: all 1 configured array(s) failed validation"),
 		},
-
 		{
 			name:     "Success: with config map",
 			k8sUtils: mockUtils,
 			filePath: "./testdata/sample-config-default.yaml",
-			logger:   logrus.New(),
 			expectedPowerMaxArrays: map[string][]metrictypes.PowerMaxArray{
 				"00012345678": {{StorageArrayID: "00012345678", Endpoint: server.URL}, {StorageArrayID: "00012345678", Endpoint: server.URL}},
 			},
@@ -146,7 +128,6 @@ func TestGetPowerMaxArrays(t *testing.T) {
 			name:                   "Failed: nil k8sUtils",
 			k8sUtils:               nil,
 			filePath:               "./testdata/sample-config-default.yaml",
-			logger:                 logrus.New(),
 			expectedPowerMaxArrays: nil,
 			useSecret:              false,
 			expectedError:          errors.New("k8sUtils is nil"),
@@ -155,7 +136,6 @@ func TestGetPowerMaxArrays(t *testing.T) {
 			name:                   "Failed: configMap cannot unmarshall",
 			k8sUtils:               mockUtils,
 			filePath:               "./testdata/invalid-format.yaml",
-			logger:                 logrus.New(),
 			expectedPowerMaxArrays: nil,
 			useSecret:              false,
 			expectedError:          errors.New("cannot unmarshal !!str `invalid...` into map[string]interface {}"),
@@ -164,29 +144,25 @@ func TestGetPowerMaxArrays(t *testing.T) {
 			name:                   "Failed: configMap connection failed",
 			k8sUtils:               mockUtils,
 			filePath:               "./testdata/connection-failed.yaml",
-			logger:                 logrus.New(),
 			expectedPowerMaxArrays: nil,
 			useSecret:              false,
-			expectedError:          errors.New("not present among management URL addresses"),
+			expectedError:          errors.New("no valid storage arrays configured: all 1 configured array(s) failed validation"),
 		},
 	}
-
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			original := replaceEnpoints(tc.filePath, server.URL)
-
 			ctx := context.Background()
 			_ = setReverseProxyUseSecret(tc.useSecret)
 			if tc.useSecret {
 				_ = setEnv(revcommon.EnvSecretFilePath, tc.filePath)
 			}
-			powerMaxArrays, err := k8spmax.GetPowerMaxArrays(ctx, tc.k8sUtils, tc.filePath, tc.logger)
+			powerMaxArrays, err := k8spmax.GetPowerMaxArrays(ctx, tc.k8sUtils, tc.filePath)
 			if err != nil {
 				if !strings.Contains(err.Error(), tc.expectedError.Error()) {
 					t.Errorf("Expected error: %v, but got: %v", tc.expectedError, err)
 				}
 			}
-
 			if len(powerMaxArrays) != len(tc.expectedPowerMaxArrays) {
 				t.Errorf("Expected powerMaxArrays: %v, but got: %v", tc.expectedPowerMaxArrays, powerMaxArrays)
 			}
@@ -201,8 +177,8 @@ func getHandler(router http.Handler) http.Handler {
 		func(w http.ResponseWriter, r *http.Request) {
 			log.Printf("handler called: %s %s", r.Method, r.URL)
 			router.ServeHTTP(w, r)
-		})
-
+		},
+	)
 	return handler
 }
 

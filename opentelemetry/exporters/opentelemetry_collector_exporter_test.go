@@ -23,6 +23,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 )
 
 func TestInitExporter(t *testing.T) {
@@ -110,6 +111,88 @@ func TestOtlCollectorExporter_StopExporter(t *testing.T) {
 			if err != nil && tt.ExpectedError == nil {
 				t.Fatal(err)
 			}
+		})
+	}
+}
+
+func TestSetExportFailureRecorder(t *testing.T) {
+	tests := []struct {
+		name        string
+		collector   *OtlCollectorExporter
+		hasCallback bool
+	}{
+		{
+			name: "Set Export Failure Recorder",
+			collector: &OtlCollectorExporter{
+				CollectorAddr: "localhost:8080",
+			},
+			hasCallback: true,
+		},
+		{
+			name: "Set Export Failure Recorder with nil callback",
+			collector: &OtlCollectorExporter{
+				CollectorAddr: "localhost:8080",
+			},
+			hasCallback: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.hasCallback {
+				tt.collector.SetExportFailureRecorder(func() {
+					// Mock callback
+				})
+				assert.NotNil(t, tt.collector.recordExportFailure)
+			} else {
+				tt.collector.SetExportFailureRecorder(nil)
+				assert.Nil(t, tt.collector.recordExportFailure)
+			}
+		})
+	}
+}
+
+func TestRecordingExporter_Export(t *testing.T) {
+	tests := []struct {
+		name        string
+		hasCallback bool
+	}{
+		{
+			name:        "Export with failure callback",
+			hasCallback: true,
+		},
+		{
+			name:        "Export without failure callback",
+			hasCallback: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			collector := &OtlCollectorExporter{
+				CollectorAddr: "localhost:8080",
+			}
+			err := collector.InitExporter(otlpmetricgrpc.WithInsecure())
+			if err != nil {
+				t.Fatalf("failed to initialize exporter: %v", err)
+			}
+			defer func() {
+				_ = collector.StopExporter()
+			}()
+
+			if tt.hasCallback {
+				collector.SetExportFailureRecorder(func() {
+					// Callback for export failure
+				})
+				assert.NotNil(t, collector.recordExportFailure)
+			}
+
+			// Create empty metrics for testing
+			metrics := &metricdata.ResourceMetrics{}
+
+			// Export should fail with connection error (no real collector)
+			// but the recordingExporter wrapper should handle it
+			_ = collector.exporter.Export(context.Background(), metrics)
 		})
 	}
 }

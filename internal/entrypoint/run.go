@@ -25,12 +25,13 @@ import (
 	"time"
 
 	"github.com/dell/csm-metrics-powermax/internal/k8spmax"
-
+	"github.com/dell/csm-metrics-powermax/internal/service"
 	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes"
+
+	"github.com/dell/csmlog"
 
 	otlexporters "github.com/dell/csm-metrics-powermax/opentelemetry/exporters"
 
-	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"google.golang.org/grpc/credentials"
 )
@@ -55,6 +56,16 @@ var ConfigValidatorFunc = ValidateConfig
 // It is a variable so tests can override it.
 var LeaderCheckInterval = 5 * time.Second
 
+func recordPowerMaxExportFailure(powerMaxSvc metrictypes.Service) {
+	inst, ok := powerMaxSvc.GetObsInstrumenter().(*service.PMAXObsInstrumenter)
+	if !ok || inst == nil {
+		return
+	}
+	for arrayID := range powerMaxSvc.GetPowerMaxClients() {
+		inst.RecordExportSuccess(arrayID, "failure")
+	}
+}
+
 // Config holds data that will be used by the service
 type Config struct {
 	LeaderElector               metrictypes.LeaderElector
@@ -67,7 +78,7 @@ type Config struct {
 	TopologyMetricsEnabled      bool
 	CollectorAddress            string
 	CollectorCertPath           string
-	Logger                      *logrus.Logger
+
 	// mu protects the tick interval fields from concurrent access.
 	mu sync.RWMutex
 }
@@ -94,7 +105,6 @@ func Run(ctx context.Context, config *Config, exporter otlexporters.Otlexporter,
 	if err != nil {
 		return err
 	}
-	logger := config.Logger
 
 	errCh := make(chan error, 1)
 
@@ -126,12 +136,19 @@ func Run(ctx context.Context, config *Config, exporter otlexporters.Otlexporter,
 			options = append(options, otlpmetricgrpc.WithInsecure())
 		}
 
+		// Set up export failure callback to track OTEL export failures
+		if otlExporter, ok := exporter.(*otlexporters.OtlCollectorExporter); ok {
+			otlExporter.SetExportFailureRecorder(func() {
+				recordPowerMaxExportFailure(powerMaxSvc)
+			})
+		}
+
 		errCh <- exporter.InitExporter(options...)
 	}()
 
 	defer func() {
 		if err := exporter.StopExporter(); err != nil {
-			logger.WithError(err).Error("failed to stop exporter")
+			csmlog.WithFields(csmlog.Fields{"error": err}).Error("failed to stop exporter")
 		}
 	}()
 
@@ -164,25 +181,25 @@ func Run(ctx context.Context, config *Config, exporter otlexporters.Otlexporter,
 				collectedOnLeaderAcquired = false
 				wasLeader = false
 				leaderCheckTicker.Reset(LeaderCheckInterval)
-				logger.Info("leader lease lost, will collect immediately on re-election")
+				csmlog.Info("leader lease lost, will collect immediately on re-election")
 			}
 			if !collectedOnLeaderAcquired && isLeader {
-				logger.Info("leader lease acquired, collecting metrics immediately")
+				csmlog.Info("leader lease acquired, collecting metrics immediately")
 				wasLeader = true
-				collectCapacityMetrics(ctx, config, logger, powerMaxSvc)
+				collectCapacityMetrics(ctx, config, powerMaxSvc)
 				// Check for cancellation between blocking collection calls.
 				select {
 				case <-ctx.Done():
 					return nil
 				default:
 				}
-				collectPerformanceMetrics(ctx, config, logger, powerMaxSvc)
+				collectPerformanceMetrics(ctx, config, powerMaxSvc)
 				select {
 				case <-ctx.Done():
 					return nil
 				default:
 				}
-				collectTopologyMetrics(ctx, config, logger, powerMaxSvc)
+				collectTopologyMetrics(ctx, config, powerMaxSvc)
 				// Mark complete only after collections have run,
 				// so a transient failure during collection doesn't permanently
 				// suppress the immediate-collection path on re-election.
@@ -206,13 +223,12 @@ func Run(ctx context.Context, config *Config, exporter otlexporters.Otlexporter,
 				topologyMetricsTicker.Reset(topologyMetricsTickInterval)
 			}
 		case <-capacityTicker.C:
-			collectCapacityMetrics(ctx, config, logger, powerMaxSvc)
+			collectCapacityMetrics(ctx, config, powerMaxSvc)
 		case <-performanceTicker.C:
-			collectPerformanceMetrics(ctx, config, logger, powerMaxSvc)
 		case <-topologyMetricsTicker.C:
-			collectTopologyMetrics(ctx, config, logger, powerMaxSvc)
+			collectTopologyMetrics(ctx, config, powerMaxSvc)
 		case <-livenessProbeTick.C:
-			logger.Info("validate powermax connection")
+			csmlog.Info("validate powermax connection")
 			validatePowerMaxArrays(ctx, powerMaxSvc)
 		case err := <-errCh:
 			if err == nil {
@@ -246,46 +262,46 @@ func validatePowerMaxArrays(ctx context.Context, powerMaxSvc metrictypes.Service
 			err := k8spmax.Authenticate(ctx, array.Client, array)
 			if err != nil {
 				array.IsActive = false
-				powerMaxSvc.GetLogger().WithError(err).Errorf("authentication failed to PowerMax array %s, %s", arrayID, array.Endpoint)
+				csmlog.WithFields(csmlog.Fields{"error": err}).Errorf("authentication failed to PowerMax array %s, %s", arrayID, array.Endpoint)
 				continue
 			}
 			array.IsActive = true
-			powerMaxSvc.GetLogger().Infof("authentication successful to PowerMax array %s, %s", arrayID, array.Endpoint)
+			csmlog.Infof("authentication successful to PowerMax array %s, %s", arrayID, array.Endpoint)
 		}
 	}
 }
 
-func collectCapacityMetrics(ctx context.Context, config *Config, logger *logrus.Logger, powerMaxSvc metrictypes.Service) {
+func collectCapacityMetrics(ctx context.Context, config *Config, powerMaxSvc metrictypes.Service) {
 	if !config.LeaderElector.IsLeader() {
-		logger.Info("not leader pod to collect metrics")
+		csmlog.Info("not leader pod to collect metrics")
 		return
 	}
 	if !config.CapacityMetricsEnabled {
-		logger.Info("powerMax capacity metrics collection is disabled")
+		csmlog.Info("powerMax capacity metrics collection is disabled")
 		return
 	}
 	powerMaxSvc.ExportCapacityMetrics(ctx)
 }
 
-func collectPerformanceMetrics(ctx context.Context, config *Config, logger *logrus.Logger, powerMaxSvc metrictypes.Service) {
+func collectPerformanceMetrics(ctx context.Context, config *Config, powerMaxSvc metrictypes.Service) {
 	if !config.LeaderElector.IsLeader() {
-		logger.Info("not leader pod to collect metrics")
+		csmlog.Info("not leader pod to collect metrics")
 		return
 	}
 	if !config.PerformanceMetricsEnabled {
-		logger.Info("powerMax performance metrics collection is disabled")
+		csmlog.Info("powerMax performance metrics collection is disabled")
 		return
 	}
 	powerMaxSvc.ExportPerformanceMetrics(ctx)
 }
 
-func collectTopologyMetrics(ctx context.Context, config *Config, logger *logrus.Logger, powerMaxSvc metrictypes.Service) {
+func collectTopologyMetrics(ctx context.Context, config *Config, powerMaxSvc metrictypes.Service) {
 	if !config.LeaderElector.IsLeader() {
-		logger.Info("not leader pod to collect metrics")
+		csmlog.Info("not leader pod to collect metrics")
 		return
 	}
 	if !config.TopologyMetricsEnabled {
-		logger.Info("powermax topology metrics collection is disabled")
+		csmlog.Info("powermax topology metrics collection is disabled")
 		return
 	}
 	powerMaxSvc.ExportTopologyMetrics(ctx)

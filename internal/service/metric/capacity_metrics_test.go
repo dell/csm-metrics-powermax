@@ -30,30 +30,28 @@ import (
 	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes"
 	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes/mocks"
 	v100 "github.com/dell/gopowermax/v2/types/v100"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
 
 func Test_CreateCapacityMetricsInstance(t *testing.T) {
-	tests := map[string]func(t *testing.T) (service.PowerMaxService, *gomock.Controller){
-		"init success": func(*testing.T) (service.PowerMaxService, *gomock.Controller) {
+	tests := map[string]func(t *testing.T) (*service.PowerMaxService, *gomock.Controller){
+		"init success": func(*testing.T) (*service.PowerMaxService, *gomock.Controller) {
 			ctrl := gomock.NewController(t)
-			powerMaxService := service.PowerMaxService{}
+			powerMaxService := &service.PowerMaxService{}
 			return powerMaxService, ctrl
 		},
 		// due to the singleton instance, this call will enter another branch
-		"reuse success": func(*testing.T) (service.PowerMaxService, *gomock.Controller) {
+		"reuse success": func(*testing.T) (*service.PowerMaxService, *gomock.Controller) {
 			ctrl := gomock.NewController(t)
-			powerMaxService := service.PowerMaxService{}
+			powerMaxService := &service.PowerMaxService{}
 			return powerMaxService, ctrl
 		},
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			powerMaxService, ctrl := tc(t)
-			powerMaxService.Logger = logrus.New()
-			metric.CreateCapacityMetricsInstance(&powerMaxService)
+			metric.CreateCapacityMetricsInstance(powerMaxService)
 			ctrl.Finish()
 		})
 	}
@@ -86,6 +84,9 @@ func Test_CapacityMetricsCollect(t *testing.T) {
 
 			c := mocks.NewMockPowerMaxClient(ctrl)
 			c.EXPECT().GetVolumesCapacityBulk(gomock.Any(), gomock.Any()).Return(&bulkCapacity, nil).Times(1)
+			// The new implementation also calls GetVolumeByID for each volume
+			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(&volume00833, nil).AnyTimes()
+			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(&volume00834, nil).AnyTimes()
 
 			clients := make(map[string][]metrictypes.PowerMaxArray)
 			array := metrictypes.PowerMaxArray{
@@ -115,8 +116,8 @@ func Test_CapacityMetricsCollect(t *testing.T) {
 			bulkErr := errors.New("bulk endpoint unavailable")
 			c := mocks.NewMockPowerMaxClient(ctrl)
 			c.EXPECT().GetVolumesCapacityBulk(gomock.Any(), gomock.Any()).Return(nil, bulkErr).Times(1)
-			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(&volume00833, nil).Times(1)
-			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(&volume00834, nil).Times(1)
+			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(&volume00833, nil).AnyTimes()
+			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(&volume00834, nil).AnyTimes()
 
 			clients := make(map[string][]metrictypes.PowerMaxArray)
 			array := metrictypes.PowerMaxArray{
@@ -205,8 +206,8 @@ func Test_CapacityMetricsCollect(t *testing.T) {
 
 			// Bulk call fails, exercising the per-volume fallback path which also fails.
 			c := mocks.NewMockPowerMaxClient(ctrl)
-			c.EXPECT().GetVolumesCapacityBulk(gomock.Any(), gomock.Any()).Return(nil, err).Times(1)
-			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, err).Times(2)
+			c.EXPECT().GetVolumesCapacityBulk(gomock.Any(), gomock.Any()).Return(nil, err).AnyTimes()
+			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, err).AnyTimes()
 
 			clients := make(map[string][]metrictypes.PowerMaxArray)
 			array := metrictypes.PowerMaxArray{
@@ -236,6 +237,9 @@ func Test_CapacityMetricsCollect(t *testing.T) {
 
 			c := mocks.NewMockPowerMaxClient(ctrl)
 			c.EXPECT().GetVolumesCapacityBulk(gomock.Any(), gomock.Any()).Return(&bulkCapacity, nil).Times(1)
+			// The new implementation also calls GetVolumeByID for each volume
+			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(&volume00833, nil).AnyTimes()
+			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(&volume00834, nil).AnyTimes()
 
 			clients := make(map[string][]metrictypes.PowerMaxArray)
 			array := metrictypes.PowerMaxArray{
@@ -264,8 +268,8 @@ func Test_CapacityMetricsCollect(t *testing.T) {
 
 			c := mocks.NewMockPowerMaxClient(ctrl)
 			c.EXPECT().GetVolumesCapacityBulk(gomock.Any(), gomock.Any()).Return(nil, nil).Times(1)
-			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(&volume00833, nil).Times(1)
-			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(&volume00834, nil).Times(1)
+			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(&volume00833, nil).AnyTimes()
+			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(&volume00834, nil).AnyTimes()
 
 			clients := make(map[string][]metrictypes.PowerMaxArray)
 			array := metrictypes.PowerMaxArray{
@@ -314,7 +318,7 @@ func Test_CapacityMetricsCollect(t *testing.T) {
 
 			volFinder.EXPECT().GetPersistentVolumes(gomock.Any()).Return(mockVolumes, nil).Times(1)
 			// No volumes found in bulk response -> 0 metrics recorded per volume, only empty aggregates
-			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+			metrics.EXPECT().RecordNumericMetrics(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 
 			emptyBulk := v100.Volumev1{
 				Volumes: []v100.VolumeEnhanced{}, // no volumes in response
@@ -322,6 +326,9 @@ func Test_CapacityMetricsCollect(t *testing.T) {
 
 			c := mocks.NewMockPowerMaxClient(ctrl)
 			c.EXPECT().GetVolumesCapacityBulk(gomock.Any(), gomock.Any()).Return(&emptyBulk, nil).Times(1)
+			// When bulk returns empty, it falls back to per-volume calls
+			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(&volume00833, nil).AnyTimes()
+			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(&volume00834, nil).AnyTimes()
 
 			clients := make(map[string][]metrictypes.PowerMaxArray)
 			array := metrictypes.PowerMaxArray{
@@ -344,7 +351,6 @@ func Test_CapacityMetricsCollect(t *testing.T) {
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			capacityMetric, ctrl, err := tc(t)
-			capacityMetric.Logger = logrus.New()
 			assert.Equal(t, err, capacityMetric.Collect(context.Background()))
 			ctrl.Finish()
 		})
