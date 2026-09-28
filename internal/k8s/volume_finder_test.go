@@ -24,7 +24,6 @@ import (
 
 	"github.com/dell/csm-metrics-powermax/internal/k8s"
 	"github.com/dell/csm-metrics-powermax/internal/k8s/mocks"
-	"github.com/sirupsen/logrus"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -362,7 +361,7 @@ func Test_K8sPersistentVolumeFinder(t *testing.T) {
 
 			api.EXPECT().GetPersistentVolumes().Times(1).Return(volumes, nil)
 
-			finder := k8s.VolumeFinder{API: api, DriverNames: []string{"csi-powermax.dellemc.com"}, Logger: logrus.New()}
+			finder := k8s.VolumeFinder{API: api, DriverNames: []string{"csi-powermax.dellemc.com"}}
 			return finder, check(hasNoError, checkExpectedOutput([]k8s.VolumeInfo{
 				{
 					Namespace:               "namespace-1",
@@ -465,7 +464,7 @@ func Test_K8sPersistentVolumeFinder(t *testing.T) {
 
 			api.EXPECT().GetPersistentVolumes().Times(1).Return(volumes, nil)
 
-			finder := k8s.VolumeFinder{API: api, DriverNames: []string{"csi-powermax.dellemc.com"}, Logger: logrus.New()}
+			finder := k8s.VolumeFinder{API: api, DriverNames: []string{"csi-powermax.dellemc.com"}}
 			return finder, check(hasNoError, checkExpectedOutput([]k8s.VolumeInfo{
 				{
 					Namespace:               "namespace-1",

@@ -31,7 +31,6 @@ import (
 	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes"
 	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes/mocks"
 	v100 "github.com/dell/gopowermax/v2/types/v100"
-	"github.com/sirupsen/logrus"
 	"go.uber.org/mock/gomock"
 )
 
@@ -45,6 +44,18 @@ func Test_ExportMetrics(t *testing.T) {
 	err := json.Unmarshal(bulkBytes, &bulkCapacity)
 	assert.Nil(t, err)
 
+	// Define mock volume objects for GetVolumeByID calls
+	volume00833 := v100.Volume{
+		VolumeID:         "00833",
+		CapacityGB:       100,
+		AllocatedPercent: 50,
+	}
+	volume00834 := v100.Volume{
+		VolumeID:         "00834",
+		CapacityGB:       200,
+		AllocatedPercent: 75,
+	}
+
 	tests := map[string]func(t *testing.T) (*metric.BaseMetrics, *gomock.Controller){
 		"success": func(t *testing.T) (*metric.BaseMetrics, *gomock.Controller) {
 			ctrl := gomock.NewController(t)
@@ -57,6 +68,9 @@ func Test_ExportMetrics(t *testing.T) {
 
 			c := mocks.NewMockPowerMaxClient(ctrl)
 			c.EXPECT().GetVolumesCapacityBulk(gomock.Any(), gomock.Any()).Return(&bulkCapacity, nil).Times(1)
+			// The new implementation also calls GetVolumeByID for each volume
+			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(&volume00833, nil).AnyTimes()
+			c.EXPECT().GetVolumeByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(&volume00834, nil).AnyTimes()
 
 			clients := make(map[string][]metrictypes.PowerMaxArray)
 			array := metrictypes.PowerMaxArray{
@@ -65,15 +79,14 @@ func Test_ExportMetrics(t *testing.T) {
 			}
 			clients["000197902599"] = append(clients["000197902599"], array)
 
-			service := service.PowerMaxService{
-				Logger:                 logrus.New(),
+			service := &service.PowerMaxService{
 				MetricsRecorder:        metrics,
 				VolumeFinder:           volFinder,
 				StorageClassFinder:     scFinder,
 				PowerMaxClients:        clients,
 				MaxPowerMaxConnections: service.DefaultMaxPowerMaxConnections,
 			}
-			capacityMetric := metric.CreateCapacityMetricsInstance(&service)
+			capacityMetric := metric.CreateCapacityMetricsInstance(service)
 
 			return capacityMetric.BaseMetrics, ctrl
 		},
@@ -90,7 +103,6 @@ func Test_ExportMetrics(t *testing.T) {
 			clients["000197902599"] = append(clients["000197902599"], array)
 
 			base := &metric.BaseMetrics{
-				Logger:                 logrus.New(),
 				VolumeFinder:           volFinder,
 				PowerMaxClients:        clients,
 				MetricsRecorder:        metrics,
@@ -118,15 +130,14 @@ func Test_ExportMetrics(t *testing.T) {
 			}
 			clients["000197902599"] = append(clients["000197902599"], array)
 
-			service := service.PowerMaxService{
-				Logger:                 logrus.New(),
+			service := &service.PowerMaxService{
 				MetricsRecorder:        metrics,
 				VolumeFinder:           volFinder,
 				StorageClassFinder:     scFinder,
 				PowerMaxClients:        clients,
 				MaxPowerMaxConnections: service.DefaultMaxPowerMaxConnections,
 			}
-			base := metric.NewBaseMetrics(&service)
+			base := metric.NewBaseMetrics(service)
 			myCapacityInstance := &metric.CapacityMetrics{base}
 			base.Collector = myCapacityInstance
 
@@ -145,7 +156,6 @@ func Test_ExportMetrics(t *testing.T) {
 			clients["000197902599"] = append(clients["000197902599"], array)
 
 			base := &metric.BaseMetrics{
-				Logger:                 logrus.New(),
 				VolumeFinder:           volFinder,
 				PowerMaxClients:        clients,
 				MaxPowerMaxConnections: service.DefaultMaxPowerMaxConnections,
@@ -169,7 +179,6 @@ func Test_ExportMetrics(t *testing.T) {
 			clients["000197902599"] = append(clients["000197902599"], array)
 
 			base := &metric.BaseMetrics{
-				Logger:                 logrus.New(),
 				MetricsRecorder:        metrics,
 				VolumeFinder:           volFinder,
 				Collector:              &metric.CapacityMetrics{},
@@ -193,7 +202,6 @@ func Test_ExportMetrics(t *testing.T) {
 			clients["000197902599"] = append(clients["000197902599"], array)
 
 			base := &metric.BaseMetrics{
-				Logger:                 logrus.New(),
 				MetricsRecorder:        metrics,
 				VolumeFinder:           volFinder,
 				Collector:              &metric.CapacityMetrics{},

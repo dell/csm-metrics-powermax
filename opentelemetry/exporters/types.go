@@ -26,4 +26,5 @@ import (
 type Otlexporter interface {
 	InitExporter(...otlpmetricgrpc.Option) error
 	StopExporter() error
+	SetExportFailureRecorder(func())
 }

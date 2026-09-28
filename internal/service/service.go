@@ -18,10 +18,12 @@ package service
 
 import (
 	"context"
+	"maps"
+	"sync"
+	"time"
 
 	"github.com/dell/csm-metrics-powermax/internal/service/metric"
 	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -32,26 +34,36 @@ const (
 // PowerMaxService contains configuration stuff and represents the service for getting metrics data for a PowerMax system
 type PowerMaxService struct {
 	MetricsRecorder        metrictypes.MetricsRecorder
+	ObsInstrumenter        *PMAXObsInstrumenter
 	MaxPowerMaxConnections int
-	Logger                 *logrus.Logger
 	PowerMaxClients        map[string][]metrictypes.PowerMaxArray
 	VolumeFinder           metrictypes.VolumeFinder
 	StorageClassFinder     metrictypes.StorageClassFinder
+	mu                     sync.RWMutex
 }
 
-// GetLogger return logger
-func (s *PowerMaxService) GetLogger() *logrus.Logger {
-	return s.Logger
-}
-
-// GetPowerMaxClients return PowerMaxClients
+// GetPowerMaxClients return a snapshot of PowerMaxClients.
 func (s *PowerMaxService) GetPowerMaxClients() map[string][]metrictypes.PowerMaxArray {
-	return s.PowerMaxClients
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return maps.Clone(s.PowerMaxClients)
+}
+
+// SetPowerMaxClients replaces the PowerMaxClients map with a defensive copy.
+func (s *PowerMaxService) SetPowerMaxClients(clients map[string][]metrictypes.PowerMaxArray) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.PowerMaxClients = maps.Clone(clients)
 }
 
 // GetMetricsRecorder return MetricsRecorder
 func (s *PowerMaxService) GetMetricsRecorder() metrictypes.MetricsRecorder {
 	return s.MetricsRecorder
+}
+
+// GetObsInstrumenter returns the observability instrumenter
+func (s *PowerMaxService) GetObsInstrumenter() interface{} {
+	return s.ObsInstrumenter
 }
 
 // GetMaxPowerMaxConnections return MaxPowerMaxConnections
@@ -66,15 +78,48 @@ func (s *PowerMaxService) GetVolumeFinder() metrictypes.VolumeFinder {
 
 // ExportCapacityMetrics collect capacity for array, storageclass, srp, storagegroup and volume, and export to Otel
 func (s *PowerMaxService) ExportCapacityMetrics(ctx context.Context) {
-	metric.CreateCapacityMetricsInstance(s).ExportMetrics(ctx)
+	start := time.Now()
+	err := metric.CreateCapacityMetricsInstance(s).ExportMetrics(ctx)
+	s.recordObsMetrics(time.Since(start), err)
 }
 
 // ExportPerformanceMetrics collect performance and export to Otel
 func (s *PowerMaxService) ExportPerformanceMetrics(ctx context.Context) {
-	metric.CreatePerformanceMetricsInstance(s).ExportMetrics(ctx)
+	start := time.Now()
+	err := metric.CreatePerformanceMetricsInstance(s).ExportMetrics(ctx)
+	s.recordObsMetrics(time.Since(start), err)
 }
 
 // ExportTopologyMetrics collect topology metrics and export to Otel
 func (s *PowerMaxService) ExportTopologyMetrics(ctx context.Context) {
-	metric.CreateTopologyMetricsInstance(s).ExportMetrics(ctx)
+	start := time.Now()
+	err := metric.CreateTopologyMetricsInstance(s).ExportMetrics(ctx)
+	s.recordObsMetrics(time.Since(start), err)
+}
+
+// recordObsMetrics records observability self-metrics for each known PowerMax array.
+func (s *PowerMaxService) recordObsMetrics(elapsed time.Duration, exportErr error) {
+	if s.ObsInstrumenter == nil {
+		return
+	}
+	clients := s.GetPowerMaxClients()
+	for arrayID, arrays := range clients {
+		isActive := false
+		for _, a := range arrays {
+			if a.IsActive {
+				isActive = true
+				break
+			}
+		}
+		s.ObsInstrumenter.SetArrayConnectivity(arrayID, isActive)
+		s.ObsInstrumenter.RecordCollectionRate(arrayID, float64(len(arrays)))
+		s.ObsInstrumenter.RecordProcessingLatency(arrayID, elapsed.Seconds())
+		status := "success"
+		if !isActive {
+			status = "error"
+		} else if exportErr != nil {
+			status = "failure"
+		}
+		s.ObsInstrumenter.RecordExportSuccess(arrayID, status)
+	}
 }

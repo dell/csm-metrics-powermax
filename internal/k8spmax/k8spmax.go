@@ -28,8 +28,8 @@ import (
 	"github.com/dell/csi-powermax/csireverseproxy/v2/pkg/config"
 	"github.com/dell/csi-powermax/csireverseproxy/v2/pkg/k8sutils"
 	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes"
+	"github.com/dell/csmlog"
 	pmax "github.com/dell/gopowermax/v2"
-	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -152,7 +152,7 @@ func getManagementServer(url string, managementServers []config.ManagementServer
 }
 
 // InitK8sUtils initialize k8sutils instance with a callback method on secret change.
-func InitK8sUtils(logger *logrus.Logger, callback func(k8sutils.UtilsInterface, *corev1.Secret), inCluster bool) (*k8sutils.K8sUtils, error) {
+func InitK8sUtils(callback func(k8sutils.UtilsInterface, *corev1.Secret), inCluster bool) (*k8sutils.K8sUtils, error) {
 	if k8sUtils != nil {
 		return k8sUtils, nil
 	}
@@ -165,7 +165,7 @@ func InitK8sUtils(logger *logrus.Logger, callback func(k8sutils.UtilsInterface, 
 	var err error
 	k8sUtils, err = k8sutils.Init(powerMaxNamespace, defaultUnisphereCertDir, inCluster, time.Second*30, &k8sutils.KubernetesClient{})
 	if err != nil {
-		logger.WithError(err).Errorf("cannot initialize k8sUtils")
+		csmlog.WithFields(csmlog.Fields{"error": err}).Errorf("cannot initialize k8sUtils")
 		return nil, err
 	}
 
@@ -175,10 +175,10 @@ func InitK8sUtils(logger *logrus.Logger, callback func(k8sutils.UtilsInterface, 
 
 // GetPowerMaxArrays parses reverseproxy config file, initializes valid pmax and composes map of arrays for ease of access.
 // Note that if you want to monitor secret change, InitK8sUtils should be invoked first.
-func GetPowerMaxArrays(ctx context.Context, k8sUtils k8sutils.UtilsInterface, filePath string, logger *logrus.Logger) (map[string][]metrictypes.PowerMaxArray, error) {
+func GetPowerMaxArrays(ctx context.Context, k8sUtils k8sutils.UtilsInterface, filePath string) (map[string][]metrictypes.PowerMaxArray, error) {
 	if k8sUtils == nil {
 		err := errors.New("k8sUtils is nil")
-		logger.WithError(err).Errorf("k8sUtils is not initialized")
+		csmlog.WithFields(csmlog.Fields{"error": err}).Errorf("k8sUtils is not initialized")
 		return nil, err
 	}
 
@@ -187,30 +187,30 @@ func GetPowerMaxArrays(ctx context.Context, k8sUtils k8sutils.UtilsInterface, fi
 		powermaxArrays map[string][]metrictypes.PowerMaxArray
 	)
 	if os.Getenv("X_CSI_REVPROXY_USE_SECRET") == "true" {
-		logger.Infof("Reading the config from Secret")
+		csmlog.Info("Reading the config from Secret")
 		proxyConfigMap, err := config.ReadConfigFromSecret(viper.New())
 		if err != nil {
-			logger.WithError(err).Errorf("fail to read ProxyConfig from %s", filePath)
+			csmlog.WithFields(csmlog.Fields{"error": err}).Errorf("fail to read ProxyConfig from %s", filePath)
 			return nil, err
 		}
 
 		proxyConfig, err = config.NewProxyConfigFromSecret(proxyConfigMap, k8sUtils)
 		if err != nil {
-			logger.WithError(err).Errorf("cannot create new ProxyConfig")
+			csmlog.WithFields(csmlog.Fields{"error": err}).Errorf("cannot create new ProxyConfig")
 			return nil, err
 		}
 		powermaxArrays = getPowerMaxArraysFromSecret(proxyConfig)
 	} else {
-		logger.Infof("Reading the config from ConfigMap: %s", filePath)
+		csmlog.Infof("Reading the config from ConfigMap: %s", filePath)
 		proxyConfigMap, err := config.ReadConfig(filepath.Base(filePath), filepath.Dir(filePath), viper.New())
 		if err != nil {
-			logger.WithError(err).Errorf("fail to read ProxyConfig from %s", filePath)
+			csmlog.WithFields(csmlog.Fields{"error": err}).Errorf("fail to read ProxyConfig from %s", filePath)
 			return nil, err
 		}
 
 		proxyConfig, err = config.NewProxyConfig(proxyConfigMap, k8sUtils)
 		if err != nil {
-			logger.WithError(err).Errorf("cannot create new ProxyConfig")
+			csmlog.WithFields(csmlog.Fields{"error": err}).Errorf("cannot create new ProxyConfig")
 			return nil, err
 		}
 		powermaxArrays = getPowerMaxArrays(proxyConfig)
@@ -219,22 +219,23 @@ func GetPowerMaxArrays(ctx context.Context, k8sUtils k8sutils.UtilsInterface, fi
 	arrayMap := make(map[string][]metrictypes.PowerMaxArray)
 	for arrayID, arrayList := range powermaxArrays {
 		for _, array := range arrayList {
-			logger.Infof("validating PowerMax connection for %s, %s", arrayID, array.Endpoint)
+			csmlog.Infof("validating PowerMax connection for %s, %s", arrayID, array.Endpoint)
 			// currently bypass Unisphere cert. Will use array.Insecure after all obs modules respect array cert
 			// userCerts is not used inside gopowermax, but it is supposed to be true if insecure is false
 			c, err := pmax.NewClientWithArgs(
 				array.Endpoint,
 				ApplicationName,
 				true,
-				false, "")
+				false, "",
+			)
 			if err != nil {
-				logger.WithError(err).Errorf("cannot connect to PowerMax array %s, %s", arrayID, array.Endpoint)
+				csmlog.WithFields(csmlog.Fields{"error": err}).Errorf("cannot connect to PowerMax array %s, %s", arrayID, array.Endpoint)
 				continue
 			}
 
 			err = Authenticate(ctx, c, array)
 			if err != nil {
-				logger.WithError(err).Errorf("authentication failed to PowerMax array %s, %s", arrayID, array.Endpoint)
+				csmlog.WithFields(csmlog.Fields{"error": err}).Errorf("authentication failed to PowerMax array %s, %s", arrayID, array.Endpoint)
 				continue
 			}
 			array.IsActive = true
@@ -242,7 +243,7 @@ func GetPowerMaxArrays(ctx context.Context, k8sUtils k8sutils.UtilsInterface, fi
 			arrayMap[arrayID] = append(arrayMap[arrayID], array)
 		}
 	}
-	logger.Infof("got %d valid PowerMax connections", len(arrayMap))
+	csmlog.Infof("got %d valid PowerMax connections", len(arrayMap))
 
 	return arrayMap, nil
 }

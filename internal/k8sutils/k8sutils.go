@@ -24,7 +24,7 @@ import (
 	"strconv"
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/dell/csmlog"
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/dell/csi-powermax/csireverseproxy/v2/pkg/common"
@@ -136,7 +136,7 @@ func Init(namespace, certDirectory string, inCluster bool, resyncPeriod time.Dur
 	var kubeClient KubernetesClient
 	err := kubeClient.CreateKubeClient(inCluster)
 	if err != nil {
-		log.Errorf("failed to create kube client. error: %s", err.Error())
+		csmlog.Errorf("failed to create kube client. error: %s", err.Error())
 		return nil, err
 	}
 

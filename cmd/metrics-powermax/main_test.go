@@ -18,8 +18,13 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
+	"fmt"
+	"io"
+	"net/http"
 	"os"
+	"os/exec"
 	"testing"
 	"time"
 
@@ -31,9 +36,9 @@ import (
 	otlexporters "github.com/dell/csm-metrics-powermax/opentelemetry/exporters"
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type ServiceAccessorMock struct {
@@ -166,11 +171,11 @@ func TestConfigure(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
 
-			GetPowerMaxArrays = func(_ context.Context, _ k8sutils.UtilsInterface, _ string, _ *logrus.Logger) (map[string][]metrictypes.PowerMaxArray, error) {
+			GetPowerMaxArrays = func(_ context.Context, _ k8sutils.UtilsInterface, _ string) (map[string][]metrictypes.PowerMaxArray, error) {
 				return tc.arrays, nil
 			}
 
-			InitK8sUtils = func(_ *logrus.Logger, _ ServiceAccessorInterface, _ bool) (*k8sutils.K8sUtils, error) {
+			InitK8sUtils = func(_ ServiceAccessorInterface, _ bool) (*k8sutils.K8sUtils, error) {
 				return nil, nil
 			}
 
@@ -267,14 +272,13 @@ func TestUpdatePowerMaxArrays(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			logger = logrus.New()
 			ctx := context.Background()
 
 			powerMaxSvc := &service.PowerMaxService{
 				PowerMaxClients: make(map[string][]metrictypes.PowerMaxArray),
 			}
 
-			GetPowerMaxArrays = func(_ context.Context, _ k8sutils.UtilsInterface, _ string, _ *logrus.Logger) (map[string][]metrictypes.PowerMaxArray, error) {
+			GetPowerMaxArrays = func(_ context.Context, _ k8sutils.UtilsInterface, _ string) (map[string][]metrictypes.PowerMaxArray, error) {
 				return tc.arrays, tc.getPowerMaxArraysError
 			}
 
@@ -344,8 +348,6 @@ func TestUpdateMetricsEnabled(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			logger = logrus.New()
-
 			config := &entrypoint.Config{}
 			viper.Set("POWERMAX_CAPACITY_METRICS_ENABLED", tt.capacityValue)
 			viper.Set("POWERMAX_PERFORMANCE_METRICS_ENABLED", tt.performanceValue)
@@ -385,8 +387,6 @@ func TestUpdateProvisionerNames(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			logger = logrus.New()
-
 			viper.Set("PROVISIONER_NAMES", tt.provisionerNamesValue)
 
 			volumeFinder := &k8s.VolumeFinder{
@@ -438,8 +438,6 @@ func TestUpdateCollectorAddress(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			logger = logrus.New()
-
 			config := &entrypoint.Config{}
 			exporter := &otlexporters.OtlCollectorExporter{}
 
@@ -530,8 +528,6 @@ func TestUpdateTickIntervals(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			logger = logrus.New()
-
 			config := &entrypoint.Config{}
 
 			viper.Set("POWERMAX_CAPACITY_POLL_FREQUENCY", tt.capacityPollFrequency)
@@ -545,6 +541,167 @@ func TestUpdateTickIntervals(t *testing.T) {
 			assert.Equal(t, tt.expectedTopologyTick, config.TopologyMetricsTickInterval)
 		})
 	}
+}
+
+// I-OBS-PMAX-02: startMetricsServer wires ObsInstrumenter onto the service and
+// exposes all four dell_csm_obs_* metrics at /metrics (HTTP 200).
+func TestStartMetricsServer_WiresInstrumenterAndServesMetrics(t *testing.T) {
+	port := pmaxObsFreePort(t)
+	viper.Set(csiObsMetricsPortKey, fmt.Sprintf("%d", port))
+	t.Cleanup(func() { viper.Set(csiObsMetricsPortKey, "") })
+
+	powerMaxSvc := &service.PowerMaxService{}
+
+	startMetricsServer(powerMaxSvc)
+
+	assert.NotNil(t, powerMaxSvc.ObsInstrumenter, "startMetricsServer must set ObsInstrumenter on the service")
+
+	powerMaxSvc.ObsInstrumenter.RecordCollectionRate("000197902573", 1)
+	powerMaxSvc.ObsInstrumenter.RecordExportSuccess("000197902573", "success")
+	powerMaxSvc.ObsInstrumenter.SetArrayConnectivity("000197902573", true)
+	powerMaxSvc.ObsInstrumenter.RecordProcessingLatency("000197902573", 0.001)
+
+	time.Sleep(100 * time.Millisecond)
+
+	resp, err := http.Get(fmt.Sprintf("http://localhost:%d/metrics", port))
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	for _, metric := range []string{
+		"dell_csm_obs_collection_rate",
+		"dell_csm_obs_export_success_total",
+		"dell_csm_obs_array_connectivity",
+		"dell_csm_obs_processing_latency_seconds",
+	} {
+		assert.Contains(t, string(body), metric, "metric %q must appear in /metrics output", metric)
+	}
+}
+
+// I-OBS-PMAX-03: startMetricsServer wires ObsInstrumenter regardless of port source.
+func TestStartMetricsServer_WiresInstrumenterEvenWithDefaultPort(t *testing.T) {
+	port := pmaxObsFreePort(t)
+	viper.Set(csiObsMetricsPortKey, fmt.Sprintf("%d", port))
+	t.Cleanup(func() { viper.Set(csiObsMetricsPortKey, "") })
+
+	powerMaxSvc := &service.PowerMaxService{}
+
+	startMetricsServer(powerMaxSvc)
+
+	assert.NotNil(t, powerMaxSvc.ObsInstrumenter)
+}
+
+// I-OBS-PMAX-04: /metrics returns HTTP 404 for unknown paths.
+func TestStartMetricsServer_UnknownPathReturns404(t *testing.T) {
+	port := pmaxObsFreePort(t)
+	viper.Set(csiObsMetricsPortKey, fmt.Sprintf("%d", port))
+	t.Cleanup(func() { viper.Set(csiObsMetricsPortKey, "") })
+
+	powerMaxSvc := &service.PowerMaxService{}
+
+	startMetricsServer(powerMaxSvc)
+	time.Sleep(100 * time.Millisecond)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
+		fmt.Sprintf("http://localhost:%d/unknown", port), nil)
+	require.NoError(t, err)
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusNotFound, resp.StatusCode)
+}
+
+// I-OBS-PMAX-05: startMetricsServer serves metrics over HTTPS when TLS is enabled with valid certificates.
+func TestStartMetricsServer_TLSServesMetricsWithValidCerts(t *testing.T) {
+	port := pmaxObsFreePort(t)
+	viper.Set(csiObsMetricsPortKey, fmt.Sprintf("%d", port))
+	viper.Set(csiObsMetricsSchemeKey, "https")
+	t.Cleanup(func() {
+		viper.Set(csiObsMetricsPortKey, "")
+		viper.Set(csiObsMetricsSchemeKey, "")
+	})
+
+	certFile := t.TempDir() + "/test-cert.pem"
+	keyFile := t.TempDir() + "/test-key.pem"
+
+	cmd := exec.Command("openssl", "req", "-new", "-x509", "-sha256", "-keyout", keyFile,
+		"-out", certFile, "-days", "1", "-nodes", "-subj", "/CN=localhost")
+	if err := cmd.Run(); err != nil {
+		t.Skipf("Skipping TLS test: openssl not available: %v", err)
+	}
+	t.Cleanup(func() {
+		os.Remove(certFile)
+		os.Remove(keyFile)
+	})
+
+	viper.Set(csiObsMetricsCertKey, certFile)
+	viper.Set(csiObsMetricsKeyKey, keyFile)
+	t.Cleanup(func() {
+		viper.Set(csiObsMetricsCertKey, "")
+		viper.Set(csiObsMetricsKeyKey, "")
+	})
+
+	powerMaxSvc := &service.PowerMaxService{}
+
+	startMetricsServer(powerMaxSvc)
+
+	assert.NotNil(t, powerMaxSvc.ObsInstrumenter, "startMetricsServer must set ObsInstrumenter on the service")
+
+	powerMaxSvc.ObsInstrumenter.RecordCollectionRate("000197902573", 1)
+	powerMaxSvc.ObsInstrumenter.RecordExportSuccess("000197902573", "success")
+	powerMaxSvc.ObsInstrumenter.SetArrayConnectivity("000197902573", true)
+	powerMaxSvc.ObsInstrumenter.RecordProcessingLatency("000197902573", 0.001)
+
+	time.Sleep(100 * time.Millisecond)
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, // #nosec G402 -- test only
+		},
+	}
+
+	resp, err := client.Get(fmt.Sprintf("https://localhost:%d/metrics", port))
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	for _, metric := range []string{
+		"dell_csm_obs_collection_rate",
+		"dell_csm_obs_export_success_total",
+		"dell_csm_obs_array_connectivity",
+		"dell_csm_obs_processing_latency_seconds",
+	} {
+		assert.Contains(t, string(body), metric, "metric %q must appear in /metrics output", metric)
+	}
+}
+
+// I-OBS-PMAX-06: validateTLSFiles returns an error when certificate files are missing.
+func TestStartMetricsServer_TLSFailsWithMissingCerts(t *testing.T) {
+	err := validateTLSFiles("/nonexistent/cert.pem", "/nonexistent/key.pem")
+	assert.Error(t, err, "validateTLSFiles should return error for missing files")
+	assert.Contains(t, err.Error(), "no such file or directory", "error should indicate file does not exist")
+}
+
+// I-OBS-PMAX-07: validateTLSFiles returns error for empty cert/key paths.
+func TestValidateTLSFiles_EmptyPaths(t *testing.T) {
+	err := validateTLSFiles("", "")
+	assert.Error(t, err, "validateTLSFiles should return error for empty paths")
+	assert.Contains(t, err.Error(), "no such file or directory", "error should indicate empty path")
+
+	err = validateTLSFiles("/valid/cert.pem", "")
+	assert.Error(t, err, "validateTLSFiles should return error for empty key path")
+	assert.Contains(t, err.Error(), "no such file or directory", "error should mention key")
+
+	err = validateTLSFiles("", "/valid/key.pem")
+	assert.Error(t, err, "validateTLSFiles should return error for empty cert path")
+	assert.Contains(t, err.Error(), "no such file or directory", "error should mention certificate")
 }
 
 func TestUpdateMaxConnections(t *testing.T) {
@@ -577,8 +734,6 @@ func TestUpdateMaxConnections(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			logger = logrus.New()
-
 			viper.Set("POWERMAX_MAX_CONCURRENT_QUERIES", tt.maxConnections)
 
 			powerMaxSvc := &service.PowerMaxService{}

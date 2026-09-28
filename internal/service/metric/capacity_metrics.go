@@ -25,6 +25,7 @@ import (
 
 	"github.com/dell/csm-metrics-powermax/internal/k8s"
 	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes"
+	"github.com/dell/csmlog"
 	types "github.com/dell/gopowermax/v2/types/v100"
 	"go.opentelemetry.io/otel/attribute"
 )
@@ -57,7 +58,7 @@ func CreateCapacityMetricsInstance(service metrictypes.Service) *CapacityMetrics
 func (m *CapacityMetrics) Collect(ctx context.Context) error {
 	pvs, err := m.VolumeFinder.GetPersistentVolumes(ctx)
 	if err != nil {
-		m.Logger.WithError(err).Error("find no PVs, will do nothing")
+		csmlog.WithFields(csmlog.Fields{"error": err}).Error("find no PVs, will do nothing")
 		return err
 	}
 
@@ -83,7 +84,7 @@ func (m *CapacityMetrics) gatherCapacityMetrics(ctx context.Context, pvs []k8s.V
 	for _, volume := range pvs {
 		volumeProperties := strings.Split(volume.VolumeHandle, "-")
 		if len(volumeProperties) < 2 {
-			m.Logger.WithField("volume_handle", volume.VolumeHandle).Warn("unable to get Volume ID and Array ID from volume handle")
+			csmlog.WithFields(csmlog.Fields{"volume_handle": volume.VolumeHandle}).Warn("unable to get Volume ID and Array ID from volume handle")
 			continue
 		}
 		arrayID := volumeProperties[len(volumeProperties)-2]
@@ -105,7 +106,7 @@ func (m *CapacityMetrics) gatherCapacityMetrics(ctx context.Context, pvs []k8s.V
 
 				pmaxClient, err := m.GetPowerMaxClient(arrayID)
 				if err != nil {
-					m.Logger.WithError(err).WithField("arrayID", arrayID).Warn("no client found for PowerMax")
+					csmlog.WithFields(csmlog.Fields{"error": err, "arrayID": arrayID}).Warn("no client found for PowerMax")
 					return
 				}
 
@@ -150,11 +151,11 @@ func (m *CapacityMetrics) collectArrayCapacityMetrics(ctx context.Context, pmaxC
 
 	bulk, err := pmaxClient.GetVolumesCapacityBulk(ctx, arrayID)
 	if err != nil {
-		m.Logger.WithError(err).WithField("arrayID", arrayID).Warn("bulk capacity collection failed, falling back to per-volume collection")
+		csmlog.WithFields(csmlog.Fields{"error": err, "arrayID": arrayID}).Warn("bulk capacity collection failed, falling back to per-volume collection")
 		return m.collectArrayCapacityMetricsLegacy(ctx, pmaxClient, arrayID, volumes)
 	}
 	if bulk == nil {
-		m.Logger.WithField("arrayID", arrayID).Warn("bulk capacity collection returned nil, falling back to per-volume collection")
+		csmlog.WithFields(csmlog.Fields{"arrayID": arrayID}).Warn("bulk capacity collection returned nil, falling back to per-volume collection")
 		return m.collectArrayCapacityMetricsLegacy(ctx, pmaxClient, arrayID, volumes)
 	}
 
@@ -170,7 +171,7 @@ func (m *CapacityMetrics) collectArrayCapacityMetrics(ctx context.Context, pmaxC
 
 		vol, ok := capByVolumeID[volumeID]
 		if !ok {
-			m.Logger.WithField("arrayID", arrayID).WithField("volumeID", volumeID).Warn("volume not found in bulk capacity response")
+			csmlog.WithFields(csmlog.Fields{"arrayID": arrayID, "volumeID": volumeID}).Warn("volume not found in bulk capacity response")
 			continue
 		}
 
@@ -207,7 +208,7 @@ func (m *CapacityMetrics) collectArrayCapacityMetricsLegacy(ctx context.Context,
 
 		vol, err := pmaxClient.GetVolumeByID(ctx, arrayID, volumeID)
 		if err != nil {
-			m.Logger.WithError(err).WithField("arrayID", arrayID).WithField("volumeID", volumeID).Error("getting capacity metrics for volume")
+			csmlog.WithFields(csmlog.Fields{"error": err, "arrayID": arrayID, "volumeID": volumeID}).Error("getting capacity metrics for volume")
 			continue
 		}
 		metrics = append(metrics, &metrictypes.VolumeCapacityMetricsRecord{
@@ -276,10 +277,10 @@ func (m *CapacityMetrics) pushCapacityMetrics(_ context.Context, volumeCapacityM
 					attribute.String("PlotWithMean", "No"),
 				}
 				err := m.MetricsRecorder.RecordNumericMetrics("powermax_volume_", labels, metric)
-				m.Logger.Debugf("volume capacity metrics %+v", metric)
+				csmlog.Debugf("volume capacity metrics %+v", metric)
 
 				if err != nil {
-					m.Logger.WithError(err).WithField("array_id", metric.ArrayID).WithField("volume_id", metric.VolumeID).Error("recording capacity metrics for volume")
+					csmlog.WithFields(csmlog.Fields{"error": err, "array_id": metric.ArrayID, "volume_id": metric.VolumeID}).Error("recording capacity metrics for volume")
 				} else {
 					ch <- metric.VolumeID
 				}
@@ -300,10 +301,10 @@ func (m *CapacityMetrics) pushCapacityMetrics(_ context.Context, volumeCapacityM
 					attribute.String("PlotWithMean", "No"),
 				}
 				err := m.MetricsRecorder.RecordNumericMetrics("powermax_storage_group_", labels, metric)
-				m.Logger.Debugf("storage group capacity metrics %+v", metric)
+				csmlog.Debugf("storage group capacity metrics %+v", metric)
 
 				if err != nil {
-					m.Logger.WithError(err).WithField("array_id", metric.ArrayID).WithField("storage_group_id", metric.StorageGroupID).Error("recording capacity statistics for storage group")
+					csmlog.WithFields(csmlog.Fields{"error": err, "array_id": metric.ArrayID, "storage_group_id": metric.StorageGroupID}).Error("recording capacity statistics for storage group")
 				} else {
 					ch <- metric.StorageGroupID
 				}
@@ -323,10 +324,10 @@ func (m *CapacityMetrics) pushCapacityMetrics(_ context.Context, volumeCapacityM
 					attribute.String("PlotWithMean", "No"),
 				}
 				err := m.MetricsRecorder.RecordNumericMetrics("powermax_srp_", labels, metric)
-				m.Logger.Debugf("srp capacity metrics %+v", metric)
+				csmlog.Debugf("srp capacity metrics %+v", metric)
 
 				if err != nil {
-					m.Logger.WithError(err).WithField("array_id", metric.ArrayID).WithField("srp_id", metric.SrpID).Error("recording capacity statistics for srp")
+					csmlog.WithFields(csmlog.Fields{"error": err, "array_id": metric.ArrayID, "srp_id": metric.SrpID}).Error("recording capacity statistics for srp")
 				} else {
 					ch <- metric.SrpID
 				}
@@ -345,10 +346,10 @@ func (m *CapacityMetrics) pushCapacityMetrics(_ context.Context, volumeCapacityM
 					attribute.String("PlotWithMean", "No"),
 				}
 				err := m.MetricsRecorder.RecordNumericMetrics("powermax_array_", labels, metric)
-				m.Logger.Debugf("array capacity metrics %+v", metric)
+				csmlog.Debugf("array capacity metrics %+v", metric)
 
 				if err != nil {
-					m.Logger.WithError(err).WithField("array_id", metric.ArrayID).Error("recording capacity statistics for array")
+					csmlog.WithFields(csmlog.Fields{"error": err, "array_id": metric.ArrayID}).Error("recording capacity statistics for array")
 				} else {
 					ch <- metric.ArrayID
 				}
@@ -368,10 +369,10 @@ func (m *CapacityMetrics) pushCapacityMetrics(_ context.Context, volumeCapacityM
 					attribute.String("PlotWithMean", "No"),
 				}
 				err := m.MetricsRecorder.RecordNumericMetrics("powermax_storage_class_", labels, metric)
-				m.Logger.Debugf("storage class capacity metrics metrics %+v", metric)
+				csmlog.Debugf("storage class capacity metrics metrics %+v", metric)
 
 				if err != nil {
-					m.Logger.WithError(err).WithField("array_id", metric.ArrayID).Error("recording capacity statistics for storage class")
+					csmlog.WithFields(csmlog.Fields{"error": err, "array_id": metric.ArrayID}).Error("recording capacity statistics for storage class")
 				} else {
 					ch <- metric.ArrayID
 				}

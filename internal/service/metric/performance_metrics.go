@@ -27,6 +27,7 @@ import (
 
 	"github.com/dell/csm-metrics-powermax/internal/k8s"
 	"github.com/dell/csm-metrics-powermax/internal/service/metrictypes"
+	"github.com/dell/csmlog"
 )
 
 const sgCountCacheTTL = 5 * time.Minute
@@ -140,7 +141,7 @@ func (m *PerformanceMetrics) getTotalSGCount(ctx context.Context, pmaxClient met
 func (m *PerformanceMetrics) Collect(ctx context.Context) error {
 	pvs, err := m.VolumeFinder.GetPersistentVolumes(ctx)
 	if err != nil {
-		m.Logger.WithError(err).Error("find no PVs, will do nothing")
+		csmlog.WithFields(csmlog.Fields{"error": err}).Error("find no PVs, will do nothing")
 		return err
 	}
 
@@ -152,7 +153,7 @@ func (m *PerformanceMetrics) Collect(ctx context.Context) error {
 	for index, volume := range pvs {
 		volumeProperties := strings.Split(volume.VolumeHandle, "-")
 		if len(volumeProperties) < 2 {
-			m.Logger.WithField("volume_handle", volume.VolumeHandle).Warn("unable to get Volume ID and Array ID from volume handle")
+			csmlog.WithFields(csmlog.Fields{"volume_handle": volume.VolumeHandle}).Warn("unable to get Volume ID and Array ID from volume handle")
 			continue
 		}
 		volumeID := volumeProperties[len(volumeProperties)-1]
@@ -211,18 +212,18 @@ func (m *PerformanceMetrics) gatherVolumePerformanceMetrics(ctx context.Context,
 		}
 		pmaxClient, err := m.GetPowerMaxClient(arrayID)
 		if err != nil {
-			m.Logger.WithError(err).WithField("arrayID", arrayID).Warn("no client found for PowerMax")
+			csmlog.WithFields(csmlog.Fields{"error": err, "arrayID": arrayID}).Warn("no client found for PowerMax")
 			continue
 		}
 		timeResult, err := pmaxClient.GetArrayPerfKeys(ctx)
 		if err != nil {
-			m.Logger.WithError(err).WithField("arrayID", arrayID).Warn("cannot query last available time")
+			csmlog.WithFields(csmlog.Fields{"error": err, "arrayID": arrayID}).Warn("cannot query last available time")
 			continue
 		}
 		// Store the last available time for arrays
 		for _, arrayInfo := range timeResult.ArrayInfos {
 			array2LastAvailTime[arrayInfo.SymmetrixID] = arrayInfo.LastAvailableDate
-			m.Logger.Debugf("last available time of the array %s is %d", arrayInfo.SymmetrixID, arrayInfo.LastAvailableDate)
+			csmlog.Debugf("last available time of the array %s is %d", arrayInfo.SymmetrixID, arrayInfo.LastAvailableDate)
 		}
 	}
 
@@ -238,12 +239,12 @@ func (m *PerformanceMetrics) gatherVolumePerformanceMetrics(ctx context.Context,
 					<-sem
 				}()
 				if _, ok := array2LastAvailTime[arrayID]; !ok {
-					m.Logger.WithField("arrayID", arrayID).Warn("last available time for array is not found")
+					csmlog.WithFields(csmlog.Fields{"arrayID": arrayID}).Warn("last available time for array is not found")
 					return
 				}
 				pmaxClient, err := m.GetPowerMaxClient(arrayID)
 				if err != nil {
-					m.Logger.WithError(err).WithField("arrayID", arrayID).Warn("no client found for PowerMax")
+					csmlog.WithFields(csmlog.Fields{"error": err, "arrayID": arrayID}).Warn("no client found for PowerMax")
 					return
 				}
 				querySgParams := ""
@@ -256,14 +257,14 @@ func (m *PerformanceMetrics) gatherVolumePerformanceMetrics(ctx context.Context,
 				},
 					array2LastAvailTime[arrayID], array2LastAvailTime[arrayID])
 				if err != nil {
-					m.Logger.WithError(err).WithField("arrayID", arrayID).Warn("failed to get volume metrics")
+					csmlog.WithFields(csmlog.Fields{"error": err, "arrayID": arrayID}).Warn("failed to get volume metrics")
 					return
 				}
 				for _, volumeResult := range volumesMetrics.ResultList.Result {
 					volume := id2Volume[volumeResult.VolumeID+"="+arrayID]
 					if volume != nil && strings.Contains(volumeResult.StorageGroups, volume.StorageGroup) {
 						if len(volumeResult.VolumeResult) < 1 {
-							m.Logger.WithError(err).WithField("volumeID", volumeResult.VolumeID).Warn("volume result contains nothing")
+							csmlog.WithFields(csmlog.Fields{"error": err, "volumeID": volumeResult.VolumeID}).Warn("volume result contains nothing")
 							continue
 						}
 						metric := &metrictypes.VolumePerfMetricsRecord{
@@ -329,10 +330,10 @@ func (m *PerformanceMetrics) pushVolumePerformanceMetrics(_ context.Context, vol
 				defer wg.Done()
 
 				err := m.MetricsRecorder.RecordVolPerfMetrics("powermax_volume", metric)
-				m.Logger.Debugf("class volume performance metrics %+v", metric)
+				csmlog.Debugf("class volume performance metrics %+v", metric)
 
 				if err != nil {
-					m.Logger.WithError(err).WithField("volume_id", metric.VolumeID).Error("recording performance statistics for volume")
+					csmlog.WithFields(csmlog.Fields{"error": err, "volume_id": metric.VolumeID}).Error("recording performance statistics for volume")
 				} else {
 					ch <- metric.VolumeID
 				}
@@ -352,7 +353,6 @@ func (m *PerformanceMetrics) gatherStorageGroupPerformanceMetrics(ctx context.Co
 	ch := make(chan *metrictypes.StorageGroupPerfMetricsRecord)
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, m.MaxPowerMaxConnections)
-
 	go func() {
 		exported := false
 		for arrayID, sgs := range array2Sgs {
@@ -366,14 +366,14 @@ func (m *PerformanceMetrics) gatherStorageGroupPerformanceMetrics(ctx context.Co
 				}()
 				pmaxClient, err := m.GetPowerMaxClient(arrayID)
 				if err != nil {
-					m.Logger.WithError(err).WithField("arrayID", arrayID).Warn("no client found for PowerMax")
+					csmlog.WithFields(csmlog.Fields{"error": err, "arrayID": arrayID}).Warn("no client found for PowerMax")
 					return
 				}
 
 				// Get total number of storage groups on the array (cached with TTL)
 				totalSGs, err := m.getTotalSGCount(ctx, pmaxClient, arrayID)
 				if err != nil {
-					m.Logger.WithError(err).WithField("arrayID", arrayID).Warn(
+					csmlog.WithFields(csmlog.Fields{"error": err, "arrayID": arrayID}).Warn(
 						"failed to get total storage group count, using individual API")
 					m.collectSGMetricsLegacy(ctx, pmaxClient, arrayID, sgs, ch)
 					return
@@ -384,7 +384,7 @@ func (m *PerformanceMetrics) gatherStorageGroupPerformanceMetrics(ctx context.Co
 				// Use bulk API when the monitored fraction exceeds bulkThresholdRatio.
 				// Guard against totalSGs == 0 (empty array) to avoid float division producing +Inf.
 				useBulk := totalSGs > 0 && requestedSGs > 0 && float64(requestedSGs)/float64(totalSGs) > bulkThresholdRatio
-				m.Logger.WithFields(map[string]interface{}{
+				csmlog.WithFields(map[string]interface{}{
 					"arrayID":      arrayID,
 					"requestedSGs": requestedSGs,
 					"totalSGs":     totalSGs,
@@ -397,7 +397,7 @@ func (m *PerformanceMetrics) gatherStorageGroupPerformanceMetrics(ctx context.Co
 						return
 					}
 					// Bulk call failed; fall back to the legacy per-SG POST calls.
-					m.Logger.WithField("arrayID", arrayID).Warn(
+					csmlog.WithFields(csmlog.Fields{"arrayID": arrayID}).Warn(
 						"bulk SG performance collection failed, falling back to per-SG collection")
 				}
 				// Use individual API
@@ -463,7 +463,7 @@ func (m *PerformanceMetrics) collectSGMetricsBulk(
 		}
 	}
 	if metricsEmitted == 0 && len(sgs) > 0 {
-		m.Logger.WithField("arrayID", arrayID).Warn(
+		csmlog.WithFields(csmlog.Fields{"arrayID": arrayID}).Warn(
 			"bulk SG metrics returned zero records, falling back to per-SG collection")
 		return false
 	}
@@ -481,7 +481,7 @@ func (m *PerformanceMetrics) collectSGMetricsLegacy(
 ) {
 	timeResult, err := pmaxClient.GetStorageGroupPerfKeys(ctx, arrayID)
 	if err != nil {
-		m.Logger.WithError(err).WithField("arrayID", arrayID).Warn("cannot query last available time for storage groups in the array")
+		csmlog.WithFields(csmlog.Fields{"error": err, "arrayID": arrayID}).Warn("cannot query last available time for storage groups in the array")
 		return
 	}
 	// Build a map of SG -> last available time
@@ -489,18 +489,18 @@ func (m *PerformanceMetrics) collectSGMetricsLegacy(
 	for _, storageGroupInfo := range timeResult.StorageGroupInfos {
 		if _, ok := sgs[storageGroupInfo.StorageGroupID]; ok {
 			storageGroup2LastAvailTime[storageGroupInfo.StorageGroupID] = storageGroupInfo.LastAvailableDate
-			m.Logger.Debugf("last available time of the storage group %s is %d", storageGroupInfo.StorageGroupID, storageGroupInfo.LastAvailableDate)
+			csmlog.Debugf("last available time of the storage group %s is %d", storageGroupInfo.StorageGroupID, storageGroupInfo.LastAvailableDate)
 		}
 	}
 	for storageGroupID := range sgs {
 		lastAvailTime, ok := storageGroup2LastAvailTime[storageGroupID]
 		if !ok {
-			m.Logger.WithField("storageGroupID", storageGroupID).Warn("last available time for storage group is not found")
+			csmlog.WithFields(csmlog.Fields{"storageGroupID": storageGroupID}).Warn("last available time for storage group is not found")
 			continue
 		}
 		sgMetrics, sgErr := pmaxClient.GetStorageGroupMetrics(ctx, arrayID, storageGroupID, sgPerfMetricsQuery, lastAvailTime, lastAvailTime)
 		if sgErr != nil {
-			m.Logger.WithError(sgErr).WithField("storageGroupID ID", storageGroupID).Warn("failed to get storage group metrics")
+			csmlog.WithFields(csmlog.Fields{"error": sgErr, "storageGroupID ID": storageGroupID}).Warn("failed to get storage group metrics")
 			continue
 		}
 		for _, sgResult := range sgMetrics.ResultList.Result {
@@ -539,10 +539,10 @@ func (m *PerformanceMetrics) pushStorageGroupPerformanceMetrics(_ context.Contex
 				defer wg.Done()
 
 				err := m.MetricsRecorder.RecordStorageGroupPerfMetrics("powermax_storage_group", metric)
-				m.Logger.Debugf("storage group performance metrics metrics %+v", metric)
+				csmlog.Debugf("storage group performance metrics metrics %+v", metric)
 
 				if err != nil {
-					m.Logger.WithError(err).WithField("storage_group_id", metric.ArrayID).Error("recording performance statistics for storage group")
+					csmlog.WithFields(csmlog.Fields{"error": err, "storage_group_id": metric.ArrayID}).Error("recording performance statistics for storage group")
 				} else {
 					ch <- metric.StorageGroupID
 				}

@@ -25,10 +25,14 @@ import (
 
 	"github.com/dell/csm-metrics-powermax/internal/k8s"
 	types "github.com/dell/gopowermax/v2/types/v100"
-	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/attribute"
 	v1 "k8s.io/api/storage/v1"
 )
+
+// ObsInstrumenterGetter is an interface to get the observability instrumenter
+type ObsInstrumenterGetter interface {
+	GetObsInstrumenter() interface{}
+}
 
 // PowerMaxClient contains operations for accessing the PowerMax API
 //
@@ -81,7 +85,6 @@ type NumericMetric struct {
 //
 //go:generate mockgen -destination=mocks/service_mocks.go -package=mocks github.com/dell/csm-metrics-powermax/internal/service/metrictypes Service
 type Service interface {
-	GetLogger() *logrus.Logger
 	GetPowerMaxClients() map[string][]PowerMaxArray
 	GetMetricsRecorder() MetricsRecorder
 	GetMaxPowerMaxConnections() int
@@ -89,6 +92,7 @@ type Service interface {
 	ExportCapacityMetrics(ctx context.Context)
 	ExportPerformanceMetrics(ctx context.Context)
 	ExportTopologyMetrics(ctx context.Context)
+	ObsInstrumenterGetter
 }
 
 // MeterCreator interface is used to create and provide Meter instances, which are used to report measurements
@@ -129,6 +133,7 @@ type VolumeCapacityMetricsRecord struct {
 	Total, Used, UsedPercent                                                                                 float64
 }
 
+// TopologyMeta contains metadata about volume topology
 type TopologyMeta struct {
 	Namespace               string
 	PersistentVolumeClaim   string
@@ -145,6 +150,7 @@ type TopologyMeta struct {
 	CreatedTime             string
 }
 
+// TopologyMetricsRecord contains topology metrics data
 type TopologyMetricsRecord struct {
 	TopologyMeta *TopologyMeta
 	PVAvailable  int64
